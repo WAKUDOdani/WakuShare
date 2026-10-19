@@ -7,7 +7,7 @@ WakuShare is an independent derivative of **CapShare** by **Ilyasse Salama**.
 - The original README declares the MIT license. That revision did not contain
   a standalone LICENSE file. WakuShare includes the standard MIT text in LICENSE,
   credits the original author, and retains the upstream Git history.
-- WakuShare maintenance and modifications: Wakudo.
+- WakuShare maintenance and modifications: WAKUDO Dani.
 - WakuShare is independently maintained and is not an official CapShare or
   CapCut release.
 

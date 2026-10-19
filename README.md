@@ -3,10 +3,10 @@
 **Бесплатный перенос и резервное копирование проектов CapCut.**
 
 Независимая версия на основе [CapShare](https://github.com/ilyassesalama/CapShare)
-от **Ilyasse Salama**, MIT. Развитие и поддержка WakuShare — **Wakudo**.
+от **Ilyasse Salama**, MIT. Развитие и поддержка WakuShare — **WAKUDO Dani**.
 
 [Скачать Windows-версию](https://github.com/WAKUDOdani/WakuShare/releases/latest)
-· [Telegram Wakudo](https://t.me/WAKUDOdani)
+· [Telegram WAKUDO Dani](https://t.me/WAKUDOdani)
 · [Сообщить об ошибке](https://github.com/WAKUDOdani/WakuShare/issues)
 
 Если инструмент пригодился — подпишись на [мой Telegram](https://t.me/WAKUDOdani).

@@ -1,5 +1,12 @@
 # Changes
 
+## 1.1.1
+
+- Remove the Settings subtitle and start its scroll area below the fixed header.
+- Update author display to WAKUDO Dani throughout the application and attribution.
+- Keep the installed version number visible while checking updates or reporting an error.
+- Explain GitHub's empty release feed with a short message instead of raw parse errors.
+
 ## 1.1.0 — initial WakuShare release
 
 - Based on CapShare 1.0.2 by Ilyasse Salama (MIT); original history retained.

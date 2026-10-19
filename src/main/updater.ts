@@ -33,9 +33,12 @@ export function setupUpdater(ctx: UpdaterContext): UpdaterController {
     log.warn('[updater]', message)
     send({
       state: 'error',
-      message: /404|NO_PUBLISHED_VERSIONS|NO_LATEST_VERSION/i.test(message)
-        ? 'No published WakuShare update is available yet. Try again later.'
-        : message
+      message:
+        /404|NO_PUBLISHED_VERSIONS|NO_LATEST_VERSION|Unable to find latest version on GitHub/i.test(
+          message
+        )
+          ? 'No published WakuShare update is available yet. Try again later.'
+          : message
     })
   }
   const check = (): Promise<UpdateStatus> => {

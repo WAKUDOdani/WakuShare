@@ -55,7 +55,7 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
 
   return (
     <div className="relative h-full">
-      <div className="flex h-full flex-col gap-7 overflow-y-auto px-4 pt-23 pb-8">
+      <div className="flex h-full flex-col gap-7 overflow-y-auto px-4 pt-2 pb-8">
         <SettingsGroup title="Locations">
           <SettingRow
             label="CapCut project folder"
@@ -157,7 +157,7 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
 
         <SettingsGroup title="About">
           <SettingRow
-            label="WakuShare by Wakudo"
+            label="WakuShare by WAKUDO Dani"
             help="Free tool. Updates and feedback in Telegram."
           >
             <a
@@ -192,7 +192,10 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
               GitHub ↗
             </a>
           </SettingRow>
-          <SettingRow label="Version" help={updateHelp(updates.status, updates.version)}>
+          <SettingRow
+            label={`Version ${updates.version || '…'}`}
+            help={updateHelp(updates.status, updates.version)}
+          >
             {updates.status.state === 'downloaded' ? (
               <Button className="rounded-full" onPress={updates.install}>
                 <RotateCcw className="size-4" /> Restart to update

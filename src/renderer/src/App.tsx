@@ -14,7 +14,7 @@ import { errorMessage, unwrap } from '@/lib/ipc'
 const HEADERS: Record<View, { title: string; subtitle: string }> = {
   projects: { title: 'Projects', subtitle: 'CapCut library' },
   import: { title: 'Import', subtitle: "Bring a .capshare project into this machine's CapCut" },
-  settings: { title: 'Settings', subtitle: 'How WakuShare finds and moves projects' }
+  settings: { title: 'Settings', subtitle: '' }
 }
 function useTheme(theme: AppSettings['theme'] | undefined): void {
   useEffect(() => {
@@ -121,19 +121,24 @@ function App(): JSX.Element {
             header are persistent chrome — kept outside AnimatePresence so they
             don't fade on view switch; only the scrollable body animates. */}
         <main className="relative min-w-0 flex-1">
-          <ProgressiveBlur position="top" className="-left-56 right-0 z-10 h-24" />
+          <ProgressiveBlur
+            position="top"
+            className={`-left-56 right-0 z-10 ${view === 'settings' ? 'h-16' : 'h-24'}`}
+          />
           <header className="app-drag absolute inset-x-0 top-0 z-20 px-4 pt-5 pb-3">
             <h1 className="text-xl font-bold tracking-tight">{HEADERS[view].title}</h1>
-            <p className="text-[12px] font-medium text-foreground/75">
-              {view === 'projects' && projects?.found
-                ? `${projects.drafts.length} CapCut project${projects.drafts.length === 1 ? '' : 's'}`
-                : HEADERS[view].subtitle}
-            </p>
+            {view !== 'settings' && (
+              <p className="text-[12px] font-medium text-foreground/75">
+                {view === 'projects' && projects?.found
+                  ? `${projects.drafts.length} CapCut project${projects.drafts.length === 1 ? '' : 's'}`
+                  : HEADERS[view].subtitle}
+              </p>
+            )}
           </header>
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={view}
-              className="h-full"
+              className={view === 'settings' ? 'h-full pt-16' : 'h-full'}
               initial={{ opacity: 0, y: 8, scale: 0.995, filter: 'blur(10px)' }}
               animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
               exit={{ opacity: 0, y: -6, scale: 0.995, filter: 'blur(8px)' }}

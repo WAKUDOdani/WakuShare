@@ -104,4 +104,17 @@ describe('WakuShare updater', () => {
       message: 'No published WakuShare update is available yet. Try again later.'
     })
   })
+  it('explains the actual GitHub empty-feed parse error without exposing its stack/XML', async () => {
+    mocks.check.mockRejectedValue(
+      new Error(
+        'Cannot parse releases feed: Error: Unable to find latest version on GitHub (https://github.com/WAKUDOdani/WakuShare/releases/latest), XML: <feed>...</feed>'
+      )
+    )
+    setupUpdater({ getMainWindow: () => null, isBusy: () => false })
+    await mocks.handles.get(IPC.updateCheck)!()
+    expect(mocks.handles.get(IPC.updateGetStatus)!()).toEqual({
+      state: 'error',
+      message: 'No published WakuShare update is available yet. Try again later.'
+    })
+  })
 })
