@@ -1,6 +1,10 @@
+import { toast } from '@/lib/notifications'
+import { Notifications } from '@/components/Notifications'
+import { WelcomeDialog } from '@/components/WelcomeDialog'
+import { t, useLanguage, setLanguage } from '@/lib/i18n'
 import { useCallback, useEffect, useState, type JSX } from 'react'
 import { AnimatePresence, MotionConfig, motion } from 'motion/react'
-import { Toast, toast } from '@heroui/react'
+import { I18nProvider } from 'react-aria-components'
 import type { AppSettings, ProjectsResponse } from '@shared/types'
 import { Sidebar, type View } from '@/components/Sidebar'
 import { Wallpaper } from '@/components/glass/Wallpaper'
@@ -8,12 +12,14 @@ import { ProgressiveBlur } from '@/components/glass/ProgressiveBlur'
 import { ImportView } from '@/features/import/ImportView'
 import { ProjectsView } from '@/features/projects/ProjectsView'
 import { SettingsView } from '@/features/settings/SettingsView'
+import { PresetsView } from '@/features/presets/PresetsView'
 import { useUpdates } from '@/hooks/use-updates'
 import { errorMessage, unwrap } from '@/lib/ipc'
 
 const HEADERS: Record<View, { title: string; subtitle: string }> = {
   projects: { title: 'Projects', subtitle: 'CapCut library' },
   import: { title: 'Import', subtitle: "Bring a .capshare project into this machine's CapCut" },
+  presets: { title: 'Presets', subtitle: 'Back up and transfer your composition presets' },
   settings: { title: 'Settings', subtitle: '' }
 }
 function useTheme(theme: AppSettings['theme'] | undefined): void {
@@ -31,7 +37,10 @@ function useTheme(theme: AppSettings['theme'] | undefined): void {
 }
 
 function App(): JSX.Element {
+  const language = useLanguage()
+
   const [view, setView] = useState<View>('projects')
+  const [presetsBusy, setPresetsBusy] = useState(false)
   const [projects, setProjects] = useState<ProjectsResponse | null>(null)
   const [loadingProjects, setLoadingProjects] = useState(true)
   const [settings, setSettings] = useState<AppSettings | null>(null)
@@ -39,6 +48,9 @@ function App(): JSX.Element {
   const updates = useUpdates()
 
   useTheme(settings?.theme)
+  useEffect(() => {
+    if (settings) setLanguage(settings.language)
+  }, [settings])
 
   // Silent refreshes (window focus) swap data in place: no spinner, no toasts —
   // otherwise every alt-tab back would flash the loading state and re-toast warnings.
@@ -47,9 +59,9 @@ function App(): JSX.Element {
     try {
       const response = unwrap(await window.capshare.listProjects())
       setProjects(response)
-      if (!options?.silent) for (const warning of response.warnings) toast.warning(warning)
+      if (!options?.silent) for (const warning of response.warnings) toast.warning(t(warning))
     } catch (error) {
-      if (!options?.silent) toast.danger(errorMessage(error))
+      if (!options?.silent) toast.danger(t(errorMessage(error)))
     } finally {
       if (!options?.silent) setLoadingProjects(false)
     }
@@ -62,7 +74,7 @@ function App(): JSX.Element {
         setSettings(next)
         if ('draftRootOverride' in update) void refreshProjects()
       } catch (error) {
-        toast.danger(errorMessage(error))
+        toast.danger(t(errorMessage(error)))
       }
     },
     [refreshProjects]
@@ -107,71 +119,80 @@ function App(): JSX.Element {
       )
       if (folder) await updateSettings({ draftRootOverride: folder })
     } catch (error) {
-      toast.danger(errorMessage(error))
+      toast.danger(t(errorMessage(error)))
     }
   }, [updateSettings])
 
   return (
-    <MotionConfig reducedMotion="user">
-      <Wallpaper />
-      <div className="flex h-full">
-        <Sidebar view={view} onNavigate={setView} />
-        {/* No overflow clip: the ProgressiveBlur reaches left under the sidebar
+    <I18nProvider locale={language === 'ru' ? 'ru-RU' : 'en-US'}>
+      <MotionConfig reducedMotion="user">
+        <Wallpaper />
+        <div className="flex h-full">
+          <Sidebar
+            view={view}
+            onNavigate={setView}
+            disabled={presetsBusy}
+            version={updates.version}
+          />
+          {/* No overflow clip: the ProgressiveBlur reaches left under the sidebar
             (-left-56) so the band has no seam at the main edge. The blur and
             header are persistent chrome — kept outside AnimatePresence so they
             don't fade on view switch; only the scrollable body animates. */}
-        <main className="relative min-w-0 flex-1">
-          <ProgressiveBlur
-            position="top"
-            className={`-left-56 right-0 z-10 ${view === 'settings' ? 'h-16' : 'h-24'}`}
-          />
-          <header className="app-drag absolute inset-x-0 top-0 z-20 px-4 pt-5 pb-3">
-            <h1 className="text-xl font-bold tracking-tight">{HEADERS[view].title}</h1>
-            {view !== 'settings' && (
-              <p className="text-[12px] font-medium text-foreground/75">
-                {view === 'projects' && projects?.found
-                  ? `${projects.drafts.length} CapCut project${projects.drafts.length === 1 ? '' : 's'}`
-                  : HEADERS[view].subtitle}
-              </p>
-            )}
-          </header>
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={view}
-              className={view === 'settings' ? 'h-full pt-16' : 'h-full'}
-              initial={{ opacity: 0, y: 8, scale: 0.995, filter: 'blur(10px)' }}
-              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, y: -6, scale: 0.995, filter: 'blur(8px)' }}
-              transition={{ type: 'spring', stiffness: 650, damping: 42, mass: 0.8 }}
-            >
-              {view === 'projects' && (
-                <ProjectsView
-                  projects={projects}
-                  loading={loadingProjects}
-                  onRefresh={() => void refreshProjects()}
-                  onPickDraftRoot={() => void pickDraftRoot()}
-                />
+          <main className="relative min-w-0 flex-1">
+            <ProgressiveBlur
+              position="top"
+              className={`-left-56 right-0 z-10 ${view === 'settings' ? 'h-16' : 'h-24'}`}
+            />
+            <header className="app-drag absolute inset-x-0 top-0 z-20 px-4 pt-5 pb-3">
+              <h1 className="text-xl font-bold tracking-tight">{t(HEADERS[view].title)}</h1>
+              {view !== 'settings' && (
+                <p className="text-[12px] font-medium text-foreground/75">
+                  {view === 'projects' && projects?.found
+                    ? t('CapCut projects: {0}', [projects.drafts.length])
+                    : t(HEADERS[view].subtitle)}
+                </p>
               )}
-              {view === 'import' && (
-                <ImportView
-                  externalFile={externalFile}
-                  onExternalFileConsumed={() => setExternalFile(null)}
-                  onImported={() => void refreshProjects()}
-                />
-              )}
-              {view === 'settings' && (
-                <SettingsView
-                  settings={settings}
-                  onChange={(u) => void updateSettings(u)}
-                  updates={updates}
-                />
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </main>
-      </div>
-      <Toast.Provider placement="bottom end" />
-    </MotionConfig>
+            </header>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={view}
+                className={view === 'settings' ? 'h-full pt-16' : 'h-full'}
+                initial={{ opacity: 0, y: 8, scale: 0.995, filter: 'blur(10px)' }}
+                animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, y: -6, scale: 0.995, filter: 'blur(8px)' }}
+                transition={{ type: 'spring', stiffness: 650, damping: 42, mass: 0.8 }}
+              >
+                {view === 'projects' && (
+                  <ProjectsView
+                    projects={projects}
+                    loading={loadingProjects}
+                    onRefresh={() => void refreshProjects()}
+                    onPickDraftRoot={() => void pickDraftRoot()}
+                  />
+                )}
+                {view === 'import' && (
+                  <ImportView
+                    externalFile={externalFile}
+                    onExternalFileConsumed={() => setExternalFile(null)}
+                    onImported={() => void refreshProjects()}
+                  />
+                )}
+                {view === 'settings' && (
+                  <SettingsView
+                    settings={settings}
+                    onChange={(u) => void updateSettings(u)}
+                    updates={updates}
+                  />
+                )}
+                {view === 'presets' && <PresetsView onBusyChange={setPresetsBusy} />}
+              </motion.div>
+            </AnimatePresence>
+          </main>
+        </div>
+        <WelcomeDialog settings={settings} version={updates.version} onSaved={setSettings} />
+        <Notifications />
+      </MotionConfig>
+    </I18nProvider>
   )
 }
 

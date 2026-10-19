@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { createReadStream, createWriteStream } from 'node:fs'
 import { mkdir, stat } from 'node:fs/promises'
 import { dirname, join, normalize, sep } from 'node:path'
-import { PassThrough, Transform, type Readable } from 'node:stream'
+import { PassThrough, Transform, Writable, type Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import yauzl from 'yauzl'
 import yazl from 'yazl'
@@ -193,6 +193,8 @@ export interface ExtractOptions {
   onBytes?: (chunkLength: number) => void
   signal?: AbortSignal
   expected?: (entryName: string) => { size: number; sha256?: string } | undefined
+  /** Verify a selected entry without writing its bytes (e.g. a skipped duplicate). */
+  verifyOnly?: (entryName: string) => boolean
 }
 
 /** Streams matching entries of the archive into destDir (zip-slip safe). */
@@ -236,14 +238,30 @@ export async function extractZip(
           let size = 0
           const counter = new Transform({
             transform(chunk: Buffer, _enc, cb) {
+              if (options.signal?.aborted) {
+                cb(new CapShareError('CANCELLED', 'Operation cancelled'))
+                return
+              }
               hash.update(chunk)
               size += chunk.length
               onBytes?.(chunk.length)
               cb(null, chunk)
             }
           })
-          mkdir(dirname(target), { recursive: true })
-            .then(() => pipeline(stream, counter, createWriteStream(target)))
+          const consume = options.verifyOnly?.(entry.fileName)
+            ? pipeline(
+                stream,
+                counter,
+                new Writable({
+                  write(_chunk, _encoding, callback) {
+                    callback()
+                  }
+                })
+              )
+            : mkdir(dirname(target), { recursive: true }).then(() =>
+                pipeline(stream, counter, createWriteStream(target))
+              )
+          consume
             .then(() => {
               if (
                 expected &&

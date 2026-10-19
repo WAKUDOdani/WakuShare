@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto'
 const require = createRequire(import.meta.url)
 const asar = require('@electron/asar')
 const yaml = require('js-yaml')
+const { NtExecutable, NtExecutableResource, Resource, Data } = require('resedit')
 const folder = resolve(process.argv[2] || 'dist')
 const unpacked = join(folder, 'win-unpacked')
 const archive = join(unpacked, 'resources/app.asar')
@@ -13,6 +14,18 @@ const pkg = JSON.parse(asar.extractFile(archive, 'package.json'))
 const code = asar.extractFile(archive, join('out', 'main', 'index.js')).toString()
 const files = asar.listPackage(archive).map((name) => name.replaceAll('\\', '/'))
 const feed = yaml.load(readFileSync(join(unpacked, 'resources/app-update.yml'), 'utf8'))
+const exeResources = NtExecutableResource.from(
+  NtExecutable.from(readFileSync(join(unpacked, 'WakuShare.exe')), { ignoreCert: true })
+)
+const expectedIcons = Data.IconFile.from(readFileSync('build/icon.ico')).icons.map((item) =>
+  createHash('sha256').update(Buffer.from(item.data.bin)).digest('hex')
+)
+const embeddedIcons = Resource.IconGroupEntry.fromEntries(exeResources.entries)
+const versionInfo = Resource.VersionInfo.fromEntries(exeResources.entries)
+const rendererCode = files
+  .filter((name) => /^\/out\/renderer\/assets\/.*\.js$/.test(name))
+  .map((name) => asar.extractFile(archive, join(...name.slice(1).split('/'))).toString())
+  .join('\n')
 const unresolvedDependencies = []
 for (const name of files.filter(
   (name) => name.includes('/node_modules/') && name.endsWith('/package.json')
@@ -52,6 +65,33 @@ const result = {
   upstreamDisabled: !code.includes('updater-lab') && !code.includes('repo: "CapShare"'),
   modernGraph: code.includes('Timeline graph is inconsistent'),
   organizedSources: code.includes('Исходники'),
+  presets: code.includes('presets:review') && code.includes('wakushare-presets'),
+  russianInterface: code.includes('Пресеты не добавлены'),
+  productionUpdater: code.includes('NsisUpdater') && !code.includes('const installed = false'),
+  brandedInterface: rendererCode.includes('waku-share-gradient'),
+  welcomeDialog:
+    code.includes('welcomeSeenVersion') &&
+    code.includes('welcomeHidden') &&
+    rendererCode.includes('Welcome to WakuShare') &&
+    rendererCode.includes('welcomeHidden'),
+  staticWelcome:
+    rendererCode.includes("Let's stay in touch") && !rendererCode.includes('data-welcome-carousel'),
+  windowsIcon:
+    embeddedIcons.length > 0 &&
+    embeddedIcons.every((group) => {
+      const hashes = group
+        .getIconItemsFromEntries(exeResources.entries)
+        .map((item) =>
+          item.isRaw() ? createHash('sha256').update(Buffer.from(item.bin)).digest('hex') : ''
+        )
+      return expectedIcons.every((hash) => hashes.includes(hash))
+    }),
+  windowsVersion: versionInfo.some((entry) =>
+    entry.getAllLanguagesForStringValues().some((lang) => {
+      const values = entry.getStringValues(lang)
+      return values.ProductName === 'WakuShare' && values.FileVersion === pkg.version
+    })
+  ),
   license:
     readFileSync(join(unpacked, 'resources/LICENSE-WakuShare.txt'), 'utf8') ===
       readFileSync('LICENSE', 'utf8') &&

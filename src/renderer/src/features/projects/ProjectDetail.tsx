@@ -1,7 +1,9 @@
+import { toast } from '@/lib/notifications'
+import { t, useLanguage } from '@/lib/i18n'
 import { useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { CheckCircle2, Clapperboard, FileDown, FolderOpen, TriangleAlert, X } from 'lucide-react'
-import { Button, Label, Modal, ProgressBar, Switch, toast } from '@heroui/react'
+import { Button, Label, Modal, ProgressBar, Switch } from '@heroui/react'
 import type { DraftSummary, ExportResult } from '@shared/types'
 import { MiniTimeline } from '@/components/MiniTimeline'
 import { StatChip } from '@/components/StatChip'
@@ -26,6 +28,8 @@ interface ProjectDetailProps {
 }
 
 export function ProjectDetail({ project, open, onClose }: ProjectDetailProps): JSX.Element {
+  useLanguage()
+
   return (
     // Keying by project resets all export state when another project opens.
     <DetailDialog
@@ -38,6 +42,8 @@ export function ProjectDetail({ project, open, onClose }: ProjectDetailProps): J
 }
 
 function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Element {
+  useLanguage()
+
   const [includeCaches, setIncludeCaches] = useState(true)
   const [phase, setPhase] = useState<ExportPhase>({ state: 'idle' })
 
@@ -59,12 +65,12 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
         })
       )
       setPhase({ state: 'done', result })
-      for (const warning of result.warnings) toast.warning(warning)
-      if (result.warnings.length === 0) toast.success(`Exported "${project.name}"`)
-      else toast.warning(`Exported with warnings: "${project.name}"`, { timeout: 12000 })
+      for (const warning of result.warnings) toast.warning(t(warning))
+      if (result.warnings.length === 0) toast.success(t(`Exported "${project.name}"`))
+      else toast.warning(t(`Exported with warnings: "${project.name}"`), { timeout: 12000 })
     } catch (error) {
       setPhase({ state: 'idle' })
-      toast.danger(errorMessage(error))
+      toast.danger(t(errorMessage(error)))
     }
   }
 
@@ -92,7 +98,7 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
     >
       <Modal.Container placement="center" size="lg" className={kinematicScale.container}>
         <Modal.Dialog
-          aria-label={project?.name ?? 'Project details'}
+          aria-label={project?.name ?? t('Project details')}
           className="app-no-drag w-full max-w-lg gap-0 overflow-hidden rounded-3xl border border-border bg-background p-0 shadow-2xl"
         >
           {project && (
@@ -113,7 +119,7 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                   variant="ghost"
                   isIconOnly
                   onPress={() => !exporting && onClose()}
-                  aria-label="Close"
+                  aria-label={t('Close')}
                   className={cn('absolute top-3 right-3', closeButtonClass)}
                 >
                   <X className="size-4" />
@@ -122,23 +128,25 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
 
               <div className="flex flex-col gap-5 p-5">
                 <div className="flex flex-wrap gap-2">
-                  <StatChip label="Duration" value={formatDuration(project.durationUs)} />
+                  <StatChip label={t('Duration')} value={formatDuration(project.durationUs)} />
                   {project.canvas && (
                     <StatChip
-                      label="Canvas"
+                      label={t('Canvas')}
                       value={`${project.canvas.width}×${project.canvas.height}`}
                     />
                   )}
-                  {project.fps && <StatChip label="FPS" value={String(Math.round(project.fps))} />}
+                  {project.fps && (
+                    <StatChip label={t('FPS')} value={String(Math.round(project.fps))} />
+                  )}
                   <StatChip
-                    label="Media"
+                    label={t('Media')}
                     value={String(
                       project.mediaCounts.video +
                         project.mediaCounts.audio +
                         project.mediaCounts.image
                     )}
                   />
-                  <StatChip label="Size" value={formatBytes(project.sizeBytes)} />
+                  <StatChip label={t('Size')} value={formatBytes(project.sizeBytes)} />
                   {project.capcutVersion && (
                     <StatChip label="CapCut" value={project.capcutVersion} />
                   )}
@@ -177,11 +185,14 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                           <div>
                             <div className="text-[13px] font-semibold">
                               {phase.result.warnings.length > 0
-                                ? 'Exported with warnings'
-                                : 'Export complete'}
+                                ? t('Exported with warnings')
+                                : t('Export complete')}
                             </div>
                             <div className="text-[11.5px] text-muted-foreground">
-                              {formatBytes(phase.result.sizeBytes)} · {phase.result.fileCount} files
+                              {t('{0} · {1} files', [
+                                formatBytes(phase.result.sizeBytes),
+                                phase.result.fileCount
+                              ])}
                             </div>
                           </div>
                         </div>
@@ -190,7 +201,7 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                           className="rounded-full"
                           onPress={() => reveal(phase.result.capsharePath)}
                         >
-                          <FolderOpen className="size-4" /> Reveal file
+                          <FolderOpen className="size-4" /> {t('Reveal file')}{' '}
                         </Button>
                       </div>
                       {phase.result.warnings.length > 0 && (
@@ -198,10 +209,10 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                           role="status"
                           className="text-[12px] text-amber-600 dark:text-amber-400"
                         >
-                          <p>Review these issues before relying on this backup:</p>
+                          <p>{t('Review these issues before relying on this backup:')}</p>
                           <ul className="mt-2 max-h-40 list-disc space-y-1 overflow-y-auto pl-4 break-words">
                             {phase.result.warnings.map((warning, index) => (
-                              <li key={index}>{warning}</li>
+                              <li key={index}>{t(warning)}</li>
                             ))}
                           </ul>
                         </div>
@@ -217,14 +228,14 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                       className="glass-subtle flex flex-col gap-3 rounded-2xl p-4"
                     >
                       <div className="flex items-center justify-between text-[12.5px]">
-                        <span className="font-medium">Exporting…</span>
+                        <span className="font-medium">{t('Exporting…')}</span>
                         <span className="text-muted-foreground tabular-nums">
                           {Math.round(phase.ratio * 100)}%
                         </span>
                       </div>
                       <ProgressBar
                         value={phase.ratio * 100}
-                        aria-label="Export progress"
+                        aria-label={t('Export progress')}
                         className="w-full"
                       >
                         <ProgressBar.Track className="h-1.5">
@@ -237,7 +248,7 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                         className="self-end rounded-full text-muted-foreground"
                         onPress={cancelExport}
                       >
-                        Cancel
+                        {t('Cancel')}
                       </Button>
                     </motion.div>
                   ) : (
@@ -252,16 +263,18 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                       <div className="glass-subtle rounded-2xl px-4">
                         <div className="flex items-center justify-between gap-6 py-3.5">
                           <div className="min-w-0">
-                            <Label className="text-[13px] font-medium">Include AI caches</Label>
+                            <Label className="text-[13px] font-medium">
+                              {t('Include AI caches')}
+                            </Label>
                             <p className="mt-0.5 text-[11.5px] text-muted-foreground">
                               {includeCaches
-                                ? 'Includes saved AI analysis and project caches'
-                                : 'Smaller archive; AI analysis may need to run again'}
+                                ? t('Includes saved AI analysis and project caches')
+                                : t('Smaller archive; AI analysis may need to run again')}
                             </p>
                           </div>
                           <div className="flex shrink-0 items-center">
                             <Switch
-                              aria-label="Include AI caches"
+                              aria-label={t('Include AI caches')}
                               isSelected={includeCaches}
                               onChange={setIncludeCaches}
                             >
@@ -273,7 +286,7 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                         </div>
                       </div>
                       <Button onPress={() => void startExport()} className="mt-2 w-full rounded-xl">
-                        <FileDown className="size-4" /> Export .capshare
+                        <FileDown className="size-4" /> {t('Export .capshare')}{' '}
                       </Button>
                     </motion.div>
                   )}

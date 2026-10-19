@@ -104,6 +104,62 @@ export interface ImportResult {
   warnings: string[]
 }
 
+export interface PresetNode {
+  id: string
+  name: string
+  kind: 'preset' | 'folder'
+  parentId: string | null
+}
+
+export interface PresetLibrary {
+  root: string
+  nodes: PresetNode[]
+  warnings: string[]
+}
+
+export interface PresetTransferRequest {
+  taskId: string
+  selection: string[]
+  /** Source library for export, destination library for import. */
+  root: string
+  /** Output package for export, input package for import. */
+  packagePath: string
+  sourceOverrides?: Record<string, string>
+  importOptions?: PresetImportOptions
+  reviewToken?: string
+}
+
+export interface PresetImportOptions {
+  targetFolderId?: string | null
+  newFolderName?: string
+  folderMode?: 'merge' | 'copies'
+  duplicates?: Record<string, { action: 'copy' | 'skip' | 'replace'; targetId?: string }>
+}
+
+export interface PresetImportReview {
+  token: string
+  destination: string
+  folders: { sourceId: string; name: string; action: 'merge' | 'create'; targetId: string }[]
+  presets: {
+    sourceId: string
+    name: string
+    matches: { id: string; name: string; location: string }[]
+  }[]
+  warnings: string[]
+}
+
+export interface PresetTransferResult {
+  path: string
+  presets: number
+  folders: number
+  warnings: string[]
+  backupPath?: string
+  sourcesPath?: string
+  skipped?: number
+  replaced?: number
+  mergedFolders?: number
+}
+
 export interface UpdateProjectRequest {
   folderPath: string
   draftId: string
@@ -134,11 +190,16 @@ export type UpdateStatus =
   | { state: 'error'; message: string }
 
 export interface AppSettings {
+  language: 'en' | 'ru'
   /** Override for the CapCut draft root; null = auto-detect. */
   draftRootOverride: string | null
   defaultExportDir: string | null
   includeCachesByDefault: boolean
   theme: 'system' | 'light' | 'dark'
+  /** Last acknowledged app version, retained for compatibility; does not gate display. */
+  welcomeSeenVersion: string | null
+  /** Permanent opt-out, preserved across application updates. */
+  welcomeHidden: boolean
 }
 
 /** Envelope for all invoke-style IPC results (errors cross the bridge intact). */

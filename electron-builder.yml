@@ -21,6 +21,7 @@ extraResources:
     to: THIRD_PARTY_NOTICES.md
 asarUnpack:
   - resources/**
+afterPack: build/windows-after-pack.cjs
 fileAssociations:
   - ext: capshare
     name: CapShare Project
@@ -28,6 +29,7 @@ fileAssociations:
     mimeType: application/x-capshare
     role: Editor
 win:
+  signAndEditExecutable: false
   executableName: WakuShare
   icon: build/icon.ico
   target:

@@ -1,8 +1,10 @@
+import { toast } from '@/lib/notifications'
+import { t, useLanguage } from '@/lib/i18n'
 import { useRef, useState, type JSX, type Key } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence } from 'motion/react'
 import { AlertTriangle, FileDown, FolderSearch, Pencil, Trash2 } from 'lucide-react'
-import { AlertDialog, Button, Dropdown, Label, Skeleton, toast } from '@heroui/react'
+import { AlertDialog, Button, Dropdown, Label, Skeleton } from '@heroui/react'
 import type { DraftSummary, ProjectsResponse } from '@shared/types'
 import { closeButtonClass, cn } from '@/lib/utils'
 import { kinematicScale } from '@/lib/dialog-anim'
@@ -24,6 +26,8 @@ export function ProjectsView({
   onRefresh,
   onPickDraftRoot
 }: ProjectsViewProps): JSX.Element {
+  useLanguage()
+
   const [selected, setSelected] = useState<DraftSummary | null>(null)
   // `selected` survives close so the dialog can animate out with its content.
   const [detailOpen, setDetailOpen] = useState(false)
@@ -39,7 +43,7 @@ export function ProjectsView({
 
   const [editTarget, setEditTarget] = useState<DraftSummary | null>(null)
   const [editOpen, setEditOpen] = useState(false)
-  const trashName = window.capshare.env.platform === 'win32' ? 'Recycle Bin' : 'Trash'
+  const trashName = t(window.capshare.env.platform === 'win32' ? 'Recycle Bin' : 'Trash')
 
   const openDetail = (project: DraftSummary): void => {
     setSelected(project)
@@ -69,7 +73,7 @@ export function ProjectsView({
 
   const onEditSaved = (updated: EditProjectSaved): void => {
     setEditOpen(false)
-    toast.success(`Updated “${updated.name}”`)
+    toast.success(t(`Updated “${updated.name}”`))
     if (editTarget && selected?.folderPath === editTarget.folderPath) {
       // The detail dialog renders the `selected` snapshot, which onRefresh
       // does not touch — patch it so an open/animating detail stays fresh.
@@ -93,12 +97,12 @@ export function ProjectsView({
           draftId: deleteTarget.draftId
         })
       )
-      toast.success(`Moved “${deleteTarget.name}” to ${trashName}`)
+      toast.success(t(`Moved “${deleteTarget.name}” to ${trashName}`))
       if (selected?.folderPath === deleteTarget.folderPath) setDetailOpen(false)
       setDeleteOpen(false)
       onRefresh()
     } catch (error) {
-      toast.danger(errorMessage(error))
+      toast.danger(t(errorMessage(error)))
     } finally {
       setDeleting(false)
     }
@@ -121,18 +125,22 @@ export function ProjectsView({
           </div>
         ) : !projects?.found ? (
           <EmptyState
-            title="CapCut not found"
-            body="WakuShare couldn't locate a CapCut project folder on this machine. If CapCut is installed with a custom project location, point WakuShare at it."
+            title={t('CapCut not found')}
+            body={t(
+              "WakuShare couldn't locate a CapCut project folder on this machine. If CapCut is installed with a custom project location, point WakuShare at it."
+            )}
             action={
               <Button onPress={onPickDraftRoot} className="rounded-full">
-                <FolderSearch className="size-4" /> Choose project folder…
+                <FolderSearch className="size-4" /> {t('Choose project folder…')}{' '}
               </Button>
             }
           />
         ) : projects.drafts.length === 0 ? (
           <EmptyState
-            title="No projects yet"
-            body="Projects you create in CapCut will appear here, ready to export as .capshare files."
+            title={t('No projects yet')}
+            body={t(
+              'Projects you create in CapCut will appear here, ready to export as .capshare files.'
+            )}
           />
         ) : (
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
@@ -180,25 +188,25 @@ export function ProjectsView({
         }}
       >
         {/* Hidden trigger: MenuTrigger needs one; its position is overridden by triggerRef. */}
-        <Button aria-label="Project actions" excludeFromTabOrder className="sr-only" />
+        <Button aria-label={t('Project actions')} excludeFromTabOrder className="sr-only" />
         <Dropdown.Popover
           triggerRef={anchorRef}
           placement="bottom start"
           offset={4}
           className="min-w-44"
         >
-          <Dropdown.Menu aria-label="Project actions" onAction={onMenuAction}>
-            <Dropdown.Item id="edit" textValue="Edit project">
+          <Dropdown.Menu aria-label={t('Project actions')} onAction={onMenuAction}>
+            <Dropdown.Item id="edit" textValue={t('Edit project')}>
               <Pencil className="size-4 shrink-0 text-muted-foreground" />
-              <Label>Edit project…</Label>
+              <Label>{t('Edit project…')}</Label>
             </Dropdown.Item>
-            <Dropdown.Item id="export" textValue="Export">
+            <Dropdown.Item id="export" textValue={t('Export')}>
               <FileDown className="size-4 shrink-0 text-muted-foreground" />
-              <Label>Export…</Label>
+              <Label>{t('Export…')}</Label>
             </Dropdown.Item>
-            <Dropdown.Item id="delete" textValue="Delete" variant="danger">
+            <Dropdown.Item id="delete" textValue={t('Delete')} variant="danger">
               <Trash2 className="size-4 shrink-0 text-[color:var(--danger)]" />
-              <Label>Delete</Label>
+              <Label>{t('Delete')}</Label>
             </Dropdown.Item>
           </Dropdown.Menu>
         </Dropdown.Popover>
@@ -230,6 +238,7 @@ export function ProjectsView({
         <AlertDialog.Container placement="center" size="sm" className={kinematicScale.container}>
           <AlertDialog.Dialog className="app-no-drag glass-strong rounded-3xl border-none">
             <AlertDialog.CloseTrigger
+              aria-label={t('Close')}
               isDisabled={deleting}
               className={cn('top-3 right-3', closeButtonClass)}
             />
@@ -238,12 +247,14 @@ export function ProjectsView({
                 <AlertTriangle className="size-5" />
               </AlertDialog.Icon>
               <AlertDialog.Heading>
-                Move “{deleteTarget?.name}” to {trashName}?
+                {t('Move “{0}” to {1}?', [deleteTarget?.name, trashName])}
               </AlertDialog.Heading>
             </AlertDialog.Header>
             <AlertDialog.Body>
-              This removes the project from your CapCut library and moves its folder to the{' '}
-              {trashName}, where you can still restore it.
+              {t(
+                'This removes the project from your CapCut library and moves its folder to the {0}, where you can still restore it.',
+                [trashName]
+              )}
             </AlertDialog.Body>
             <AlertDialog.Footer>
               <Button
@@ -252,7 +263,7 @@ export function ProjectsView({
                 isPending={deleting}
                 onPress={() => void confirmDelete()}
               >
-                Move to {trashName}
+                {t('Move to {0}', [trashName])}
               </Button>
             </AlertDialog.Footer>
           </AlertDialog.Dialog>
@@ -271,6 +282,8 @@ function EmptyState({
   body: string
   action?: JSX.Element
 }): JSX.Element {
+  useLanguage()
+
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
       <div className="glass-subtle flex size-16 items-center justify-center rounded-3xl">

@@ -1,7 +1,8 @@
-import { BrowserWindow, shell, nativeTheme } from 'electron'
+import { app, BrowserWindow, shell, nativeTheme } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { isLocalPreview } from '../shared/build'
 
 const isMac = process.platform === 'darwin'
 const isWindows = process.platform === 'win32'
@@ -15,6 +16,7 @@ const isWindows = process.platform === 'win32'
  */
 export function createMainWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
+    title: isLocalPreview() ? `WakuShare Preview ${app.getVersion()}` : 'WakuShare',
     width: 1080,
     height: 750,
     minWidth: 1000,
@@ -43,7 +45,7 @@ export function createMainWindow(): BrowserWindow {
           backgroundMaterial: 'acrylic' as const
         }
       : {}),
-    ...(process.platform === 'linux' ? { icon } : {}),
+    ...(!isMac ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,
@@ -51,6 +53,11 @@ export function createMainWindow(): BrowserWindow {
       nodeIntegration: false
     }
   })
+
+  if (isLocalPreview()) {
+    // Keep the build identity visible in Windows even when index.html sets its title.
+    mainWindow.on('page-title-updated', (event) => event.preventDefault())
+  }
 
   // Tahoe-sized corners with vibrancy intact: Electron's pre-Tahoe SDK caps
   // the native radius at ~10px with no API to change it (electron#47514).

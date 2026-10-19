@@ -1,95 +1,77 @@
-// Original geometric W icon. Uses only Node builtins; never modifies upstream images.
-import { deflateSync } from 'node:zlib'
+// Format conversion of the transparent W/document master, preserving its silhouette.
+import { createRequire } from 'node:module'
 import { mkdirSync, writeFileSync } from 'node:fs'
-const points = [
-  [0.23, 0.31],
-  [0.34, 0.69],
-  [0.5, 0.43],
-  [0.66, 0.69],
-  [0.77, 0.31]
-]
-const crc = (bytes) => {
-  let value = 0xffffffff
-  for (const byte of bytes) {
-    value ^= byte
-    for (let i = 0; i < 8; i++) value = (value >>> 1) ^ (value & 1 ? 0xedb88320 : 0)
-  }
-  return (value ^ 0xffffffff) >>> 0
-}
-const chunk = (name, data) => {
-  const type = Buffer.from(name),
-    header = Buffer.alloc(4),
-    tail = Buffer.alloc(4)
-  header.writeUInt32BE(data.length)
-  tail.writeUInt32BE(crc(Buffer.concat([type, data])))
-  return Buffer.concat([header, type, data, tail])
-}
-function png(size) {
-  const pixels = Buffer.alloc(size * (size * 4 + 1))
-  for (let y = 0; y < size; y++)
-    for (let x = 0; x < size; x++) {
-      const u = (x + 0.5) / size,
-        v = (y + 0.5) / size
-      const qx = Math.max(Math.abs(u - 0.5) - 0.28, 0),
-        qy = Math.max(Math.abs(v - 0.5) - 0.28, 0)
-      const alpha = Math.max(0, Math.min(1, (0.205 - Math.hypot(qx, qy)) * size + 0.5))
-      let distance = 1
-      for (let i = 1; i < points.length; i++) {
-        const [ax, ay] = points[i - 1],
-          [bx, by] = points[i],
-          dx = bx - ax,
-          dy = by - ay
-        const t = Math.max(0, Math.min(1, ((u - ax) * dx + (v - ay) * dy) / (dx * dx + dy * dy)))
-        distance = Math.min(distance, Math.hypot(u - ax - t * dx, v - ay - t * dy))
-      }
-      const mark = Math.max(0, Math.min(1, (0.039 - distance) * size + 0.5))
-      const offset = y * (size * 4 + 1) + 1 + x * 4
-      const bg = [16, 27, 44],
-        fg = [72, 231, 198]
-      for (let c = 0; c < 3; c++) pixels[offset + c] = Math.round(bg[c] * (1 - mark) + fg[c] * mark)
-      pixels[offset + 3] = Math.round(255 * alpha)
+const require = createRequire(import.meta.url)
+const sharp = require(process.env['WAKUSHARE_SHARP_MODULE'] || 'sharp')
+const source = 'build/icon-mark-source.png'
+const { data, info } = await sharp(source).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+let left = info.width,
+  top = info.height,
+  right = -1,
+  bottom = -1
+// Measure export padding without counting imperceptible alpha noise.
+for (let y = 0; y < info.height; y++)
+  for (let x = 0; x < info.width; x++) {
+    if (data[(y * info.width + x) * 4 + 3] > 16) {
+      left = Math.min(left, x)
+      right = Math.max(right, x)
+      top = Math.min(top, y)
+      bottom = Math.max(bottom, y)
     }
-  const header = Buffer.alloc(13)
-  header.writeUInt32BE(size)
-  header.writeUInt32BE(size, 4)
-  header[8] = 8
-  header[9] = 6
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    chunk('IHDR', header),
-    chunk('IDAT', deflateSync(pixels)),
-    chunk('IEND', Buffer.alloc(0))
-  ])
+  }
+if (right < left || bottom < top) throw new Error('The icon master is empty')
+const crop = {
+  left: Math.max(0, left - 2),
+  top: Math.max(0, top - 2),
+  width: right - left + 5,
+  height: bottom - top + 5
 }
-for (const dir of ['build', 'resources', 'src/renderer/src/assets'])
-  mkdirSync(dir, { recursive: true })
-const large = png(1024),
-  medium = png(512)
+const transparent = { r: 0, g: 0, b: 0, alpha: 0 }
+const png = async (size, windows = false) => {
+  const padding = windows ? 0 : Math.max(1, Math.round(size * 0.025))
+  return sharp(source)
+    .extract(crop)
+    .resize(size - 2 * padding, size - 2 * padding, { fit: 'contain', background: transparent })
+    .extend({
+      top: padding,
+      bottom: padding,
+      left: padding,
+      right: padding,
+      background: transparent
+    })
+    .png()
+    .toBuffer()
+}
+for (const folder of ['build', 'resources', 'src/renderer/src/assets'])
+  mkdirSync(folder, { recursive: true })
+const large = await png(1024),
+  medium = await png(512)
 writeFileSync('build/icon-1024.png', large)
-for (const file of ['build/icon.png', 'resources/icon.png', 'src/renderer/src/assets/logo.png'])
+for (const file of ['build/icon.png', 'src/renderer/src/assets/logo.png'])
   writeFileSync(file, medium)
-const sizes = [16, 24, 32, 48, 64, 128, 256],
-  images = sizes.map(png)
-const ico = Buffer.alloc(6 + sizes.length * 16)
-ico.writeUInt16LE(1, 2)
-ico.writeUInt16LE(sizes.length, 4)
-let offset = ico.length
-images.forEach((bytes, i) => {
-  const p = 6 + i * 16
-  ico[p] = sizes[i] % 256
-  ico[p + 1] = sizes[i] % 256
-  ico.writeUInt16LE(1, p + 4)
-  ico.writeUInt16LE(32, p + 6)
-  ico.writeUInt32LE(bytes.length, p + 8)
-  ico.writeUInt32LE(offset, p + 12)
+// Windows shell/window icons fill their canvas; app UI and ICNS keep their own padding.
+writeFileSync('resources/icon.png', await png(512, true))
+const sizes = [16, 20, 24, 28, 32, 36, 40, 48, 60, 64, 72, 96, 128, 256],
+  images = await Promise.all(sizes.map((size) => png(size, true)))
+const directory = Buffer.alloc(6 + sizes.length * 16)
+directory.writeUInt16LE(1, 2)
+directory.writeUInt16LE(sizes.length, 4)
+let offset = directory.length
+images.forEach((bytes, index) => {
+  const entry = 6 + index * 16
+  directory[entry] = sizes[index] % 256
+  directory[entry + 1] = sizes[index] % 256
+  directory.writeUInt16LE(1, entry + 4)
+  directory.writeUInt16LE(32, entry + 6)
+  directory.writeUInt32LE(bytes.length, entry + 8)
+  directory.writeUInt32LE(offset, entry + 12)
   offset += bytes.length
 })
-writeFileSync('build/icon.ico', Buffer.concat([ico, ...images]))
-const icns = Buffer.alloc(8)
-icns.write('icns')
-icns.writeUInt32BE(16 + large.length, 4)
-const imageHeader = Buffer.alloc(8)
-imageHeader.write('ic10')
-imageHeader.writeUInt32BE(8 + large.length, 4)
-writeFileSync('build/icon.icns', Buffer.concat([icns, imageHeader, large]))
-console.log('Generated original WakuShare icons')
+writeFileSync('build/icon.ico', Buffer.concat([directory, ...images]))
+const header = Buffer.alloc(16)
+header.write('icns')
+header.writeUInt32BE(16 + large.length, 4)
+header.write('ic10', 8)
+header.writeUInt32BE(8 + large.length, 12)
+writeFileSync('build/icon.icns', Buffer.concat([header, large]))
+console.log('Generated transparent WakuShare PNG, multi-size ICO and ICNS assets')

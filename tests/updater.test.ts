@@ -57,6 +57,20 @@ afterEach(() => {
 })
 
 describe('WakuShare updater', () => {
+  it('never contacts the feed, opens a release or installs in a local preview', async () => {
+    vi.stubGlobal('__WAKUSHARE_PREVIEW__', true)
+    setupUpdater({ getMainWindow: () => null, isBusy: () => false })
+    await mocks.handles.get(IPC.updateCheck)!()
+    await mocks.handles.get(IPC.updateInstall)!()
+    expect(mocks.feeds).toEqual([])
+    expect(mocks.check).not.toHaveBeenCalled()
+    expect(mocks.openExternal).not.toHaveBeenCalled()
+    expect(mocks.install).not.toHaveBeenCalled()
+    expect(mocks.handles.get(IPC.updateGetStatus)!()).toMatchObject({
+      state: 'manual',
+      message: expect.stringContaining('preview')
+    })
+  })
   it('uses only its public release feed; never installs automatically on quit', async () => {
     setupUpdater({ getMainWindow: () => null, isBusy: () => false })
     expect(mocks.feeds).toEqual([UPDATE_FEED])

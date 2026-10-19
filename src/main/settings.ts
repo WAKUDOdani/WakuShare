@@ -7,17 +7,23 @@ import type { AppSettings } from '../shared/types'
 import { atomicWriteFile } from './core/fsx'
 
 const settingsSchema = z.object({
+  language: z.enum(['en', 'ru']).default('en'),
   draftRootOverride: z.string().nullable().default(null),
   defaultExportDir: z.string().nullable().default(null),
   includeCachesByDefault: z.boolean().default(true),
-  theme: z.enum(['system', 'light', 'dark']).default('system')
+  theme: z.enum(['system', 'light', 'dark']).default('system'),
+  welcomeSeenVersion: z.string().max(80).nullable().default(null),
+  welcomeHidden: z.boolean().default(false)
 })
 
 const DEFAULTS: AppSettings = {
+  language: 'en',
   draftRootOverride: null,
   defaultExportDir: null,
   includeCachesByDefault: true,
-  theme: 'system'
+  theme: 'system',
+  welcomeSeenVersion: null,
+  welcomeHidden: false
 }
 
 function settingsPath(): string {
@@ -25,6 +31,7 @@ function settingsPath(): string {
 }
 
 let cached: AppSettings | null = null
+let pendingWrite: Promise<unknown> = Promise.resolve()
 
 export function getSettings(): AppSettings {
   if (cached) return cached
@@ -41,9 +48,14 @@ export function getSettings(): AppSettings {
   return cached
 }
 
-export async function setSettings(update: Partial<AppSettings>): Promise<AppSettings> {
-  const next = settingsSchema.parse({ ...getSettings(), ...update })
-  cached = next
-  await atomicWriteFile(settingsPath(), JSON.stringify(next, null, 2))
-  return next
+export function setSettings(update: Partial<AppSettings>): Promise<AppSettings> {
+  const operation = pendingWrite.then(async () => {
+    const next = settingsSchema.parse({ ...getSettings(), ...update })
+    await atomicWriteFile(settingsPath(), JSON.stringify(next, null, 2))
+    cached = next
+    return next
+  })
+  // Rapid language/theme changes must not overwrite each other's saved fields.
+  pendingWrite = operation.catch(() => {})
+  return operation
 }

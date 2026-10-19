@@ -1,3 +1,4 @@
+import { translateText } from '../shared/i18n'
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron'
 import { join } from 'node:path'
 import log from 'electron-log/main'
@@ -10,10 +11,13 @@ import type {
   ImportResult,
   IpcResult,
   ProgressEvent,
+  PresetLibrary,
+  PresetTransferResult,
+  PresetImportReview,
   ProjectsResponse,
   UpdateProjectResult
 } from '../shared/types'
-import { isCapCutRunning, launchCapCut } from './capcut-app'
+import { isCapCutRunning, launchCapCut, requireClosedCapCut } from './capcut-app'
 import { deleteDraft } from './core/capcut/delete'
 import { listDraftSummaries } from './core/capcut/draft'
 import { detectCapCutEnvFromProcess } from './core/capcut/locator'
@@ -22,11 +26,19 @@ import { updateDraft } from './core/capcut/update'
 import { exportDraft } from './core/capshare/export'
 import { importCapshare, inspectCapshare } from './core/capshare/import'
 import { CapShareError } from './core/errors'
+import { detectPresetRoot, readLibrary } from './core/presets/library'
+import {
+  exportPresets,
+  importPresets,
+  inspectPresetPackage,
+  reviewPresetImport
+} from './core/presets/package'
 import { getSettings, setSettings } from './settings'
 
 interface IpcContext {
   getMainWindow: () => BrowserWindow | null
   consumePendingOpenFile: () => string | null
+  onLanguageChanged?: () => void
 }
 
 /** Sends an OS open-file request to the renderer. */
@@ -38,10 +50,12 @@ function ok<T>(data: T): IpcResult<T> {
   return { ok: true, data }
 }
 
+const mainT = (text: string): string => translateText(text, getSettings().language)
+
 function fail<T>(error: unknown): IpcResult<T> {
   const shaped = CapShareError.wrap(error)
   log.error(`[ipc] ${shaped.code}: ${shaped.message}`, shaped.detail ?? '')
-  return { ok: false, error: shaped.toShape() }
+  return { ok: false, error: { ...shaped.toShape(), message: mainT(shaped.message) } }
 }
 
 function currentEnv(): CapCutEnv | null {
@@ -89,6 +103,28 @@ function makeProgressForwarder(
 
 const taskIdSchema = z.string().min(1).max(128)
 
+const presetRequestSchema = z.object({
+  taskId: taskIdSchema,
+  selection: z.array(z.string().min(1)).min(1),
+  root: z.string().min(1),
+  packagePath: z.string().min(1),
+  sourceOverrides: z.record(z.string(), z.string().min(1)).optional(),
+  reviewToken: z.string().optional(),
+  importOptions: z
+    .object({
+      targetFolderId: z.string().nullable().optional(),
+      newFolderName: z.string().trim().max(120).optional(),
+      folderMode: z.enum(['merge', 'copies']).optional(),
+      duplicates: z
+        .record(
+          z.string(),
+          z.object({ action: z.enum(['copy', 'skip', 'replace']), targetId: z.string().optional() })
+        )
+        .optional()
+    })
+    .optional()
+})
+
 const exportRequestSchema = z.object({
   taskId: taskIdSchema,
   folderPath: z.string().min(1),
@@ -120,10 +156,13 @@ const updateRequestSchema = z.object({
 const COVER_MAX_EDGE = 1280
 
 const settingsUpdateSchema = z.object({
+  language: z.enum(['en', 'ru']).optional(),
   draftRootOverride: z.string().nullable().optional(),
   defaultExportDir: z.string().nullable().optional(),
   includeCachesByDefault: z.boolean().optional(),
-  theme: z.enum(['system', 'light', 'dark']).optional()
+  theme: z.enum(['system', 'light', 'dark']).optional(),
+  welcomeSeenVersion: z.string().max(80).nullable().optional(),
+  welcomeHidden: z.boolean().optional()
 })
 
 /**
@@ -169,10 +208,10 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     try {
       const win = ctx.getMainWindow()
       const result = await dialog.showOpenDialog(win!, {
-        title: 'Choose thumbnail image',
+        title: mainT('Choose thumbnail image'),
         properties: ['openFile'],
         // nativeImage only decodes PNG/JPEG reliably — don't advertise more.
-        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg'] }]
+        filters: [{ name: mainT('Images'), extensions: ['png', 'jpg', 'jpeg'] }]
       })
       if (result.canceled || result.filePaths.length === 0) return ok(null)
 
@@ -228,12 +267,12 @@ export function registerIpcHandlers(ctx: IpcContext): void {
         const name = typeof defaultName === 'string' && defaultName ? defaultName : 'Project'
         const settings = getSettings()
         const result = await dialog.showSaveDialog(win!, {
-          title: 'Export .capshare',
+          title: mainT('Export .capshare'),
           defaultPath: join(
             settings.defaultExportDir ?? app.getPath('downloads'),
             `${name}.capshare`
           ),
-          filters: [{ name: 'CapShare Project', extensions: ['capshare'] }]
+          filters: [{ name: mainT('CapShare Project'), extensions: ['capshare'] }]
         })
         return ok(result.canceled || !result.filePath ? null : result.filePath)
       } catch (error) {
@@ -272,9 +311,9 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     try {
       const win = ctx.getMainWindow()
       const result = await dialog.showOpenDialog(win!, {
-        title: 'Open .capshare',
+        title: mainT('Open .capshare'),
         properties: ['openFile'],
-        filters: [{ name: 'CapShare Project', extensions: ['capshare'] }]
+        filters: [{ name: mainT('CapShare Project'), extensions: ['capshare'] }]
       })
       return ok(result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0])
     } catch (error) {
@@ -330,6 +369,141 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
+  ipcMain.handle(
+    IPC.listPresets,
+    async (_event, root: unknown): Promise<IpcResult<PresetLibrary>> => {
+      try {
+        const env = requireEnv()
+        const path =
+          root === undefined ? await detectPresetRoot(env) : z.string().min(1).parse(root)
+        return ok((await readLibrary(path)).view)
+      } catch (error) {
+        return fail(error)
+      }
+    }
+  )
+
+  ipcMain.handle(
+    IPC.inspectPresetPackage,
+    async (_event, raw: unknown): Promise<IpcResult<PresetLibrary>> => {
+      try {
+        return ok((await inspectPresetPackage(z.string().min(1).parse(raw))).view)
+      } catch (error) {
+        return fail(error)
+      }
+    }
+  )
+
+  ipcMain.handle(IPC.pickPresetPackage, async (): Promise<IpcResult<string | null>> => {
+    try {
+      const result = await dialog.showOpenDialog(ctx.getMainWindow()!, {
+        title: mainT('Open preset package'),
+        properties: ['openFile'],
+        filters: [{ name: mainT('WakuShare Presets'), extensions: ['wakupresets'] }]
+      })
+      return ok(result.canceled ? null : (result.filePaths[0] ?? null))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle(IPC.pickPresetSource, async (): Promise<IpcResult<string | null>> => {
+    try {
+      const result = await dialog.showOpenDialog(ctx.getMainWindow()!, {
+        title: mainT('Locate the missing source file'),
+        properties: ['openFile']
+      })
+      return ok(result.canceled ? null : (result.filePaths[0] ?? null))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle(IPC.pickPresetDestination, async (): Promise<IpcResult<string | null>> => {
+    try {
+      const result = await dialog.showSaveDialog(ctx.getMainWindow()!, {
+        title: mainT('Export preset package'),
+        defaultPath: join(
+          getSettings().defaultExportDir ?? app.getPath('downloads'),
+          'Presets.wakupresets'
+        ),
+        filters: [{ name: mainT('WakuShare Presets'), extensions: ['wakupresets'] }]
+      })
+      return ok(result.canceled ? null : (result.filePath ?? null))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  for (const operation of ['export', 'import', 'review'] as const) {
+    ipcMain.handle(
+      operation === 'export'
+        ? IPC.exportPresets
+        : operation === 'import'
+          ? IPC.importPresets
+          : IPC.reviewPresets,
+      async (
+        _event,
+        raw: unknown
+      ): Promise<IpcResult<PresetTransferResult | PresetImportReview>> => {
+        let taskId = ''
+        try {
+          const request = presetRequestSchema.parse(raw)
+          if (hasActiveFileTasks())
+            throw new CapShareError('IMPORT_FAILED', 'Finish the current file operation first.')
+          taskId = request.taskId
+          const controller = new AbortController()
+          activeTasks.set(taskId, controller)
+          const env = requireEnv()
+          const options = {
+            signal: controller.signal,
+            onProgress: makeProgressForwarder(ctx, taskId),
+            sourceOverrides: request.sourceOverrides,
+            beforeCommit: requireClosedCapCut,
+            importOptions: request.importOptions,
+            reviewToken: request.reviewToken
+          }
+          if (operation === 'import') await requireClosedCapCut()
+          if (operation === 'import' && !request.reviewToken)
+            throw new CapShareError('IMPORT_FAILED', 'Review the preset import before starting.')
+          if (operation === 'review')
+            return ok(
+              await reviewPresetImport(
+                request.packagePath,
+                request.selection,
+                await detectPresetRoot(env),
+                env,
+                request.importOptions,
+                options
+              )
+            )
+          const result =
+            operation === 'export'
+              ? await exportPresets(
+                  request.root,
+                  request.selection,
+                  request.packagePath,
+                  env,
+                  options
+                )
+              : await importPresets(
+                  request.packagePath,
+                  request.selection,
+                  await detectPresetRoot(env),
+                  env,
+                  join(app.getPath('userData'), 'preset-backups'),
+                  options
+                )
+          return ok(result)
+        } catch (error) {
+          return fail(error)
+        } finally {
+          if (taskId) activeTasks.delete(taskId)
+        }
+      }
+    )
+  }
+
   ipcMain.handle(IPC.getSettings, (): IpcResult<AppSettings> => {
     try {
       return ok(getSettings())
@@ -341,7 +515,10 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   ipcMain.handle(IPC.setSettings, async (_event, raw: unknown): Promise<IpcResult<AppSettings>> => {
     try {
       const update = settingsUpdateSchema.parse(raw)
-      return ok(await setSettings(update))
+      const previousLanguage = getSettings().language
+      const next = await setSettings(update)
+      if (next.language !== previousLanguage) ctx.onLanguageChanged?.()
+      return ok(next)
     } catch (error) {
       return fail(error)
     }
@@ -359,6 +536,11 @@ export function registerIpcHandlers(ctx: IpcContext): void {
 
   ipcMain.handle(IPC.launchCapCut, async (): Promise<IpcResult<boolean>> => {
     try {
+      if (hasActiveFileTasks())
+        throw new CapShareError(
+          'IMPORT_FAILED',
+          'Finish the file operation before launching CapCut.'
+        )
       return ok(await launchCapCut())
     } catch (error) {
       return fail(error)
@@ -367,7 +549,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
 
   ipcMain.handle(IPC.isCapCutRunning, async (): Promise<IpcResult<boolean>> => {
     try {
-      return ok(await isCapCutRunning())
+      return ok(await isCapCutRunning(true))
     } catch (error) {
       return fail(error)
     }
@@ -379,7 +561,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
       try {
         const win = ctx.getMainWindow()
         const result = await dialog.showOpenDialog(win!, {
-          title: typeof title === 'string' ? title : 'Choose folder',
+          title: mainT(typeof title === 'string' ? title : 'Choose folder'),
           properties: ['openDirectory']
         })
         return ok(result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0])

@@ -362,3 +362,54 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Welcome uses the same glass material, with restrained brand-colored reflections. */
+.welcome-dialog {
+  background:
+    radial-gradient(ellipse at 0% 0%, oklch(0.68 0.18 295 / 16%), transparent 58%),
+    radial-gradient(ellipse at 100% 100%, oklch(0.65 0.16 260 / 10%), transparent 55%),
+    var(--glass-bg-strong);
+}
+.welcome-dialog .modal__body {
+  margin: 24px 0 0;
+  padding: 0;
+}
+.welcome-community {
+  background:
+    linear-gradient(120deg, oklch(0.65 0.17 295 / 7%), oklch(0.65 0.15 260 / 5%)),
+    color-mix(in oklab, var(--glass-bg) 60%, transparent);
+}
+.welcome-dialog .modal__footer {
+  margin-top: 24px;
+}
+.welcome-telegram {
+  background: linear-gradient(115deg, #7752df, #963bd0 58%, #655bd5);
+  box-shadow:
+    0 4px 18px oklch(0.45 0.15 295 / 20%),
+    inset 0 1px 0 #ffffff30;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .welcome-dialog,
+  .welcome-community {
+    background: var(--background);
+  }
+}
+
+/* The wordmark remains selectable text and scales cleanly at any DPI. */
+.waku-share-gradient {
+  color: #9636ee;
+  background-image: linear-gradient(125deg, #b832dd 0%, #a52beb 35%, #8423d9 67%, #5942da 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+@media (forced-colors: active) {
+  .waku-share-gradient {
+    background: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
+.dark .waku-share-gradient {
+  background-image: linear-gradient(125deg, #f0a3ff 0%, #bf47f5 35%, #9129ef 67%, #8272ff 100%);
+}

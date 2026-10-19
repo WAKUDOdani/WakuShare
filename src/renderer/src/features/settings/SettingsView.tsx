@@ -1,6 +1,8 @@
+import { toast } from '@/lib/notifications'
+import { t, useLanguage } from '@/lib/i18n'
 import type { JSX, ReactNode } from 'react'
 import { FolderOpen, RefreshCw, RotateCcw } from 'lucide-react'
-import { Button, Label, ListBox, Select, Switch, toast } from '@heroui/react'
+import { Button, Label, ListBox, Select, Switch } from '@heroui/react'
 import type { AppSettings, UpdateStatus } from '@shared/types'
 import { BRAND } from '@shared/branding'
 import type { UpdatesController } from '@/hooks/use-updates'
@@ -40,6 +42,8 @@ function updateHelp(status: UpdateStatus, version: string): string {
 }
 
 export function SettingsView({ settings, onChange, updates }: SettingsViewProps): JSX.Element {
+  useLanguage()
+
   if (!settings) return <div />
 
   const pickFolder = async (
@@ -50,17 +54,17 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
       const folder = unwrap(await window.capshare.pickFolder(title))
       if (folder) onChange({ [key]: folder })
     } catch (error) {
-      toast.danger(errorMessage(error))
+      toast.danger(t(errorMessage(error)))
     }
   }
 
   return (
     <div className="relative h-full">
       <div className="flex h-full flex-col gap-7 overflow-y-auto px-4 pt-2 pb-8">
-        <SettingsGroup title="Locations">
+        <SettingsGroup title={t('Locations')}>
           <SettingRow
-            label="CapCut project folder"
-            help={settings.draftRootOverride ?? 'Detected automatically'}
+            label={t('CapCut project folder')}
+            help={settings.draftRootOverride ?? t('Detected automatically')}
           >
             <div className="flex gap-1.5">
               {settings.draftRootOverride && (
@@ -68,7 +72,7 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
                   variant="ghost"
                   isIconOnly
                   className="rounded-full"
-                  aria-label="Reset to automatic detection"
+                  aria-label={t('Reset to automatic detection')}
                   onPress={() => onChange({ draftRootOverride: null })}
                 >
                   <RotateCcw className="size-4" />
@@ -78,17 +82,17 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
                 variant="secondary"
                 className="rounded-full border border-input"
                 onPress={() =>
-                  void pickFolder('Choose the com.lveditor.draft folder', 'draftRootOverride')
+                  void pickFolder(t('Choose the com.lveditor.draft folder'), 'draftRootOverride')
                 }
               >
-                <FolderOpen className="size-4" /> Choose…
+                <FolderOpen className="size-4" /> {t('Choose…')}{' '}
               </Button>
             </div>
           </SettingRow>
 
           <SettingRow
-            label="Default export location"
-            help={settings.defaultExportDir ?? 'Downloads'}
+            label={t('Default export location')}
+            help={settings.defaultExportDir ?? t('Downloads')}
           >
             <div className="flex gap-1.5">
               {settings.defaultExportDir && (
@@ -96,7 +100,7 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
                   variant="ghost"
                   isIconOnly
                   className="rounded-full"
-                  aria-label="Reset export location"
+                  aria-label={t('Reset export location')}
                   onPress={() => onChange({ defaultExportDir: null })}
                 >
                   <RotateCcw className="size-4" />
@@ -105,21 +109,21 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
               <Button
                 variant="secondary"
                 className="rounded-full border border-input"
-                onPress={() => void pickFolder('Choose export folder', 'defaultExportDir')}
+                onPress={() => void pickFolder(t('Choose export folder'), 'defaultExportDir')}
               >
-                <FolderOpen className="size-4" /> Choose…
+                <FolderOpen className="size-4" /> {t('Choose…')}{' '}
               </Button>
             </div>
           </SettingRow>
         </SettingsGroup>
 
-        <SettingsGroup title="Sharing">
+        <SettingsGroup title={t('Sharing')}>
           <SettingRow
-            label="Include AI caches by default"
-            help="Larger .capshare files; skips re-analysis after import"
+            label={t('Include AI caches by default')}
+            help={t('Larger .capshare files; skips re-analysis after import')}
           >
             <Switch
-              aria-label="Include AI caches by default"
+              aria-label={t('Include AI caches by default')}
               isSelected={settings.includeCachesByDefault}
               onChange={(checked) => onChange({ includeCachesByDefault: checked })}
             >
@@ -130,10 +134,38 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
           </SettingRow>
         </SettingsGroup>
 
-        <SettingsGroup title="Appearance">
-          <SettingRow label="Theme" help="Liquid glass follows your system by default">
+        <SettingsGroup title={t('Appearance')}>
+          <SettingRow
+            label={t('Interface language')}
+            help={t('Changes apply immediately and are saved for next time.')}
+          >
             <Select
-              aria-label="Theme"
+              aria-label={t('Interface language')}
+              className="w-36"
+              value={settings.language}
+              onChange={(language) => onChange({ language: language as AppSettings['language'] })}
+            >
+              <Select.Trigger className="rounded-full">
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  <ListBox.Item id="en" textValue="EN · English">
+                    EN · English
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                  <ListBox.Item id="ru" textValue="RU · Русский">
+                    RU · Русский
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                </ListBox>
+              </Select.Popover>
+            </Select>
+          </SettingRow>
+          <SettingRow label={t('Theme')} help={t('Liquid glass follows your system by default')}>
+            <Select
+              aria-label={t('Theme')}
               className="w-32"
               value={settings.theme}
               onChange={(theme) => onChange({ theme: theme as AppSettings['theme'] })}
@@ -145,8 +177,8 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
               <Select.Popover>
                 <ListBox>
                   {THEME_OPTIONS.map(({ value, label }) => (
-                    <ListBox.Item key={value} id={value} textValue={label}>
-                      {label}
+                    <ListBox.Item key={value} id={value} textValue={t(label)}>
+                      {t(label)}
                       <ListBox.ItemIndicator />
                     </ListBox.Item>
                   ))}
@@ -156,10 +188,10 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
           </SettingRow>
         </SettingsGroup>
 
-        <SettingsGroup title="About">
+        <SettingsGroup title={t('About')}>
           <SettingRow
             label="WakuShare by WAKUDO Dani"
-            help="Free tool. Updates and feedback in Telegram."
+            help={t('Free tool. Updates and feedback in Telegram.')}
           >
             <a
               href={BRAND.telegram}
@@ -171,8 +203,8 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
             </a>
           </SettingRow>
           <SettingRow
-            label="Based on CapShare"
-            help="Original development: Ilyasse Salama · MIT license"
+            label={t('Based on CapShare')}
+            help={t('Original development: Ilyasse Salama · MIT license')}
           >
             <a
               href={BRAND.upstream}
@@ -180,10 +212,10 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
               rel="noreferrer"
               className="text-sm text-sky-500 hover:underline"
             >
-              Original project ↗
+              {t('Original project ↗')}
             </a>
           </SettingRow>
-          <SettingRow label="Source code and releases" help="WAKUDOdani/WakuShare · GitHub">
+          <SettingRow label={t('Source code and releases')} help="WAKUDOdani/WakuShare · GitHub">
             <a
               href={BRAND.repository}
               target="_blank"
@@ -194,12 +226,12 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
             </a>
           </SettingRow>
           <SettingRow
-            label={`Version ${updates.version || '…'}`}
-            help={updateHelp(updates.status, updates.version)}
+            label={t(`Version ${updates.version || '…'}`)}
+            help={t(updateHelp(updates.status, updates.version))}
           >
             {updates.status.state === 'downloaded' ? (
               <Button className="rounded-full" onPress={updates.install}>
-                <RotateCcw className="size-4" /> Restart to update
+                <RotateCcw className="size-4" /> {t('Restart to update')}{' '}
               </Button>
             ) : (
               <Button
@@ -209,7 +241,7 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
                 onPress={updates.check}
               >
                 <RefreshCw className={`size-4 ${updates.busy ? 'animate-spin' : ''}`} />
-                Check for updates
+                {t('Check for updates')}{' '}
               </Button>
             )}
           </SettingRow>
@@ -220,6 +252,8 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
 }
 
 function SettingsGroup({ title, children }: { title: string; children: ReactNode }): JSX.Element {
+  useLanguage()
+
   return (
     <section className="flex flex-col gap-2">
       <h2 className="px-1 text-[15px] font-semibold tracking-tight">{title}</h2>
@@ -237,6 +271,8 @@ function SettingRow({
   help: string
   children: JSX.Element
 }): JSX.Element {
+  useLanguage()
+
   return (
     <div className="flex items-center justify-between gap-6 py-3.5">
       <div className="min-w-0">

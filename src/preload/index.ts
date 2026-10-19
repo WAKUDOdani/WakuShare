@@ -6,6 +6,10 @@ import type {
   ImportPreview,
   ImportResult,
   IpcResult,
+  PresetLibrary,
+  PresetTransferRequest,
+  PresetTransferResult,
+  PresetImportReview,
   ProgressEvent,
   ProjectsResponse,
   UpdateProjectRequest,
@@ -74,6 +78,23 @@ const api = {
 
   cancelTask: (taskId: string): Promise<IpcResult<boolean>> =>
     ipcRenderer.invoke(IPC.cancelTask, taskId),
+
+  listPresets: (root?: string): Promise<IpcResult<PresetLibrary>> =>
+    ipcRenderer.invoke(IPC.listPresets, root),
+  pickPresetPackage: (): Promise<IpcResult<string | null>> =>
+    ipcRenderer.invoke(IPC.pickPresetPackage),
+  pickPresetDestination: (): Promise<IpcResult<string | null>> =>
+    ipcRenderer.invoke(IPC.pickPresetDestination),
+  pickPresetSource: (): Promise<IpcResult<string | null>> =>
+    ipcRenderer.invoke(IPC.pickPresetSource),
+  inspectPresetPackage: (path: string): Promise<IpcResult<PresetLibrary>> =>
+    ipcRenderer.invoke(IPC.inspectPresetPackage, path),
+  exportPresets: (request: PresetTransferRequest): Promise<IpcResult<PresetTransferResult>> =>
+    ipcRenderer.invoke(IPC.exportPresets, request),
+  importPresets: (request: PresetTransferRequest): Promise<IpcResult<PresetTransferResult>> =>
+    ipcRenderer.invoke(IPC.importPresets, request),
+  reviewPresets: (request: PresetTransferRequest): Promise<IpcResult<PresetImportReview>> =>
+    ipcRenderer.invoke(IPC.reviewPresets, request),
 
   getSettings: (): Promise<IpcResult<AppSettings>> => ipcRenderer.invoke(IPC.getSettings),
 

@@ -1,5 +1,17 @@
 # Changes
 
+## 1.2.0
+
+- Transfer CapCut composition presets as `.wakupresets` packages, with folder and individual selection.
+- Collect referenced media and font files in `Исходники`, preserving links and handling equal filenames.
+- Choose an import folder, merge matching folders and review full duplicates before copying, skipping or replacing them.
+- Back up replaced presets and check that CapCut is closed before importing. Launch CapCut from the result screen.
+- Switch the full interface between English and Russian in Settings.
+- Refresh the app icon, gradient wordmark, dropdown styling and dialog layout.
+- Show an optional Telegram invitation on each launch, with a permanent Don't show again checkbox.
+
+Tested with CapCut International Windows 9.6.0.4097. Only composition presets are supported. Font files are collected when explicitly referenced; system fonts are not installed automatically.
+
 ## 1.1.2
 
 - In portable Windows builds, Check for updates opens the latest WakuShare release page.

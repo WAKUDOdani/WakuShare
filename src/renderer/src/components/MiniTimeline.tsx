@@ -1,3 +1,4 @@
+import { t, useLanguage } from '@/lib/i18n'
 import type { JSX } from 'react'
 import { motion } from 'motion/react'
 import { Tooltip } from '@heroui/react'
@@ -32,8 +33,10 @@ interface MiniTimelineProps {
 
 /** Read-only scaled visualization of the project's tracks and segments. */
 export function MiniTimeline({ tracks, durationUs }: MiniTimelineProps): JSX.Element {
+  useLanguage()
+
   if (durationUs <= 0 || tracks.length === 0) {
-    return <div className="text-xs text-muted-foreground">No timeline data</div>
+    return <div className="text-xs text-muted-foreground">{t('No timeline data')}</div>
   }
 
   return (
@@ -41,7 +44,7 @@ export function MiniTimeline({ tracks, durationUs }: MiniTimelineProps): JSX.Ele
       {tracks.map((track, trackIndex) => (
         <div key={trackIndex} className="flex items-center gap-2">
           <div className="w-12 shrink-0 text-right text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-            {TRACK_LABELS[track.type]}
+            {t(TRACK_LABELS[track.type])}
           </div>
           <div className="relative h-5 flex-1 overflow-hidden rounded-lg bg-foreground/6">
             {track.segments.map((segment, segmentIndex) => {
@@ -50,7 +53,7 @@ export function MiniTimeline({ tracks, durationUs }: MiniTimelineProps): JSX.Ele
               return (
                 <Tooltip key={segmentIndex} delay={250}>
                   <Tooltip.Trigger
-                    aria-label={segment.label ?? TRACK_LABELS[track.type]}
+                    aria-label={segment.label ?? t(TRACK_LABELS[track.type])}
                     className="absolute top-0.5 bottom-0.5"
                     style={{
                       left: `calc(${left}% + 0.5px)`,
@@ -78,10 +81,13 @@ export function MiniTimeline({ tracks, durationUs }: MiniTimelineProps): JSX.Ele
                     className="flex max-w-60 flex-col items-start gap-0.5"
                   >
                     <div className="text-xs wrap-break-word">
-                      {segment.label ?? TRACK_LABELS[track.type]}
+                      {segment.label ?? t(TRACK_LABELS[track.type])}
                     </div>
                     <div className="text-[10px] opacity-60">
-                      {formatDuration(segment.startUs)} · {formatDuration(segment.durationUs)} long
+                      {t('{0} · {1} long', [
+                        formatDuration(segment.startUs),
+                        formatDuration(segment.durationUs)
+                      ])}
                     </div>
                   </Tooltip.Content>
                 </Tooltip>

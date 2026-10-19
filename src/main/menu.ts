@@ -1,5 +1,7 @@
 import { app, Menu, type MenuItemConstructorOptions } from 'electron'
 import type { UpdaterController } from './updater'
+import { getSettings } from './settings'
+import { translateText } from '../shared/i18n'
 
 interface MenuContext {
   updater: UpdaterController
@@ -12,6 +14,7 @@ interface MenuContext {
  */
 export function buildAppMenu(ctx: MenuContext): void {
   if (process.platform !== 'darwin') return
+  const t = (text: string): string => translateText(text, getSettings().language)
 
   app.setAboutPanelOptions({
     applicationName: app.name,
@@ -23,21 +26,51 @@ export function buildAppMenu(ctx: MenuContext): void {
     {
       label: app.name,
       submenu: [
-        { role: 'about' },
-        { label: 'Check for Updates…', click: () => void ctx.updater.checkInteractive() },
+        { role: 'about', label: t('About WakuShare') },
+        { label: t('Check for Updates…'), click: () => void ctx.updater.checkInteractive() },
         { type: 'separator' },
-        { role: 'services' },
+        { role: 'services', label: t('Services') },
         { type: 'separator' },
-        { role: 'hide' },
-        { role: 'hideOthers' },
-        { role: 'unhide' },
+        { role: 'hide', label: t('Hide') },
+        { role: 'hideOthers', label: t('Hide Others') },
+        { role: 'unhide', label: t('Show All') },
         { type: 'separator' },
-        { role: 'quit' }
+        { role: 'quit', label: t('Quit') }
       ]
     },
-    { role: 'editMenu' },
-    { role: 'viewMenu' },
-    { role: 'windowMenu' }
+    {
+      label: t('Edit'),
+      submenu: [
+        { role: 'undo', label: t('Undo') },
+        { role: 'redo', label: t('Redo') },
+        { type: 'separator' },
+        { role: 'cut', label: t('Cut') },
+        { role: 'copy', label: t('Copy') },
+        { role: 'paste', label: t('Paste') },
+        { role: 'selectAll', label: t('Select All') }
+      ]
+    },
+    {
+      label: t('View'),
+      submenu: [
+        { role: 'reload', label: t('Reload') },
+        { role: 'forceReload', label: t('Force Reload') },
+        { role: 'toggleDevTools', label: t('Toggle Developer Tools') },
+        { type: 'separator' },
+        { role: 'resetZoom', label: t('Actual Size') },
+        { role: 'zoomIn', label: t('Zoom In') },
+        { role: 'zoomOut', label: t('Zoom Out') },
+        { role: 'togglefullscreen', label: t('Toggle Full Screen') }
+      ]
+    },
+    {
+      label: t('Window'),
+      submenu: [
+        { role: 'minimize', label: t('Minimize') },
+        { role: 'zoom', label: t('Zoom') },
+        { role: 'front', label: t('Bring All to Front') }
+      ]
+    }
   ]
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))

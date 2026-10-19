@@ -1,3 +1,4 @@
+import { t, useLanguage } from '@/lib/i18n'
 import { useState, type JSX } from 'react'
 import { Clapperboard, ImageUp } from 'lucide-react'
 import { Button, Input, Label, Modal, TextField, toast } from '@heroui/react'
@@ -28,6 +29,8 @@ export function EditProjectDialog({
   onOpenChange,
   onSaved
 }: EditProjectDialogProps): JSX.Element {
+  useLanguage()
+
   const [name, setName] = useState('')
   const [pickedCover, setPickedCover] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -50,7 +53,7 @@ export function EditProjectDialog({
       const dataUrl = unwrap(await window.capshare.pickProjectCover())
       if (dataUrl) setPickedCover(dataUrl)
     } catch (error) {
-      toast.danger(errorMessage(error))
+      toast.danger(t(errorMessage(error)))
     }
   }
 
@@ -67,7 +70,7 @@ export function EditProjectDialog({
       const result = unwrap(await window.capshare.updateProject(request))
       onSaved({ folderPath: result.folderPath, name: result.name, coverDataUrl: pickedCover })
     } catch (error) {
-      toast.danger(errorMessage(error))
+      toast.danger(t(errorMessage(error)))
     } finally {
       setSaving(false)
     }
@@ -86,15 +89,16 @@ export function EditProjectDialog({
     >
       <Modal.Container placement="center" size="sm" className={kinematicScale.container}>
         <Modal.Dialog
-          aria-label="Edit project"
+          aria-label={t('Edit project')}
           className="app-no-drag glass-strong w-full max-w-sm rounded-3xl border-none"
         >
           <Modal.CloseTrigger
+            aria-label={t('Close')}
             isDisabled={saving}
             className={cn('top-3 right-3', closeButtonClass)}
           />
           <Modal.Header>
-            <Modal.Heading>Edit project</Modal.Heading>
+            <Modal.Heading>{t('Edit project')}</Modal.Heading>
           </Modal.Header>
           <Modal.Body className="flex flex-col gap-4">
             <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-foreground/4">
@@ -112,17 +116,17 @@ export function EditProjectDialog({
               isDisabled={saving}
               onPress={() => void pickCover()}
             >
-              <ImageUp className="size-4" /> Change thumbnail…
+              <ImageUp className="size-4" /> {t('Change thumbnail…')}{' '}
             </Button>
             <TextField
               value={name}
               onChange={setName}
               isDisabled={saving}
               fullWidth
-              aria-label="Project name"
+              aria-label={t('Project name')}
             >
-              <Label>Name</Label>
-              <Input placeholder="Project name" />
+              <Label>{t('Name')}</Label>
+              <Input placeholder={t('Project name')} />
             </TextField>
           </Modal.Body>
           <Modal.Footer>
@@ -132,7 +136,7 @@ export function EditProjectDialog({
               isDisabled={!dirty || trimmed.length === 0}
               onPress={() => void save()}
             >
-              Save
+              {t('Save')}
             </Button>
           </Modal.Footer>
         </Modal.Dialog>

@@ -1,5 +1,6 @@
+import { toast } from '@/lib/notifications'
+import { t, useLanguage } from '@/lib/i18n'
 import { useEffect, useRef, useState } from 'react'
-import { toast } from '@heroui/react'
 import type { UpdateStatus } from '@shared/types'
 
 export interface UpdatesController {
@@ -22,6 +23,7 @@ export interface UpdatesController {
  * full status from the same controller.
  */
 export function useUpdates(): UpdatesController {
+  useLanguage()
   const [status, setStatus] = useState<UpdateStatus>({ state: 'idle' })
   const [version, setVersion] = useState('')
   const notifiedFor = useRef<string | null>(null)
@@ -35,10 +37,10 @@ export function useUpdates(): UpdatesController {
   useEffect(() => {
     if (status.state !== 'downloaded' || notifiedFor.current === status.version) return
     notifiedFor.current = status.version
-    toast.success(`Update ${status.version} ready`, {
-      description: 'Restart WakuShare to install it.',
+    toast.success(t(`Update ${status.version} ready`), {
+      description: t('Restart WakuShare to install it.'),
       timeout: 0,
-      actionProps: { children: 'Restart', onPress: () => void window.capshare.installUpdate() }
+      actionProps: { children: t('Restart'), onPress: () => void window.capshare.installUpdate() }
     })
   }, [status])
 

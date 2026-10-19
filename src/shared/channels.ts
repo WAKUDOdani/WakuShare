@@ -19,6 +19,15 @@ export const IPC = {
   inspectImport: 'import:inspect',
   runImport: 'import:run',
 
+  listPresets: 'presets:list',
+  pickPresetPackage: 'presets:pick-package',
+  pickPresetDestination: 'presets:pick-destination',
+  pickPresetSource: 'presets:pick-source',
+  inspectPresetPackage: 'presets:inspect',
+  exportPresets: 'presets:export',
+  importPresets: 'presets:import',
+  reviewPresets: 'presets:review',
+
   cancelTask: 'task:cancel',
 
   getSettings: 'settings:get',

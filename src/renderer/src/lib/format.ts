@@ -1,3 +1,4 @@
+import { getLanguage } from './i18n'
 /** µs → "1:23" or "1:02:03". */
 export function formatDuration(durationUs: number): string {
   const totalSeconds = Math.round(durationUs / 1_000_000)
@@ -10,8 +11,8 @@ export function formatDuration(durationUs: number): string {
 }
 
 export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB', 'TB']
+  if (bytes < 1024) return `${bytes} ${getLanguage() === 'ru' ? 'Б' : 'B'}`
+  const units = getLanguage() === 'ru' ? ['КБ', 'МБ', 'ГБ', 'ТБ'] : ['KB', 'MB', 'GB', 'TB']
   let value = bytes
   let unit = -1
   do {
@@ -26,7 +27,7 @@ export function formatDate(timestampMs: number | null): string {
   const date = new Date(timestampMs)
   const now = new Date()
   const sameYear = date.getFullYear() === now.getFullYear()
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(getLanguage() === 'ru' ? 'ru-RU' : 'en-US', {
     month: 'short',
     day: 'numeric',
     ...(sameYear ? {} : { year: 'numeric' }),

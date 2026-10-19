@@ -1,3 +1,5 @@
+import { toast } from '@/lib/notifications'
+import { t, useLanguage } from '@/lib/i18n'
 import { useCallback, useEffect, useState, type DragEvent, type JSX } from 'react'
 import {
   AlertTriangle,
@@ -12,7 +14,7 @@ import {
   X
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { AlertDialog, Button, ProgressBar, toast } from '@heroui/react'
+import { AlertDialog, Button, ProgressBar } from '@heroui/react'
 import type { CollisionResolution, ImportPreview, ImportResult } from '@shared/types'
 import { FaApple, FaWindows } from 'react-icons/fa6'
 import { AnimatedHeight } from '@/components/AnimatedHeight'
@@ -43,6 +45,8 @@ export function ImportView({
   onExternalFileConsumed,
   onImported
 }: ImportViewProps): JSX.Element {
+  useLanguage()
+
   const [phase, setPhase] = useState<ImportPhase>({ state: 'idle' })
   const [dragging, setDragging] = useState(false)
   const [collisionOpen, setCollisionOpen] = useState(false)
@@ -56,7 +60,7 @@ export function ImportView({
       setPhase({ state: 'preview', preview })
     } catch (error) {
       setPhase({ state: 'idle' })
-      toast.danger(errorMessage(error))
+      toast.danger(t(errorMessage(error)))
     }
   }, [])
 
@@ -73,7 +77,7 @@ export function ImportView({
       const file = unwrap(await window.capshare.pickImportFile())
       if (file) await inspect(file)
     } catch (error) {
-      toast.danger(errorMessage(error))
+      toast.danger(t(errorMessage(error)))
     }
   }
 
@@ -84,7 +88,7 @@ export function ImportView({
     if (!file) return
     const path = window.capshare.getPathForFile(file)
     if (!path.toLowerCase().endsWith('.capshare')) {
-      toast.danger('That is not a .capshare file.')
+      toast.danger(t('That is not a .capshare file.'))
       return
     }
     void inspect(path)
@@ -101,11 +105,11 @@ export function ImportView({
         await window.capshare.runImport({ taskId, filePath: preview.filePath, resolution })
       )
       setPhase({ state: 'done', result })
-      for (const warning of result.warnings) toast.warning(warning, { timeout: 8000 })
+      for (const warning of result.warnings) toast.warning(t(warning), { timeout: 8000 })
       onImported()
     } catch (error) {
       setPhase({ state: 'preview', preview })
-      toast.danger(errorMessage(error))
+      toast.danger(t(errorMessage(error)))
     }
   }
 
@@ -120,7 +124,7 @@ export function ImportView({
 
   const launchCapCut = async (): Promise<void> => {
     const launched = unwrap(await window.capshare.launchCapCut())
-    if (!launched) toast.danger('Could not find a CapCut installation to launch.')
+    if (!launched) toast.danger(t('Could not find a CapCut installation to launch.'))
   }
 
   return (
@@ -196,10 +200,10 @@ export function ImportView({
               </motion.div>
               <div className="text-center">
                 <div className="text-[15px] font-semibold">
-                  {dragging ? 'Drop to import' : 'Drop a .capshare file here'}
+                  {dragging ? t('Drop to import') : t('Drop a .capshare file here')}
                 </div>
                 <div className="mt-1 text-[12px] text-muted-foreground">
-                  or click to browse — double-clicking a .capshare file works too
+                  {t('or click to browse — double-clicking a .capshare file works too')}
                 </div>
               </div>
             </motion.button>
@@ -214,7 +218,7 @@ export function ImportView({
               className="flex flex-col items-center justify-center gap-3"
             >
               <Loader2 className="size-7 animate-spin text-primary" />
-              <div className="text-[13px] text-muted-foreground">Reading project…</div>
+              <div className="text-[13px] text-muted-foreground">{t('Reading project…')}</div>
             </motion.div>
           )}
 
@@ -242,9 +246,11 @@ export function ImportView({
                 <CheckCircle2 className="size-9 text-emerald-500" strokeWidth={1.8} />
               </div>
               <div>
-                <div className="text-[16px] font-semibold">“{phase.result.draftName}” imported</div>
+                <div className="text-[16px] font-semibold">
+                  {t('“{0}” imported', [phase.result.draftName])}
+                </div>
                 <p className="mt-1 max-w-sm text-[12.5px] text-muted-foreground">
-                  Restart CapCut if it is open — the project will appear in your drafts list.
+                  {t('Restart CapCut if it is open — the project will appear in your drafts list.')}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -253,10 +259,10 @@ export function ImportView({
                   className="rounded-full"
                   onPress={() => void window.capshare.revealPath(phase.result.folderPath)}
                 >
-                  <FolderOpen className="size-4" /> Reveal folder
+                  <FolderOpen className="size-4" /> {t('Reveal folder')}{' '}
                 </Button>
                 <Button className="rounded-full" onPress={() => void launchCapCut()}>
-                  <Rocket className="size-4" /> Open CapCut
+                  <Rocket className="size-4" /> {t('Open CapCut')}{' '}
                 </Button>
               </div>
               <Button
@@ -265,7 +271,7 @@ export function ImportView({
                 className="rounded-full text-muted-foreground"
                 onPress={() => setPhase({ state: 'idle' })}
               >
-                Import another
+                {t('Import another')}
               </Button>
             </motion.div>
           )}
@@ -284,14 +290,19 @@ export function ImportView({
           <AlertDialog.Dialog className="app-no-drag glass-strong rounded-3xl border-none">
             {({ close }) => (
               <>
-                <AlertDialog.CloseTrigger className={cn('top-3 right-3', closeButtonClass)} />
+                <AlertDialog.CloseTrigger
+                  aria-label={t('Close')}
+                  className={cn('top-3 right-3', closeButtonClass)}
+                />
                 <AlertDialog.Header>
                   <AlertDialog.Icon status="warning" />
-                  <AlertDialog.Heading>This project already exists</AlertDialog.Heading>
+                  <AlertDialog.Heading>{t('This project already exists')}</AlertDialog.Heading>
                 </AlertDialog.Header>
                 <AlertDialog.Body>
                   {phase.state === 'preview' && phase.preview.collision
-                    ? `A project named “${phase.preview.collision.existingName}” is already in your CapCut library. Replacing it keeps a backup of the existing project.`
+                    ? t(
+                        `A project named “${phase.preview.collision.existingName}” is already in your CapCut library. Replacing it keeps a backup of the existing project.`
+                      )
                     : ''}
                 </AlertDialog.Body>
                 <AlertDialog.Footer className="flex-row gap-2">
@@ -303,7 +314,7 @@ export function ImportView({
                       close()
                     }}
                   >
-                    Replace existing
+                    {t('Replace existing')}
                   </Button>
                   <Button
                     className="flex-1 rounded-full"
@@ -312,7 +323,7 @@ export function ImportView({
                       close()
                     }}
                   >
-                    Import as a copy
+                    {t('Import as a copy')}
                   </Button>
                 </AlertDialog.Footer>
               </>
@@ -337,6 +348,8 @@ function PreviewCard({
   onImport: () => void
   onDiscard: () => void
 }): JSX.Element {
+  useLanguage()
+
   const SourceIcon = preview.compat.sourceOs === 'mac' ? FaApple : FaWindows
   return (
     <motion.div
@@ -372,7 +385,7 @@ function PreviewCard({
           isIconOnly
           isDisabled={running}
           onPress={onDiscard}
-          aria-label="Discard import"
+          aria-label={t('Discard import')}
           className={cn('absolute top-3 right-3', closeButtonClass)}
         >
           <X className="size-4" />
@@ -381,15 +394,21 @@ function PreviewCard({
 
       <div className="flex flex-col gap-4 p-5">
         <div className="flex flex-wrap gap-2">
-          <StatChip label="Duration" value={formatDuration(preview.durationUs)} />
+          <StatChip label={t('Duration')} value={formatDuration(preview.durationUs)} />
           {preview.canvas && (
-            <StatChip label="Canvas" value={`${preview.canvas.width}×${preview.canvas.height}`} />
+            <StatChip
+              label={t('Canvas')}
+              value={`${preview.canvas.width}×${preview.canvas.height}`}
+            />
           )}
-          {preview.fps && <StatChip label="FPS" value={String(Math.round(preview.fps))} />}
-          <StatChip label="Media" value={String(preview.mediaCount)} />
-          <StatChip label="Size" value={formatBytes(preview.totalBytes)} />
-          <StatChip label="Exported" value={formatDate(Date.parse(preview.exportedAt) || null)} />
-          {preview.includesCaches && <StatChip label="AI caches" value="Included" />}
+          {preview.fps && <StatChip label={t('FPS')} value={String(Math.round(preview.fps))} />}
+          <StatChip label={t('Media')} value={String(preview.mediaCount)} />
+          <StatChip label={t('Size')} value={formatBytes(preview.totalBytes)} />
+          <StatChip
+            label={t('Export date')}
+            value={formatDate(Date.parse(preview.exportedAt) || null)}
+          />
+          {preview.includesCaches && <StatChip label={t('AI caches')} value={t('Included')} />}
         </div>
 
         {(preview.collision || preview.compat.warnings.length > 0) && (
@@ -398,9 +417,11 @@ function PreviewCard({
               <div className="flex gap-2 text-[11.5px] leading-snug text-amber-700 dark:text-amber-400">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
                 <span>
-                  <span className="font-semibold">Already in your library.</span> A project named “
-                  {preview.collision.existingName}” exists — you&apos;ll choose whether to replace
-                  it or import a copy.
+                  <span className="font-semibold">{t('Already in your library.')}</span>{' '}
+                  {t(
+                    "A project named “{0}” exists — you'll choose whether to replace it or import a copy.",
+                    [preview.collision.existingName]
+                  )}
                 </span>
               </div>
             )}
@@ -410,7 +431,7 @@ function PreviewCard({
                 className="flex gap-2 text-[11.5px] leading-snug text-amber-700 dark:text-amber-400"
               >
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                {warning}
+                {t(warning)}
               </div>
             ))}
           </div>
@@ -430,13 +451,17 @@ function PreviewCard({
                 <div className="flex items-center justify-between text-[12.5px]">
                   <span className="flex items-center gap-2 font-medium">
                     <Sparkles className="size-3.5 text-primary" />
-                    Importing into CapCut…
+                    {t('Importing into CapCut…')}{' '}
                   </span>
                   <span className="text-muted-foreground tabular-nums">
                     {Math.round(ratio * 100)}%
                   </span>
                 </div>
-                <ProgressBar value={ratio * 100} aria-label="Import progress" className="w-full">
+                <ProgressBar
+                  value={ratio * 100}
+                  aria-label={t('Import progress')}
+                  className="w-full"
+                >
                   <ProgressBar.Track className="h-1.5">
                     <ProgressBar.Fill />
                   </ProgressBar.Track>
@@ -451,7 +476,7 @@ function PreviewCard({
                 transition={spring}
               >
                 <Button className="w-full rounded-xl" onPress={onImport}>
-                  <FileDown className="size-4" /> Import project
+                  <FileDown className="size-4" /> {t('Import project')}{' '}
                 </Button>
               </motion.div>
             )}

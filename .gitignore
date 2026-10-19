@@ -18,6 +18,7 @@ out/
 artifacts/
 research/
 *.capshare
+*.wakupresets
 *.partial
 *.dmp
 /native/macos-window-effects/build/

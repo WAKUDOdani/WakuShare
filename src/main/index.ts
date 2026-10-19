@@ -1,14 +1,16 @@
 import { app, BrowserWindow } from 'electron'
-import { join } from 'node:path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import log from 'electron-log/main'
 import { createMainWindow } from './window'
 import { registerIpcHandlers, notifyOpenFile, hasActiveFileTasks } from './ipc'
 import { setupUpdater } from './updater'
 import { buildAppMenu } from './menu'
+import { isLocalPreview } from '../shared/build'
+import { prepareAppProfile } from './profile'
 
-app.setName('WakuShare')
-app.setPath('userData', join(app.getPath('appData'), 'WakuShare'))
+const profile = prepareAppProfile(app.getPath('appData'), isLocalPreview(), app.getVersion())
+app.setName(profile.name)
+app.setPath('userData', profile.directory)
 log.initialize()
 log.transports.file.level = 'info'
 
@@ -58,13 +60,15 @@ if (!gotTheLock) {
   })
 
   app.whenReady().then(() => {
-    electronApp.setAppUserModelId('io.github.wakudodani.wakushare')
+    electronApp.setAppUserModelId(profile.appId)
 
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
     })
 
+    let refreshMenu = (): void => {}
     registerIpcHandlers({
+      onLanguageChanged: () => refreshMenu(),
       getMainWindow: () => mainWindow,
       consumePendingOpenFile: () => {
         const file = pendingOpenFile
@@ -79,7 +83,8 @@ if (!gotTheLock) {
     mainWindow = createMainWindow()
 
     const updater = setupUpdater({ getMainWindow: () => mainWindow, isBusy: hasActiveFileTasks })
-    buildAppMenu({ updater })
+    refreshMenu = () => buildAppMenu({ updater })
+    refreshMenu()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {

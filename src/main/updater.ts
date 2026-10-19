@@ -4,6 +4,7 @@ import electronUpdater from 'electron-updater'
 import { IPC } from '../shared/channels'
 import type { UpdateStatus } from '../shared/types'
 import { BRAND, UPDATE_FEED } from '../shared/branding'
+import { isLocalPreview } from '../shared/build'
 
 interface UpdaterContext {
   getMainWindow: () => BrowserWindow | null
@@ -21,6 +22,7 @@ export function setupUpdater(ctx: UpdaterContext): UpdaterController {
     process.platform === 'win32' &&
     Boolean(process.env['PORTABLE_EXECUTABLE_FILE'] || process.env['PORTABLE_EXECUTABLE_DIR'])
   const installed =
+    !isLocalPreview() &&
     app.isPackaged &&
     process.platform === 'win32' &&
     !process.env['PORTABLE_EXECUTABLE_FILE'] &&
@@ -46,6 +48,10 @@ export function setupUpdater(ctx: UpdaterContext): UpdaterController {
     })
   }
   const check = (): Promise<UpdateStatus> => {
+    if (isLocalPreview()) {
+      send({ state: 'manual', message: 'Local preview. Updates are disabled in this build.' })
+      return Promise.resolve(status)
+    }
     if (portable) {
       return (async () => {
         try {
@@ -114,6 +120,8 @@ export function setupUpdater(ctx: UpdaterContext): UpdaterController {
     updater.quitAndInstall(false, true)
   })
   if (updater) void check()
+  else if (isLocalPreview())
+    send({ state: 'manual', message: 'Local preview. Updates are disabled in this build.' })
   else if (portable)
     send({
       state: 'manual',

@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import type { CapShareErrorShape, IpcResult } from '@shared/types'
 
 /** Unwraps an IpcResult, throwing a typed error for the UI layer to toast. */
@@ -19,8 +20,8 @@ export class IpcError extends Error {
 export function errorMessage(error: unknown): string {
   if (error instanceof IpcError)
     return error.shape.detail
-      ? `${error.shape.message}\n${error.shape.detail}`
-      : error.shape.message
-  if (error instanceof Error) return error.message
+      ? `${t(error.shape.message)}\n${t(error.shape.detail)}`
+      : t(error.shape.message)
+  if (error instanceof Error) return t(error.message)
   return String(error)
 }

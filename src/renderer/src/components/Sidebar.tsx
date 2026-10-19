@@ -1,3 +1,4 @@
+import { t, useLanguage } from '@/lib/i18n'
 import type { JSX } from 'react'
 import { useState } from 'react'
 import { motion } from 'motion/react'
@@ -7,34 +8,48 @@ import { Clapperboard } from '@/components/animate-ui/icons/clapperboard'
 import { CloudDownload } from '@/components/animate-ui/icons/cloud-download'
 import { Settings } from '@/components/animate-ui/icons/settings'
 import logo from '@/assets/logo.png'
+import { isLocalPreview } from '@shared/build'
+import { BrandWordmark } from './BrandWordmark'
 
-export type View = 'projects' | 'import' | 'settings'
+export type View = 'projects' | 'import' | 'presets' | 'settings'
 
 type AnimatedIcon = typeof Clapperboard
 
 const NAV: { view: View; label: string; icon: AnimatedIcon }[] = [
   { view: 'projects', label: 'Projects', icon: Clapperboard },
   { view: 'import', label: 'Import', icon: CloudDownload },
+  { view: 'presets', label: 'Presets', icon: Clapperboard },
   { view: 'settings', label: 'Settings', icon: Settings }
 ]
 
 interface SidebarProps {
   view: View
   onNavigate: (view: View) => void
+  disabled?: boolean
+  version?: string
 }
 
 interface NavItemProps {
   item: (typeof NAV)[number]
   active: boolean
   onSelect: () => void
+  disabled?: boolean
 }
 
 /** Single nav button; animates its icon on hover and while active. */
-function NavItem({ item: { label, icon: Icon }, active, onSelect }: NavItemProps): JSX.Element {
+function NavItem({
+  item: { label, icon: Icon },
+  active,
+  onSelect,
+  disabled
+}: NavItemProps): JSX.Element {
+  useLanguage()
+
   const [hovered, setHovered] = useState(false)
 
   return (
     <motion.button
+      disabled={disabled}
       onClick={onSelect}
       onHoverStart={() => setHovered(true)}
       onHoverEnd={() => setHovered(false)}
@@ -56,13 +71,15 @@ function NavItem({ item: { label, icon: Icon }, active, onSelect }: NavItemProps
         />
       )}
       <Icon className="relative z-10" size={16} animate={hovered || active} />
-      <span className="relative z-10">{label}</span>
+      <span className="relative z-10">{t(label)}</span>
     </motion.button>
   )
 }
 
 /** Floating Tahoe-style glass sidebar (navigation layer). */
-export function Sidebar({ view, onNavigate }: SidebarProps): JSX.Element {
+export function Sidebar({ view, onNavigate, disabled, version }: SidebarProps): JSX.Element {
+  useLanguage()
+
   return (
     <aside className="app-drag relative z-20 flex w-56 shrink-0 p-2">
       <div
@@ -72,9 +89,17 @@ export function Sidebar({ view, onNavigate }: SidebarProps): JSX.Element {
           isMacLike ? 'pt-12' : 'pt-4'
         )}
       >
-        <div className="mb-4 flex items-center gap-2.5 px-2">
-          <img src={logo} alt="" draggable={false} className="size-8" />
-          <div className="text-[15px] font-semibold tracking-tight">WakuShare</div>
+        <div className="mb-3 flex items-center gap-2 px-3 pb-1">
+          <img src={logo} alt="" draggable={false} className="size-6 shrink-0" />
+          <div className="text-left text-[21px] leading-tight font-semibold tracking-tight">
+            <BrandWordmark />
+            {isLocalPreview() && (
+              <span className="block text-[10px] text-muted-foreground">{t('Local preview')}</span>
+            )}
+            {isLocalPreview() && version && (
+              <span className="block text-xs font-semibold text-primary">{`v${version}`}</span>
+            )}
+          </div>
         </div>
 
         <nav className="app-no-drag flex flex-col gap-1">
@@ -84,6 +109,7 @@ export function Sidebar({ view, onNavigate }: SidebarProps): JSX.Element {
               item={item}
               active={view === item.view}
               onSelect={() => onNavigate(item.view)}
+              disabled={disabled}
             />
           ))}
         </nav>
