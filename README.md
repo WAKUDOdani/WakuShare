@@ -3,14 +3,14 @@
 **Бесплатный перенос и резервное копирование проектов CapCut.**
 
 Независимая версия на основе [CapShare](https://github.com/ilyassesalama/CapShare)
-от **Ilyasse Salama**, MIT. Развитие и поддержка WakuShare — **WAKUDO Dani**.
+от **Ilyasse Salama**, MIT. Развитие и поддержка WakuShare - **WAKUDO Dani**.
 
 [Скачать Windows-версию](https://github.com/WAKUDOdani/WakuShare/releases/latest)
 · [Telegram WAKUDO Dani](https://t.me/WAKUDOdani)
 · [Сообщить об ошибке](https://github.com/WAKUDOdani/WakuShare/issues)
 
-Если инструмент пригодился — подпишись на [мой Telegram](https://t.me/WAKUDOdani).
-Там обновления и связь со мной. Приложение бесплатно, подписка добровольная.
+Если инструмент пригодился - подпишись на [мой Telegram](https://t.me/WAKUDOdani).
+В скором времени буду выкладывать туда много интересных фич и постов в принципе.
 
 ## Что делает
 
@@ -27,7 +27,7 @@
 
 ## Совместимость и использование
 
-Первая целевая платформа — **Windows x64**. Проверено на **CapCut International
+Первая целевая платформа - **Windows x64**. Проверено на **CapCut International
 9.6.0.4097**: проект с четырьмя шкалами и вложенными композициями, сохранение в
 редакторе и повторный экспорт/импорт. Другие версии требуют отдельной проверки;
 зашифрованные проекты JianYing не поддерживаются.
