@@ -53,7 +53,9 @@ const result = {
   modernGraph: code.includes('Timeline graph is inconsistent'),
   organizedSources: code.includes('Исходники'),
   license:
-    files.includes('/LICENSE') && existsSync(join(unpacked, 'resources/LICENSE-WakuShare.txt')),
+    readFileSync(join(unpacked, 'resources/LICENSE-WakuShare.txt'), 'utf8') ===
+      readFileSync('LICENSE', 'utf8') &&
+    existsSync(join(unpacked, 'resources/THIRD_PARTY_NOTICES.md')),
   dependencies: [
     'yauzl/index.js',
     'yazl/index.js',
@@ -62,7 +64,7 @@ const result = {
   ].every((name) => files.includes('/node_modules/' + name)),
   transitiveDependencies: unresolvedDependencies.length === 0,
   privateDataExcluded: !files.some((name) =>
-    /\/(?:research|tests|scripts)\/|\.capshare$/i.test(name)
+    /^\/(?:research|tests|scripts)\/|\.capshare$/i.test(name)
   ),
   installerMetadata: null,
   unresolvedDependencies,
