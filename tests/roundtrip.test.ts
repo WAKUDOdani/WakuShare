@@ -1,4 +1,5 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -108,10 +109,14 @@ describe('Mac → Windows roundtrip', () => {
 
     // Placeholder media untouched; loose media relocated into the draft.
     expect(timelineText).toContain(
-      `${DRAFT_PATH_PLACEHOLDER}/Resources/local/${draft.localMedia[0].fileName}`
+      `${DRAFT_PATH_PLACEHOLDER}/Resources/local/Исходники/${draft.localMedia[0].fileName}`
     )
-    expect(timelineText).toContain(`${DRAFT_PATH_PLACEHOLDER}/Resources/local/b-roll clip.mp4`)
-    expect(existsSync(join(folder, 'Resources', 'local', 'b-roll clip.mp4'))).toBe(true)
+    expect(timelineText).toContain(
+      `${DRAFT_PATH_PLACEHOLDER}/Resources/local/Исходники/b-roll clip.mp4`
+    )
+    expect(existsSync(join(folder, 'Resources', 'local', 'Исходники', 'b-roll clip.mp4'))).toBe(
+      true
+    )
     expect(timelineText).not.toContain(mac.homeDir.split('\\').join('/'))
 
     // Meta rewritten for the target machine.
@@ -119,7 +124,7 @@ describe('Mac → Windows roundtrip', () => {
     expect(meta['draft_fold_path']).toBe(folder.split('\\').join('/'))
     expect(meta['draft_root_path']).toBe(env.draftRoot.split('\\').join('/'))
     const metaText = JSON.stringify(meta)
-    expect(metaText).toContain('./Resources/local/b-roll clip.mp4')
+    expect(metaText).toContain('./Resources/local/Исходники/b-roll clip.mp4')
 
     // Volatile files never survive the trip.
     expect(existsSync(join(folder, 'draft_info.json.bak'))).toBe(false)
@@ -193,8 +198,8 @@ describe('Windows-authored capshare → Mac machine', () => {
           archivePath: 'assets/loose/1-voiceover_final.wav',
           originalPath: fixture.looseMediaJsonPath,
           fileName: 'voiceover_final.wav',
-          size: 25,
-          sha256: 'x'.repeat(64)
+          size: Buffer.byteLength('win-loose-voiceover-bytes'),
+          sha256: createHash('sha256').update('win-loose-voiceover-bytes').digest('hex')
         }
       ],
       effectAssets: [
@@ -252,8 +257,12 @@ describe('Windows-authored capshare → Mac machine', () => {
     expect(timelineText).not.toContain('C:/Users/Tester')
 
     // D:/ loose media relocated and placeholder-rewritten.
-    expect(timelineText).toContain(`${DRAFT_PATH_PLACEHOLDER}/Resources/local/voiceover_final.wav`)
-    expect(existsSync(join(folder, 'Resources', 'local', 'voiceover_final.wav'))).toBe(true)
+    expect(timelineText).toContain(
+      `${DRAFT_PATH_PLACEHOLDER}/Resources/local/Исходники/voiceover_final.wav`
+    )
+    expect(existsSync(join(folder, 'Resources', 'local', 'Исходники', 'voiceover_final.wav'))).toBe(
+      true
+    )
     expect(timelineText).not.toContain('D:/Footage')
 
     // Cache file restored under the mac cache dir.

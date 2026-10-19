@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 import { createReadStream, createWriteStream } from 'node:fs'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, stat } from 'node:fs/promises'
 import { dirname, join, normalize, sep } from 'node:path'
-import { PassThrough, Transform } from 'node:stream'
+import { PassThrough, Transform, type Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import yauzl from 'yauzl'
 import yazl from 'yazl'
@@ -48,6 +48,7 @@ export class ZipWriter {
     this.onBytes = onBytes
     const out = createWriteStream(destPath)
     this.done = pipeline(this.zip.outputStream, out)
+    void this.done.catch(() => {}) // The caller reports failure through finish/abort.
   }
 
   /** Adds one entry, resolving with its size + sha256 once fully consumed. */
@@ -65,6 +66,7 @@ export class ZipWriter {
       return { zipPath: entry.zipPath, size: data.length, sha256 }
     }
 
+    const before = await stat(entry.absPath)
     const hash = createHash('sha256')
     let size = 0
     const onBytes = this.onBytes
@@ -80,8 +82,20 @@ export class ZipWriter {
     const source = createReadStream(entry.absPath)
     const tee = new PassThrough()
     // yazl consumes `tee`; the pipeline below resolves when the file is fully read.
-    this.zip.addReadStream(tee, entry.zipPath)
+    this.zip.addReadStream(tee, entry.zipPath, {
+      compress:
+        !/\.(?:mp4|mov|mkv|webm|jpg|jpeg|png|gif|mp3|wav|aac|m4a|flac|webp|zip|capshare)$/i.test(
+          entry.absPath
+        )
+    })
     await pipeline(source, counter, tee, { signal })
+    const after = await stat(entry.absPath)
+    if (before.size !== size || before.size !== after.size || before.mtimeMs !== after.mtimeMs) {
+      throw new CapShareError(
+        'EXPORT_CHANGED_DURING',
+        `File changed while being archived: ${entry.absPath}`
+      )
+    }
     return { zipPath: entry.zipPath, size, sha256: hash.digest('hex') }
   }
 
@@ -89,6 +103,12 @@ export class ZipWriter {
   async finish(): Promise<void> {
     this.zip.end()
     await this.done
+  }
+
+  async abort(): Promise<void> {
+    this.aborted = true
+    ;(this.zip.outputStream as Readable).destroy()
+    await this.done.catch(() => {})
   }
 }
 
@@ -153,7 +173,11 @@ export async function readZipEntries(
 
 /** Guards against zip-slip: entry names must stay inside the destination. */
 function safeJoin(destDir: string, entryName: string): string {
-  if (entryName.includes('..') || entryName.startsWith('/') || /^[A-Za-z]:/.test(entryName)) {
+  if (
+    entryName.split(/[\\/]/).includes('..') ||
+    /^[\\/]/.test(entryName) ||
+    /^[A-Za-z]:/.test(entryName)
+  ) {
     throw new CapShareError('ARCHIVE_INVALID', `Unsafe entry path in archive: ${entryName}`)
   }
   const resolved = normalize(join(destDir, entryName))
@@ -168,6 +192,7 @@ export interface ExtractOptions {
   mapEntry: (entryName: string) => string | null
   onBytes?: (chunkLength: number) => void
   signal?: AbortSignal
+  expected?: (entryName: string) => { size: number; sha256?: string } | undefined
 }
 
 /** Streams matching entries of the archive into destDir (zip-slip safe). */
@@ -178,6 +203,7 @@ export async function extractZip(
 ): Promise<{ files: number }> {
   const zip = await openZip(zipPath)
   let files = 0
+  const targets = new Set<string>()
 
   try {
     await new Promise<void>((resolve, reject) => {
@@ -196,11 +222,22 @@ export async function extractZip(
           return
         }
         const target = safeJoin(destDir, mapped)
+        const targetKey = process.platform === 'win32' ? target.toLowerCase() : target
+        if (targets.has(targetKey))
+          return reject(
+            new CapShareError('ARCHIVE_INVALID', `Duplicate archive destination: ${mapped}`)
+          )
+        targets.add(targetKey)
         zip.openReadStream(entry, (err, stream) => {
           if (err || !stream) return reject(err ?? new Error('Failed to read entry'))
           const onBytes = options.onBytes
+          const expected = options.expected?.(entry.fileName)
+          const hash = createHash('sha256')
+          let size = 0
           const counter = new Transform({
             transform(chunk: Buffer, _enc, cb) {
+              hash.update(chunk)
+              size += chunk.length
               onBytes?.(chunk.length)
               cb(null, chunk)
             }
@@ -208,6 +245,16 @@ export async function extractZip(
           mkdir(dirname(target), { recursive: true })
             .then(() => pipeline(stream, counter, createWriteStream(target)))
             .then(() => {
+              if (
+                expected &&
+                (size !== expected.size ||
+                  (expected.sha256 && hash.digest('hex') !== expected.sha256))
+              ) {
+                throw new CapShareError(
+                  'ARCHIVE_INVALID',
+                  `Integrity check failed: ${entry.fileName}`
+                )
+              }
               files++
               zip.readEntry()
             })

@@ -2,6 +2,7 @@ import type { JSX, ReactNode } from 'react'
 import { FolderOpen, RefreshCw, RotateCcw } from 'lucide-react'
 import { Button, Label, ListBox, Select, Switch, toast } from '@heroui/react'
 import type { AppSettings, UpdateStatus } from '@shared/types'
+import { BRAND } from '@shared/branding'
 import type { UpdatesController } from '@/hooks/use-updates'
 import { errorMessage, unwrap } from '@/lib/ipc'
 
@@ -29,11 +30,11 @@ function updateHelp(status: UpdateStatus, version: string): string {
     case 'downloaded':
       return `Update ${status.version} ready — restart to install`
     case 'not-available':
-      return `CapShare ${version} · up to date`
+      return `WakuShare ${version} · up to date`
     case 'error':
       return status.message
     default:
-      return version ? `CapShare ${version}` : 'CapShare'
+      return version ? `WakuShare ${version}` : 'WakuShare'
   }
 }
 
@@ -155,6 +156,42 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
         </SettingsGroup>
 
         <SettingsGroup title="About">
+          <SettingRow
+            label="WakuShare by Wakudo"
+            help="Free tool. Updates and feedback in Telegram."
+          >
+            <a
+              href={BRAND.telegram}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-sky-500 hover:underline"
+            >
+              Telegram ↗
+            </a>
+          </SettingRow>
+          <SettingRow
+            label="Based on CapShare"
+            help="Original development: Ilyasse Salama · MIT license"
+          >
+            <a
+              href={BRAND.upstream}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-sky-500 hover:underline"
+            >
+              Original project ↗
+            </a>
+          </SettingRow>
+          <SettingRow label="Source code and releases" help="WAKUDOdani/WakuShare · GitHub">
+            <a
+              href={BRAND.repository}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-sky-500 hover:underline"
+            >
+              GitHub ↗
+            </a>
+          </SettingRow>
           <SettingRow label="Version" help={updateHelp(updates.status, updates.version)}>
             {updates.status.state === 'downloaded' ? (
               <Button className="rounded-full" onPress={updates.install}>

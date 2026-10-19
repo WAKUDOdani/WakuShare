@@ -1,102 +1,49 @@
-appId: co.lysi.capshare
-productName: CapShare
+appId: io.github.wakudodani.wakushare
+productName: WakuShare
+copyright: Copyright © 2026 Wakudo; based on CapShare © Ilyasse Salama
 directories:
   buildResources: build
-# Publish installers to GitHub Releases (used by `electron-builder --publish`).
-# releaseType: release uploads straight into a published (non-draft) release so
-# the CI run goes live with no manual step — must match the release type the
-# workflow's prepare job creates.
 publish:
-  - provider: github
-    owner: ilyassesalama
-    repo: CapShare
-    releaseType: release
-# Ad-hoc re-sign fallback for unsigned mac builds (see build/mac-after-pack.cjs).
-afterPack: build/mac-after-pack.cjs
+  provider: github
+  owner: WAKUDOdani
+  repo: WakuShare
+  releaseType: draft
 files:
-  - '!**/.vscode/*'
-  - '!src/*'
-  - '!tests/*'
-  - '!electron.vite.config.{js,ts,mjs,cjs}'
-  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
-  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
-  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - out/**
+  - resources/**
+  - package.json
+  - LICENSE
+  - THIRD_PARTY_NOTICES.md
+extraResources:
+  - from: LICENSE
+    to: LICENSE-WakuShare.txt
+  - from: THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
 asarUnpack:
   - resources/**
-
-# Double-clicking a .capshare file opens it in CapShare.
-# macOS: written into CFBundleDocumentTypes; Windows: registered by the NSIS installer
-# (the portable build cannot persist registry associations).
 fileAssociations:
   - ext: capshare
     name: CapShare Project
     description: Portable CapCut project bundle
     mimeType: application/x-capshare
     role: Editor
-    rank: Owner
-
 win:
-  executableName: CapShare
+  executableName: WakuShare
+  icon: build/icon.ico
   target:
     - target: nsis
-      arch:
-        - x64
-        - arm64
+      arch: [x64]
     - target: portable
-      arch:
-        - x64
+      arch: [x64]
 nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
-  artifactName: ${name}-setup.${ext}
-  shortcutName: ${productName}
-  uninstallDisplayName: ${productName}
+  artifactName: WakuShare-${version}-setup-${arch}.${ext}
+  shortcutName: WakuShare
+  uninstallDisplayName: WakuShare
   createDesktopShortcut: always
+  deleteAppDataOnUninstall: false
 portable:
-  artifactName: ${name}-portable.${ext}
-
-mac:
-  # Real signing path: when a Developer ID cert is available (auto-discovery on,
-  # or CSC_LINK/CSC_KEY_PASSWORD set in CI), electron-builder signs the bundle
-  # with hardened runtime and notarizes it via Apple ID
-  # (APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID env vars).
-  #
-  # Fallback path: set CSC_IDENTITY_AUTO_DISCOVERY=false (CI smoke test, or a
-  # contributor without the cert) and electron-builder skips signing — then
-  # build/mac-after-pack.cjs ad-hoc deep-signs the bundle so it still
-  # launches on Apple Silicon (recipients right-click → Open on first launch).
-  hardenedRuntime: true
-  gatekeeperAssess: false
-  # notarize is always enabled, but electron-builder only actually notarizes a
-  # signed dist build with the APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID
-  # credentials present; it's skipped for unsigned (--dir / fallback) builds.
-  notarize: true
-  category: public.app-category.video
-  target:
-    - target: dmg
-      arch:
-        - arm64
-        - x64
-    - target: zip
-      arch:
-        - arm64
-        - x64
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
-  extendInfo:
-    UTExportedTypeDeclarations:
-      - UTTypeIdentifier: co.lysi.capshare.project
-        UTTypeDescription: CapShare Project
-        UTTypeConformsTo:
-          - public.data
-          - public.archive
-        UTTypeTagSpecification:
-          public.filename-extension:
-            - capshare
-          public.mime-type:
-            - application/x-capshare
-dmg:
-  artifactName: ${name}-${arch}.${ext}
-
+  artifactName: WakuShare-${version}-portable-${arch}.${ext}
 npmRebuild: false

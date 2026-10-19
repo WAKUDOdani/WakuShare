@@ -74,6 +74,17 @@ export function classifyString(
     }
   }
 
+  // Bundled effect data (e.g. MixMode) is a directory, not a user media file.
+  // Preserve its resource tree in a private cache namespace on the new machine.
+  const application = /\/CapCut\/Apps\/([^/]+)\/Resources\/(.+)$/i.exec(normalized)
+  if (application) {
+    return {
+      cls: 'effect-cache',
+      normalized,
+      cacheSuffix: `CapShare/ApplicationResources/${application[1]}/Resources/${application[2]}`
+    }
+  }
+
   const draftFolder = ctx.draftFolderJson
   if (draftFolder) {
     // Windows paths are case-insensitive; macOS defaults are too (HFS+/APFS).
@@ -111,10 +122,7 @@ export function walkJsonStrings(
 
     // Embedded JSON payloads (CapCut stores JSON-in-strings in several fields).
     const trimmed = value.trimStart()
-    if (
-      (trimmed.startsWith('{') || trimmed.startsWith('[')) &&
-      (value.includes('/') || value.includes('\\'))
-    ) {
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
       try {
         const inner = JSON.parse(value) as unknown
         if (inner !== null && typeof inner === 'object') {

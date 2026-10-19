@@ -62,6 +62,10 @@ function requireEnv(): CapCutEnv {
 /** Active long-running operations, cancellable from the renderer by taskId. */
 const activeTasks = new Map<string, AbortController>()
 
+export function hasActiveFileTasks(): boolean {
+  return activeTasks.size > 0
+}
+
 function makeProgressForwarder(
   ctx: IpcContext,
   taskId: string

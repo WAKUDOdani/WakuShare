@@ -1,6 +1,6 @@
 import { useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { CheckCircle2, Clapperboard, FileDown, FolderOpen, X } from 'lucide-react'
+import { CheckCircle2, Clapperboard, FileDown, FolderOpen, TriangleAlert, X } from 'lucide-react'
 import { Button, Label, Modal, ProgressBar, Switch, toast } from '@heroui/react'
 import type { DraftSummary, ExportResult } from '@shared/types'
 import { MiniTimeline } from '@/components/MiniTimeline'
@@ -38,7 +38,7 @@ export function ProjectDetail({ project, open, onClose }: ProjectDetailProps): J
 }
 
 function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Element {
-  const [includeCaches, setIncludeCaches] = useState(false)
+  const [includeCaches, setIncludeCaches] = useState(true)
   const [phase, setPhase] = useState<ExportPhase>({ state: 'idle' })
 
   useTaskProgress(setPhase)
@@ -60,7 +60,8 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
       )
       setPhase({ state: 'done', result })
       for (const warning of result.warnings) toast.warning(warning)
-      toast.success(`Exported "${project.name}"`)
+      if (result.warnings.length === 0) toast.success(`Exported "${project.name}"`)
+      else toast.warning(`Exported with warnings: "${project.name}"`, { timeout: 12000 })
     } catch (error) {
       setPhase({ state: 'idle' })
       toast.danger(errorMessage(error))
@@ -153,35 +154,58 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -6 }}
                       transition={spring}
-                      className="glass-subtle flex items-center justify-between rounded-2xl p-4"
+                      className="glass-subtle flex flex-col gap-3 rounded-2xl p-4"
                     >
-                      <div className="flex items-center gap-3">
-                        <motion.span
-                          initial={{ scale: 0.4, rotate: -30 }}
-                          animate={{ scale: 1, rotate: 0 }}
-                          transition={{
-                            type: 'spring',
-                            stiffness: 380,
-                            damping: 18,
-                            delay: 0.08
-                          }}
-                        >
-                          <CheckCircle2 className="size-5 text-emerald-500" />
-                        </motion.span>
-                        <div>
-                          <div className="text-[13px] font-semibold">Export complete</div>
-                          <div className="text-[11.5px] text-muted-foreground">
-                            {formatBytes(phase.result.sizeBytes)} · {phase.result.fileCount} files
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <motion.span
+                            initial={{ scale: 0.4, rotate: -30 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            transition={{
+                              type: 'spring',
+                              stiffness: 380,
+                              damping: 18,
+                              delay: 0.08
+                            }}
+                          >
+                            {phase.result.warnings.length > 0 ? (
+                              <TriangleAlert className="size-5 text-amber-500" />
+                            ) : (
+                              <CheckCircle2 className="size-5 text-emerald-500" />
+                            )}
+                          </motion.span>
+                          <div>
+                            <div className="text-[13px] font-semibold">
+                              {phase.result.warnings.length > 0
+                                ? 'Exported with warnings'
+                                : 'Export complete'}
+                            </div>
+                            <div className="text-[11.5px] text-muted-foreground">
+                              {formatBytes(phase.result.sizeBytes)} · {phase.result.fileCount} files
+                            </div>
                           </div>
                         </div>
+                        <Button
+                          variant="secondary"
+                          className="rounded-full"
+                          onPress={() => reveal(phase.result.capsharePath)}
+                        >
+                          <FolderOpen className="size-4" /> Reveal file
+                        </Button>
                       </div>
-                      <Button
-                        variant="secondary"
-                        className="rounded-full"
-                        onPress={() => reveal(phase.result.capsharePath)}
-                      >
-                        <FolderOpen className="size-4" /> Reveal file
-                      </Button>
+                      {phase.result.warnings.length > 0 && (
+                        <div
+                          role="status"
+                          className="text-[12px] text-amber-600 dark:text-amber-400"
+                        >
+                          <p>Review these issues before relying on this backup:</p>
+                          <ul className="mt-2 max-h-40 list-disc space-y-1 overflow-y-auto pl-4 break-words">
+                            {phase.result.warnings.map((warning, index) => (
+                              <li key={index}>{warning}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </motion.div>
                   ) : exporting ? (
                     <motion.div
@@ -230,7 +254,9 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                           <div className="min-w-0">
                             <Label className="text-[13px] font-medium">Include AI caches</Label>
                             <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-                              Bigger file; skips re-analysis on the other machine
+                              {includeCaches
+                                ? 'Includes saved AI analysis and project caches'
+                                : 'Smaller archive; AI analysis may need to run again'}
                             </p>
                           </div>
                           <div className="flex shrink-0 items-center">

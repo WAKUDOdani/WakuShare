@@ -1,100 +1,82 @@
-<div align="center">
-  <img src="build/icon.png" alt="CapShare" width="96" height="96" />
-  <h1>CapShare</h1>
-  <p><strong>Share CapCut projects between machines — Mac ↔ Mac, Windows ↔ Windows, and Mac ↔ Windows.</strong></p>
-</div>
+# WakuShare
 
-CapCut desktop has no built-in way to move a project to another computer. CapShare packs a project — timeline, media, effect assets — into a single portable **`.capshare`** file, and imports it on the other machine so it shows up in CapCut's drafts list and just plays.
+**Бесплатный перенос и резервное копирование проектов CapCut.**
 
-- 🖥️ **Cross-platform**: macOS and Windows, in any direction
-- 📦 **Self-contained**: media, effect caches and metadata travel in one file
-- 🪶 **Lean by default**: regenerable AI caches (matting, smart-crop, audio analysis) are skipped — a 97 MB project exports as ~35 MB; toggle "Include AI caches" for byte-exact copies
-- 🔍 **Project previews**: covers, duration, resolution and a mini-timeline before you export or import
-- 🛡️ **Safe by design**: staged imports with atomic renames, automatic backups, never destructive
-- 🧊 macOS 26 _Liquid Glass_-style UI on both platforms
+Независимая версия на основе [CapShare](https://github.com/ilyassesalama/CapShare)
+от **Ilyasse Salama**, MIT. Развитие и поддержка WakuShare — **Wakudo**.
 
-## Download & install
+[Скачать Windows-версию](https://github.com/WAKUDOdani/WakuShare/releases/latest)
+· [Telegram Wakudo](https://t.me/WAKUDOdani)
+· [Сообщить об ошибке](https://github.com/WAKUDOdani/WakuShare/issues)
 
-Pick the download for your machine (always points to the latest version):
+Если инструмент пригодился — подпишись на [мой Telegram](https://t.me/WAKUDOdani).
+Там обновления и связь со мной. Приложение бесплатно, подписка добровольная.
 
-| Your machine                         | Download                                                                                                       |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| Mac with Apple Silicon (M1 or later) | [`capshare-arm64.dmg`](https://github.com/ilyassesalama/CapShare/releases/latest/download/capshare-arm64.dmg)   |
-| Mac with Intel                       | [`capshare-x64.dmg`](https://github.com/ilyassesalama/CapShare/releases/latest/download/capshare-x64.dmg)       |
-| Windows (installer — recommended)    | [`capshare-setup.exe`](https://github.com/ilyassesalama/CapShare/releases/latest/download/capshare-setup.exe)   |
-| Windows (portable, no install)       | [`capshare-portable.exe`](https://github.com/ilyassesalama/CapShare/releases/latest/download/capshare-portable.exe) |
+## Что делает
 
-All versions live on the [Releases page](https://github.com/ilyassesalama/CapShare/releases). Not sure which Mac you have? ** → About This Mac** — "Apple M…" means Apple Silicon, otherwise Intel. The `…-mac.zip` files on the release page are used by the auto-updater; you don't need them.
+- Собирает проект в один `.capshare`-пакет: монтаж, исходники и ресурсы эффектов.
+- Сохраняет несколько временных шкал и вложенные композиции.
+- При импорте собирает пользовательские медиа в `Resources/local/Исходники`
+  и направляет рабочие ссылки на новые файлы. Одноимённые независимые исходники
+  не объединяются.
+- Проверяет граф шкал, размеры и SHA-256 ресурсов. Изменение сохранённых
+  документов во время экспорта отменяет упаковку.
+- Импортирует как отдельную копию либо заменяет с резервным сохранением.
+- Показывает конкретные предупреждения. Неполный старый пакет не считается
+  автономным только потому, что оригинальные файлы ещё доступны на компьютере.
 
-**macOS**
+## Совместимость и использование
 
-1. Open the DMG and drag CapShare to Applications.
-2. Launch it. Builds are signed and notarized, so macOS opens them without warnings.
+Первая целевая платформа — **Windows x64**. Проверено на **CapCut International
+9.6.0.4097**: проект с четырьмя шкалами и вложенными композициями, сохранение в
+редакторе и повторный экспорт/импорт. Другие версии требуют отдельной проверки;
+зашифрованные проекты JianYing не поддерживаются.
 
-**Windows**
+1. Установи `WakuShare-<версия>-setup-x64.exe` из Releases.
+2. Выбери проект и экспортируй его. Для наиболее полного пакета оставь кеши включёнными.
+3. На нужном ПК импортируй пакет; для первой проверки выбери импорт как копии.
+4. Перезапусти CapCut, если он уже открыт, затем открой импортированный проект.
 
-1. Run the installer. Windows builds are unsigned, so if SmartScreen appears: **More info → Run anyway**.
-2. The installer registers `.capshare` files so double-clicking them opens CapShare.
-   (The portable `.exe` works too, but can't register the file association.)
+Первоначальные исходники не перемещаются. Системные шрифты и аккаунтные/облачные
+эффекты могут требовать установки или повторного скачивания. Уже отсутствующие
+файлы автоматически не подбираются; отдельного окна выбора замены пока нет.
+Упакованные кеши не гарантируют доступность закрытых функций другой версии CapCut.
 
-CapShare checks for updates on launch and keeps itself current automatically (installed versions; the portable exe doesn't self-update).
+## Обновления
 
-## Use
+Установленная Windows-версия проверяет **только Releases WAKUDOdani/WakuShare**,
+скачивает опубликованные стабильные обновления и предлагает перезапуск.
+Установка запускается пользователем после окончания экспорта/импорта. В клиенте
+нет GitHub-токена. Portable-версия обновляется вручную через Releases.
 
-1. **Export** — open CapShare → _Projects_ → pick a project → **Export .capshare**.
-2. Send the file to the other machine (drive, AirDrop, cloud, …).
-3. **Import** — double-click the `.capshare` file (or drag it into CapShare) → **Import project** → restart CapCut.
+Первая установка WakuShare выполняется отдельно от прежнего CapShare/CapShare Lab.
+Настройки WakuShare хранятся отдельно; проекты CapCut остаются на своих местах.
+Сборки пока без цифровой подписи издателя Windows.
 
-If a project with the same name already exists you choose: **import as copy** (both kept) or **replace** (the old version is backed up outside CapCut first).
+## Разработка
 
-## What survives the move — and what can't
+Node.js 24, pnpm 10.19.0:
 
-|                                                                     |                                                                                                                                 |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| ✅ Timeline, cuts, transitions, effects, stickers, text, animations | Fully preserved                                                                                                                 |
-| ✅ All imported media                                               | Bundled in the file                                                                                                             |
-| ✅ Downloaded effect assets                                         | Bundled; restored into the target machine's cache                                                                               |
-| ⚠️ Fonts                                                            | Fonts are installed per-OS. CapCut-library fonts re-download; system fonts missing on the target fall back (CapShare warns you) |
-| ⚠️ Region/account-gated effects                                     | May need to re-download when online, and only if the account/region allows them                                                 |
-| ⚠️ Much newer source CapCut                                         | An older CapCut may refuse a draft from a much newer version ("created by a newer version") — update CapCut on the target       |
-
-## How it works
-
-CapCut stores each project as a _draft folder_ (`draft_info.json` / `draft_content.json` timeline + media in `Resources/local/`) under:
-
-- macOS: `~/Movies/CapCut/User Data/Projects/com.lveditor.draft/`
-- Windows: `%LOCALAPPDATA%\CapCut\User Data\Projects\com.lveditor.draft\`
-
-A `.capshare` file is a ZIP64 archive: the draft folder, a manifest, any media that lived _outside_ the project folder, and the machine-specific effect-cache assets. On import CapShare:
-
-1. stages everything in a temp folder (the import either fully completes or leaves no trace),
-2. rewrites machine-specific absolute paths (effect caches, loose media) to the target machine's layout — media references use CapCut's own portable placeholder format,
-3. replaces the `platform` identity blocks with the target machine's (this is what prevents CapCut's "project is from an unusual path" error),
-4. writes the timeline filename the target CapCut generation expects (`draft_info.json` on modern macOS, `draft_content.json` on Windows — probed from your existing drafts),
-5. atomically moves the project into the drafts folder and registers it in CapCut's `root_meta_info.json` (with a backup; CapCut's own folder scan is the fallback).
-
-Only CapCut **International** drafts are supported (JianYing 6+ encrypts its project files).
-
-## Development
-
-```bash
-pnpm install
-pnpm dev             # hot-reloading dev app
-pnpm test            # core-logic unit tests (Vitest)
-pnpm typecheck
-pnpm lint
-pnpm build:mac       # dmg + zip (arm64 + x64)
-pnpm build:win       # nsis installer + portable
+```sh
+pnpm install --frozen-lockfile
+pnpm test
+pnpm run typecheck
+pnpm run lint
+pnpm dev
+pnpm run build:win
 ```
 
-Architecture: `src/main/core/` is pure Node (no Electron imports) and contains everything that touches CapCut's format — locator, draft parser, path scanner/classifier, export/import pipelines, registry handling. The IPC layer (`src/main/ipc.ts`) is a thin zod-validated shell; the renderer is React 19 + Tailwind v4 + shadcn/ui.
+Тесты используют синтетические временные проекты. Старый live-e2e выключен по
+умолчанию; CI не должен включать `CAPSHARE_REAL_E2E`. Порядок выпусков описан в
+[docs/RELEASING.md](docs/RELEASING.md).
 
-A gated end-to-end test exports a **real** draft from this machine's CapCut and imports it back as a copy:
+## Авторство и лицензия
 
-```bash
-CAPSHARE_REAL_E2E=1 pnpm exec vitest run tests/real-draft.e2e.test.ts
-```
+Основа — CapShare 1.0.2, ревизия
+`aac1ed0c15a67c55321fa9af66ea7d719dcd4442`. Сохранена история upstream.
+Наша версия добавляет обработку полного набора документов, согласованное
+клонирование нескольких шкал, организацию исходников и проверки переноса.
+Архивы остаются совместимыми с форматом `.capshare` v1; неполный исходный архив
+не позволяет восстановить отсутствующие в нём файлы.
 
-## License
-
-MIT
+[MIT License](LICENSE) · [Авторство и сторонние компоненты](THIRD_PARTY_NOTICES.md)

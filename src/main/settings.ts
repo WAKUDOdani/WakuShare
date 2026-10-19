@@ -9,14 +9,14 @@ import { atomicWriteFile } from './core/fsx'
 const settingsSchema = z.object({
   draftRootOverride: z.string().nullable().default(null),
   defaultExportDir: z.string().nullable().default(null),
-  includeCachesByDefault: z.boolean().default(false),
+  includeCachesByDefault: z.boolean().default(true),
   theme: z.enum(['system', 'light', 'dark']).default('system')
 })
 
 const DEFAULTS: AppSettings = {
   draftRootOverride: null,
   defaultExportDir: null,
-  includeCachesByDefault: false,
+  includeCachesByDefault: true,
   theme: 'system'
 }
 

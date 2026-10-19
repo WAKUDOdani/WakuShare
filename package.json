@@ -1,10 +1,13 @@
 {
-  "name": "capshare",
-  "version": "1.0.2",
-  "description": "Share CapCut projects across machines — export and import portable .capshare files on macOS and Windows",
+  "name": "wakushare",
+  "version": "1.1.0",
+  "description": "Free CapCut project backup and transfer, based on CapShare. Maintained by Wakudo.",
   "main": "./out/main/index.js",
-  "author": "Ilyasse Salama",
-  "homepage": "https://github.com/ilyassesalama/CapShare",
+  "author": {
+    "name": "Wakudo",
+    "url": "https://t.me/WAKUDOdani"
+  },
+  "homepage": "https://github.com/WAKUDOdani/WakuShare",
   "packageManager": "pnpm@10.19.0",
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -30,11 +33,12 @@
     "build": "pnpm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps && node build/ensure-electron.cjs",
     "build:unpack": "pnpm run build && electron-builder --dir",
-    "build:win": "pnpm run build && electron-builder --win",
+    "build:win": "pnpm run build && electron-builder --win nsis portable --x64 --publish never",
     "build:mac": "pnpm run build && electron-builder --mac",
     "build:linux": "pnpm run build && electron-builder --linux",
-    "release": "npm version -m \"release: v%s\"",
-    "postversion": "git push --follow-tags"
+    "release": "node scripts/prepare-release.mjs",
+    "verify:package": "node scripts/verify-package.mjs",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",
@@ -81,5 +85,13 @@
     "typescript": "^5.9.3",
     "vite": "^7.2.6",
     "vitest": "^3.2.6"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/WAKUDOdani/WakuShare.git"
+  },
+  "bugs": {
+    "url": "https://github.com/WAKUDOdani/WakuShare/issues"
   }
 }

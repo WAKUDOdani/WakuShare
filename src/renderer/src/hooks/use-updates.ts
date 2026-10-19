@@ -36,7 +36,7 @@ export function useUpdates(): UpdatesController {
     if (status.state !== 'downloaded' || notifiedFor.current === status.version) return
     notifiedFor.current = status.version
     toast.success(`Update ${status.version} ready`, {
-      description: 'Restart CapShare to install it.',
+      description: 'Restart WakuShare to install it.',
       timeout: 0,
       actionProps: { children: 'Restart', onPress: () => void window.capshare.installUpdate() }
     })

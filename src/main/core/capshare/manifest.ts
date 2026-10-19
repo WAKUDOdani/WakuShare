@@ -67,12 +67,22 @@ export const manifestSchema = z.object({
       archivePath: z.string(),
       /** Path under <User Data>/Cache/, e.g. "effect/123/ab". */
       cacheSuffix: z.string(),
-      size: z.number()
+      size: z.number(),
+      sha256: z.string().optional()
     })
   ),
   /** sha256 + size per draft/ entry (relative path inside the draft). */
   integrity: z.record(z.string(), z.object({ size: z.number(), sha256: z.string() })),
   missingAtExport: z.array(z.string()),
+  resolvedSources: z
+    .array(
+      z.object({
+        originalPath: z.string(),
+        resolvedPath: z.string(),
+        reason: z.literal('explicit-user-confirmation')
+      })
+    )
+    .optional(),
   warnings: z.array(z.string())
 })
 

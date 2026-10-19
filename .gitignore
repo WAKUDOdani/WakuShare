@@ -13,3 +13,11 @@ out/
 .env
 .env.*
 !.env.example
+
+# Private project data and local release artifacts
+artifacts/
+research/
+*.capshare
+*.partial
+*.dmp
+/native/macos-window-effects/build/

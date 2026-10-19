@@ -14,7 +14,7 @@ import { errorMessage, unwrap } from '@/lib/ipc'
 const HEADERS: Record<View, { title: string; subtitle: string }> = {
   projects: { title: 'Projects', subtitle: 'CapCut library' },
   import: { title: 'Import', subtitle: "Bring a .capshare project into this machine's CapCut" },
-  settings: { title: 'Settings', subtitle: 'How CapShare finds and moves projects' }
+  settings: { title: 'Settings', subtitle: 'How WakuShare finds and moves projects' }
 }
 function useTheme(theme: AppSettings['theme'] | undefined): void {
   useEffect(() => {

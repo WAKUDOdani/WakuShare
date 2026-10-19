@@ -17,7 +17,10 @@ export class IpcError extends Error {
 }
 
 export function errorMessage(error: unknown): string {
-  if (error instanceof IpcError) return error.shape.message
+  if (error instanceof IpcError)
+    return error.shape.detail
+      ? `${error.shape.message}\n${error.shape.detail}`
+      : error.shape.message
   if (error instanceof Error) return error.message
   return String(error)
 }

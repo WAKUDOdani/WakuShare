@@ -11,6 +11,10 @@ export default defineConfig(
   eslintPluginReact.configs.flat.recommended,
   eslintPluginReact.configs.flat['jsx-runtime'],
   {
+    files: ['scripts/*.mjs'],
+    rules: { '@typescript-eslint/explicit-function-return-type': 'off' }
+  },
+  {
     settings: {
       react: {
         version: 'detect'

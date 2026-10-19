@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { readFile, rm, stat } from 'node:fs/promises'
-import { basename, join } from 'node:path'
+import { readFile, rename, rm, stat } from 'node:fs/promises'
+import { basename, join, resolve, sep } from 'node:path'
 import type { ExportResult } from '../../../shared/types'
 import {
   DRAFT_META_FILENAME,
@@ -11,6 +11,7 @@ import {
   VOLATILE_FILE_PATTERNS
 } from '../capcut/constants'
 import { asString, findTimelinePath, getPlatformBlock, summarizeTimeline } from '../capcut/draft'
+import { readProjectDocuments, validateTimelineGraph } from '../capcut/project'
 import { toJsonPath } from '../capcut/locator'
 import type { CapCutEnv } from '../capcut/model'
 import { collectPaths } from '../capcut/scanner'
@@ -37,6 +38,8 @@ export interface ExportDraftOptions {
   signal?: AbortSignal
   /** Injectable clock for deterministic tests. */
   now?: () => Date
+  /** Explicit user-approved replacements for already-missing source paths. */
+  sourceOverrides?: Record<string, string>
 }
 
 interface LoosePlan {
@@ -57,21 +60,36 @@ interface EffectPlan {
 /**
  * Exports a draft folder into a single .capshare archive.
  *
- * The timeline and meta JSONs are snapshotted into memory up front, so the
- * archive stays internally consistent even if CapCut writes to the draft
- * mid-export (a trailing check downgrades that case to a warning).
+ * All working project documents are snapshotted up front and checked again
+ * before publication. A concurrent save aborts export, preserving any previous
+ * destination archive.
  */
 export async function exportDraft(options: ExportDraftOptions): Promise<ExportResult> {
   const { draftFolder, env, destinationPath, includeCaches, signal } = options
   const warnings: string[] = []
   const missingAtExport: string[] = []
+  const overrides = new Map(
+    Object.entries(options.sourceOverrides ?? {}).map(([from, to]) => [
+      from.replace(/\\/g, '/').toLowerCase(),
+      to
+    ])
+  )
+  if (resolve(destinationPath).startsWith(resolve(draftFolder) + sep)) {
+    throw new CapShareError(
+      'EXPORT_FAILED',
+      'Choose an export destination outside the source project.'
+    )
+  }
 
   const paths = findTimelinePath(draftFolder)
   if (!paths) {
     throw new CapShareError('DRAFT_NOT_FOUND', `No CapCut timeline found in ${draftFolder}`)
   }
 
-  const timelineRaw = await readFile(paths.timelinePath)
+  const documents = await readProjectDocuments(draftFolder)
+  const graph = validateTimelineGraph(documents)
+  const timelineRaw =
+    documents.get(paths.timelineFilename)?.raw ?? (await readFile(paths.timelinePath))
   let timeline: Record<string, unknown>
   try {
     timeline = JSON.parse(timelineRaw.toString('utf8')) as Record<string, unknown>
@@ -85,7 +103,7 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
   let metaRaw: Buffer | null = null
   let meta: Record<string, unknown> | null = null
   if (existsSync(paths.metaPath)) {
-    metaRaw = await readFile(paths.metaPath)
+    metaRaw = documents.get(DRAFT_META_FILENAME)?.raw ?? (await readFile(paths.metaPath))
     try {
       meta = JSON.parse(metaRaw.toString('utf8')) as Record<string, unknown>
     } catch {
@@ -94,12 +112,15 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
   }
 
   const draftFolderJson = toJsonPath(draftFolder)
-  const scanned = [
-    ...collectPaths(timeline, { draftFolderJson }),
-    ...(meta ? collectPaths(meta, { draftFolderJson }) : [])
-  ]
+  const scanned = [...documents.values()].flatMap((doc) =>
+    collectPaths(doc.value, { draftFolderJson }).map((item) => ({
+      ...item,
+      document: doc.relativePath
+    }))
+  )
 
   const effectPlans = new Map<string, EffectPlan>()
+  const effectRootsSeen = new Set<string>()
   const loosePlans = new Map<string, LoosePlan>()
   const missingSeen = new Set<string>()
   let looseIndex = 0
@@ -110,12 +131,9 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
     // gigabytes and rewrite fields CapCut treats as informational.
     if (item.pointer.includes('draft_materials_copied_info')) continue
 
-    if (item.cls === 'unc') {
-      warnings.push(`Network path referenced and not bundled: ${item.normalized}`)
-      continue
-    }
     if (item.cls === 'effect-cache' && item.cacheSuffix) {
-      if (effectPlans.has(item.cacheSuffix)) continue
+      if (effectRootsSeen.has(item.cacheSuffix)) continue
+      effectRootsSeen.add(item.cacheSuffix)
       // Resolve via this machine's cache dir first (spelling-independent),
       // falling back to the literal path.
       const candidates = [join(env.cacheDir, ...item.cacheSuffix.split('/')), item.normalized]
@@ -129,6 +147,16 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
             diskPath,
             size: info.size
           })
+        } else if (info.isDirectory()) {
+          for await (const file of walkFiles(diskPath)) {
+            const suffix = `${item.cacheSuffix}/${file.relPath}`
+            effectPlans.set(suffix, {
+              archivePath: EFFECT_ASSET_PREFIX + suffix,
+              cacheSuffix: suffix,
+              diskPath: file.absPath,
+              size: file.size
+            })
+          }
         }
       } else {
         warnings.push(
@@ -137,12 +165,20 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
       }
       continue
     }
-    if (item.cls === 'absolute') {
+    if (item.cls === 'absolute' || item.cls === 'unc') {
       const key = item.normalized.toLowerCase()
       if (loosePlans.has(key)) continue
+      const override = overrides.get(key)
+      if (override && existsSync(item.normalized)) {
+        throw new CapShareError(
+          'EXPORT_FAILED',
+          `An override cannot replace a source that still exists: ${item.normalized}`
+        )
+      }
+      const sourcePath = override ?? item.normalized
       // Only fs-verified files are bundled — classifier hits alone never act.
-      if (existsSync(item.normalized)) {
-        const info = await stat(item.normalized)
+      if (existsSync(sourcePath)) {
+        const info = await stat(sourcePath)
         if (info.isFile()) {
           const fileName = basename(item.normalized)
           looseIndex++
@@ -150,11 +186,11 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
             archivePath: `${LOOSE_MEDIA_PREFIX}${looseIndex}-${sanitizeFolderName(fileName, 'windows')}`,
             originalPath: item.normalized,
             fileName,
-            diskPath: item.normalized,
+            diskPath: sourcePath,
             size: info.size
           })
         }
-      } else if (/\.[A-Za-z0-9]{2,4}$/.test(item.normalized) && !missingSeen.has(key)) {
+      } else if (/\.[A-Za-z0-9]{1,12}$/.test(item.normalized) && !missingSeen.has(key)) {
         missingSeen.add(key)
         missingAtExport.push(item.normalized)
       }
@@ -169,13 +205,14 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
     }
     const base = relPath.split('/').pop() ?? relPath
     if (JUNK_FILE_NAMES.has(base)) return true
-    if (VOLATILE_FILE_PATTERNS.some((re) => re.test(base))) return true
+    const modernTemplate = graph && /^template(-\d+)?\.tmp$/i.test(base)
+    if (!modernTemplate && VOLATILE_FILE_PATTERNS.some((re) => re.test(base))) return true
     if (relPath === DRAFT_META_FILENAME) return true
     if (timelineNames.has(relPath)) return true
     return false
   }
 
-  const draftFiles: { absPath: string; relPath: string; size: number }[] = []
+  const draftFiles: { absPath: string; relPath: string; size: number; mtimeMs: number }[] = []
   for await (const file of walkFiles(draftFolder, { skip })) {
     draftFiles.push(file)
   }
@@ -193,14 +230,22 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
     [...loosePlans.values()].reduce((sum, l) => sum + l.size, 0) +
     (coverBuffer?.length ?? 0)
 
+  const externalStates = new Map<string, { size: number; mtimeMs: number }>()
+  for (const file of [...effectPlans.values(), ...loosePlans.values()]) {
+    const info = await stat(file.diskPath)
+    externalStates.set(file.diskPath, { size: info.size, mtimeMs: info.mtimeMs })
+  }
+
   let processed = 0
   const onBytes = (n: number): void => {
     processed += n
     options.onProgress?.(processed, totalBytes, 'archive')
   }
 
-  const writer = new ZipWriter(destinationPath, onBytes)
+  const temporaryPath = destinationPath + '.' + randomUUID() + '.partial'
+  const writer = new ZipWriter(temporaryPath, onBytes)
   const integrity: CapShareManifest['integrity'] = {}
+  const effectHashes = new Map<string, string>()
   let fileCount = 0
 
   try {
@@ -232,7 +277,12 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
 
     for (const file of draftFiles) {
       const entry = await writer.add(
-        { kind: 'file', absPath: file.absPath, zipPath: `${DRAFT_ENTRY_PREFIX}${file.relPath}` },
+        {
+          kind: 'file',
+          absPath: file.absPath,
+          snapshot: documents.get(file.relPath)?.raw,
+          zipPath: `${DRAFT_ENTRY_PREFIX}${file.relPath}`
+        },
         signal
       )
       integrity[file.relPath] = { size: entry.size, sha256: entry.sha256 }
@@ -240,10 +290,12 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
     }
 
     for (const effect of effectPlans.values()) {
-      await writer.add(
+      const entry = await writer.add(
         { kind: 'file', absPath: effect.diskPath, zipPath: effect.archivePath },
         signal
       )
+      effect.size = entry.size
+      effectHashes.set(effect.cacheSuffix, entry.sha256)
       fileCount++
     }
 
@@ -269,14 +321,44 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
     }
 
     // Consistency check: CapCut may have saved while we streamed media.
-    const timelineNow = await readFile(paths.timelinePath)
+    const documentsNow = await readProjectDocuments(draftFolder)
+    const digest = (data: Buffer): string => createHash('sha256').update(data).digest('hex')
     if (
-      createHash('sha256').update(timelineNow).digest('hex') !==
-      createHash('sha256').update(timelineRaw).digest('hex')
-    ) {
-      warnings.push(
-        'The project changed while exporting (CapCut saved during the export). The .capshare reflects the project as it was when the export started.'
+      documentsNow.size !== documents.size ||
+      [...documents].some(
+        ([key, doc]) =>
+          !documentsNow.has(key) || digest(doc.raw) !== digest(documentsNow.get(key)!.raw)
       )
+    ) {
+      throw new CapShareError(
+        'EXPORT_CHANGED_DURING',
+        'CapCut saved changes during export. The incomplete package was discarded; export again after saving has finished.'
+      )
+    }
+    const filesNow: typeof draftFiles = []
+    for await (const file of walkFiles(draftFolder, { skip })) filesNow.push(file)
+    if (
+      filesNow.length !== draftFiles.length ||
+      filesNow.some(
+        (file, i) =>
+          file.relPath !== draftFiles[i].relPath ||
+          file.size !== draftFiles[i].size ||
+          file.mtimeMs !== draftFiles[i].mtimeMs
+      )
+    ) {
+      throw new CapShareError(
+        'EXPORT_CHANGED_DURING',
+        'Project resources changed during export; the incomplete package was discarded.'
+      )
+    }
+    for (const [path, before] of externalStates) {
+      const after = await stat(path)
+      if (before.size !== after.size || before.mtimeMs !== after.mtimeMs) {
+        throw new CapShareError(
+          'EXPORT_CHANGED_DURING',
+          `External resource changed during export: ${path}`
+        )
+      }
     }
 
     const platform =
@@ -308,12 +390,21 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
       effectAssets: [...effectPlans.values()].map((e) => ({
         archivePath: e.archivePath,
         cacheSuffix: e.cacheSuffix,
-        size: e.size
+        size: e.size,
+        sha256: effectHashes.get(e.cacheSuffix)
       })),
       integrity,
       missingAtExport,
       warnings
     }
+    if (overrides.size)
+      manifest.resolvedSources = Object.entries(options.sourceOverrides ?? {}).map(
+        ([originalPath, resolvedPath]) => ({
+          originalPath,
+          resolvedPath,
+          reason: 'explicit-user-confirmation'
+        })
+      )
 
     await writer.add(
       {
@@ -325,8 +416,10 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
       signal
     )
     await writer.finish()
+    await rename(temporaryPath, destinationPath)
   } catch (error) {
-    await rm(destinationPath, { force: true })
+    await writer.abort()
+    await rm(temporaryPath, { force: true })
     throw CapShareError.wrap(error, 'EXPORT_FAILED')
   }
 

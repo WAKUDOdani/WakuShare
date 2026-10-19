@@ -1,11 +1,14 @@
 import { app, BrowserWindow } from 'electron'
+import { join } from 'node:path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import log from 'electron-log/main'
 import { createMainWindow } from './window'
-import { registerIpcHandlers, notifyOpenFile } from './ipc'
+import { registerIpcHandlers, notifyOpenFile, hasActiveFileTasks } from './ipc'
 import { setupUpdater } from './updater'
 import { buildAppMenu } from './menu'
 
+app.setName('WakuShare')
+app.setPath('userData', join(app.getPath('appData'), 'WakuShare'))
 log.initialize()
 log.transports.file.level = 'info'
 
@@ -55,7 +58,7 @@ if (!gotTheLock) {
   })
 
   app.whenReady().then(() => {
-    electronApp.setAppUserModelId('co.lysi.capshare')
+    electronApp.setAppUserModelId('io.github.wakudodani.wakushare')
 
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
@@ -75,7 +78,7 @@ if (!gotTheLock) {
 
     mainWindow = createMainWindow()
 
-    const updater = setupUpdater({ getMainWindow: () => mainWindow })
+    const updater = setupUpdater({ getMainWindow: () => mainWindow, isBusy: hasActiveFileTasks })
     buildAppMenu({ updater })
 
     app.on('activate', () => {

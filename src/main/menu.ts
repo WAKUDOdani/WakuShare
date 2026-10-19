@@ -16,7 +16,7 @@ export function buildAppMenu(ctx: MenuContext): void {
   app.setAboutPanelOptions({
     applicationName: app.name,
     applicationVersion: app.getVersion(),
-    copyright: `© ${new Date().getFullYear()} Ilyasse Salama`
+    copyright: `© ${new Date().getFullYear()} Wakudo. Based on CapShare by Ilyasse Salama (MIT).`
   })
 
   const template: MenuItemConstructorOptions[] = [

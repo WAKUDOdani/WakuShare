@@ -12,6 +12,12 @@ import {
   type TimelineFilename
 } from '../capcut/constants'
 import { findTimelinePath, getPlatformBlock } from '../capcut/draft'
+import {
+  cloneTimelineGraph,
+  readProjectDocuments,
+  validateTimelineGraph,
+  writeProjectDocuments
+} from '../capcut/project'
 import { toJsonPath } from '../capcut/locator'
 import type { CapCutEnv, CapCutPlatformBlock } from '../capcut/model'
 import {
@@ -21,7 +27,7 @@ import {
 } from '../capcut/registry'
 import { classifyString, walkJsonStrings, normalizeSlashes } from '../capcut/scanner'
 import { CapShareError } from '../errors'
-import { dirSize, ensureDir, sanitizeFolderName, uniqueName } from '../fsx'
+import { dirSize, ensureDir, hashFile, sanitizeFolderName, uniqueName } from '../fsx'
 import { extractZip, readZipEntries } from '../zip'
 import {
   COVER_ENTRY_NAME,
@@ -31,6 +37,7 @@ import {
   parseManifest,
   type CapShareManifest
 } from './manifest'
+import { createMediaPlan, relocatedInternalPath, verifyLocalMedia } from './media-plan'
 
 export interface CollisionInfo {
   existingName: string
@@ -304,21 +311,9 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
   const names: StagedNames = { finalName, folderBase, draftId, timelineId }
 
   const stagingDir = join(env.draftRoot, `.capshare-staging-${Date.now()}`)
-  await ensureDir(stagingDir)
 
-  const looseTargets = new Map<string, { newRel: string; originalPath: string }>()
-  const usedLocalNames = new Set<string>()
-  for (const loose of manifest.looseMedia) {
-    let candidate = sanitizeFolderName(loose.fileName, env.os)
-    if (usedLocalNames.has(candidate.toLowerCase())) {
-      candidate = `${loose.sha256.slice(0, 8)}-${candidate}`
-    }
-    usedLocalNames.add(candidate.toLowerCase())
-    looseTargets.set(loose.archivePath, {
-      newRel: `Resources/local/${candidate}`,
-      originalPath: loose.originalPath
-    })
-  }
+  const { looseTargets, internalTargets, archiveTargets } = createMediaPlan(manifest)
+  await ensureDir(stagingDir)
 
   let movedExistingTo: string | null = null
   let registryBackup: string | null = null
@@ -334,13 +329,19 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
     await extractZip(filePath, stagingDir, {
       signal,
       onBytes,
+      expected: (name) =>
+        name.startsWith(DRAFT_ENTRY_PREFIX)
+          ? manifest.integrity[name.slice(DRAFT_ENTRY_PREFIX.length)]
+          : manifest.looseMedia.find((item) => item.archivePath === name),
       mapEntry: (entryName) => {
         if (entryName.startsWith(DRAFT_ENTRY_PREFIX)) {
           const rel = entryName.slice(DRAFT_ENTRY_PREFIX.length)
           const base = rel.split('/').pop() ?? rel
           // Defense in depth: never materialize volatile/backup files.
-          if (VOLATILE_FILE_PATTERNS.some((re) => re.test(base))) return null
-          return rel
+          const modernTemplate =
+            manifest.integrity['Timelines/project.json'] && /^template(-\d+)?\.tmp$/i.test(base)
+          if (!modernTemplate && VOLATILE_FILE_PATTERNS.some((re) => re.test(base))) return null
+          return archiveTargets.get(entryName) ?? rel
         }
         const loose = looseTargets.get(entryName)
         if (loose) return loose.newRel
@@ -348,17 +349,27 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
       }
     })
 
+    for (const relative of Object.keys(manifest.integrity)) {
+      const name = relative.split('/').pop()!
+      const skipped =
+        VOLATILE_FILE_PATTERNS.some((re) => re.test(name)) &&
+        !(manifest.integrity['Timelines/project.json'] && /^template(-\d+)?\.tmp$/i.test(name))
+      const target = archiveTargets.get(DRAFT_ENTRY_PREFIX + relative) ?? relative
+      if (!skipped && !existsSync(join(stagingDir, target))) {
+        throw new CapShareError('ARCHIVE_INVALID', `Declared project file is missing: ${relative}`)
+      }
+    }
+
     const stagedPaths = findTimelinePath(stagingDir)
     if (!stagedPaths) {
       throw new CapShareError('ARCHIVE_INVALID', 'Archive contains no timeline file.')
     }
-    const timeline = JSON.parse(await readFile(stagedPaths.timelinePath, 'utf8')) as Record<
-      string,
-      unknown
-    >
+    const documents = await readProjectDocuments(stagingDir)
+    validateTimelineGraph(documents)
+    const timeline = documents.get(stagedPaths.timelineFilename)!.value as Record<string, unknown>
     let meta: Record<string, unknown> | null = null
     if (existsSync(stagedPaths.metaPath)) {
-      meta = JSON.parse(await readFile(stagedPaths.metaPath, 'utf8')) as Record<string, unknown>
+      meta = documents.get(DRAFT_META_FILENAME)!.value as Record<string, unknown>
     }
 
     // The SOURCE machine's draft folder spelling — for draft-internal rewrites.
@@ -375,14 +386,16 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
     const rewriteValue =
       (style: 'placeholder' | 'relative') =>
       (value: string): string | undefined => {
+        const internal = relocatedInternalPath(value, internalTargets)
+        if (internal)
+          return style === 'placeholder' ? `${DRAFT_PATH_PLACEHOLDER}/${internal}` : `./${internal}`
         const result = classifyString(value, { draftFolderJson: sourceFolderJson })
         if (result.cls === 'effect-cache' && result.cacheSuffix) {
           return `${env.canonicalCacheDirJson}/${result.cacheSuffix}`
         }
         if (result.cls === 'draft-internal' && result.draftRelative) {
-          return style === 'placeholder'
-            ? `${DRAFT_PATH_PLACEHOLDER}/${result.draftRelative}`
-            : `./${result.draftRelative}`
+          const relative = internalTargets.get(result.draftRelative) ?? result.draftRelative
+          return style === 'placeholder' ? `${DRAFT_PATH_PLACEHOLDER}/${relative}` : `./${relative}`
         }
         if (result.cls === 'absolute' || result.cls === 'unc') {
           const looseRel = looseByOriginal.get(result.normalized.toLowerCase())
@@ -395,8 +408,12 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
         return undefined
       }
 
-    walkJsonStrings(timeline, rewriteValue('placeholder'))
-    if (meta) walkJsonStrings(meta, rewriteValue('relative'))
+    for (const doc of documents.values()) {
+      walkJsonStrings(
+        doc.value,
+        rewriteValue(doc.relativePath === DRAFT_META_FILENAME ? 'relative' : 'placeholder')
+      )
+    }
 
     // Platform identity → this machine (fixes the cross-machine "unusual path" error).
     const donor = await harvestDonorPlatform(env)
@@ -410,7 +427,16 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
     timeline['platform'] = { ...targetPlatform }
     timeline['last_modified_platform'] = { ...targetPlatform }
 
-    if (names.timelineId) timeline['id'] = names.timelineId
+    await cloneTimelineGraph(stagingDir, documents, names.timelineId, uuid)
+    for (const doc of documents.values()) {
+      if (
+        !Array.isArray(doc.value) &&
+        ('platform' in doc.value || 'last_modified_platform' in doc.value)
+      ) {
+        doc.value['platform'] = { ...targetPlatform }
+        doc.value['last_modified_platform'] = { ...targetPlatform }
+      }
+    }
 
     const finalFolderJson = toJsonPath(finalFolder)
     if (meta) {
@@ -430,6 +456,9 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
     }
 
     const probe = await probeTargetTimelineFilename(env)
+    validateTimelineGraph(documents)
+    verifyLocalMedia(stagingDir, documents)
+    await writeProjectDocuments(stagingDir, documents)
     const timelineJson = JSON.stringify(timeline)
     await writeFile(join(stagingDir, probe.primary), timelineJson)
     if (probe.writeBoth) {
@@ -446,12 +475,26 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
       await extractZip(filePath, env.cacheDir, {
         signal,
         onBytes,
+        expected: (name) => manifest.effectAssets.find((item) => item.archivePath === name),
         mapEntry: (entryName) => {
           if (!entryName.startsWith(EFFECT_ASSET_PREFIX)) return null
           const suffix = entryName.slice(EFFECT_ASSET_PREFIX.length)
           return existsSync(join(env.cacheDir, ...suffix.split('/'))) ? null : suffix
         }
       })
+      for (const asset of manifest.effectAssets) {
+        const path = join(env.cacheDir, ...asset.cacheSuffix.split('/'))
+        if (
+          !existsSync(path) ||
+          (await stat(path)).size !== asset.size ||
+          (asset.sha256 && (await hashFile(path)) !== asset.sha256)
+        ) {
+          throw new CapShareError(
+            'IMPORT_FAILED',
+            `Effect cache is missing or conflicts with the package: ${asset.cacheSuffix}`
+          )
+        }
+      }
     }
 
     if (preview.collision && options.resolution === 'replace') {

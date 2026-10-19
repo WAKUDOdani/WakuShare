@@ -122,7 +122,7 @@ export function ProjectsView({
         ) : !projects?.found ? (
           <EmptyState
             title="CapCut not found"
-            body="CapShare couldn't locate a CapCut project folder on this machine. If CapCut is installed with a custom project location, point CapShare at it."
+            body="WakuShare couldn't locate a CapCut project folder on this machine. If CapCut is installed with a custom project location, point WakuShare at it."
             action={
               <Button onPress={onPickDraftRoot} className="rounded-full">
                 <FolderSearch className="size-4" /> Choose project folder…

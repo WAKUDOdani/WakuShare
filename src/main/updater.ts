@@ -1,161 +1,102 @@
-import { app, BrowserWindow, dialog, ipcMain, type MessageBoxOptions } from 'electron'
+import { app, ipcMain, type BrowserWindow } from 'electron'
 import log from 'electron-log/main'
 import electronUpdater from 'electron-updater'
 import { IPC } from '../shared/channels'
 import type { UpdateStatus } from '../shared/types'
-
-// electron-updater ships CommonJS; the named export isn't reliable under the
-// ESM bundle, so reach autoUpdater through the default export.
-const { autoUpdater } = electronUpdater
+import { UPDATE_FEED } from '../shared/branding'
 
 interface UpdaterContext {
   getMainWindow: () => BrowserWindow | null
+  isBusy: () => boolean
 }
-
-/** What setupUpdater hands back so other surfaces (e.g. the macOS menu) can drive it. */
 export interface UpdaterController {
-  /** Check and report the outcome with native dialogs (for the menu item). */
   checkInteractive: () => Promise<void>
 }
 
-/**
- * Last known status, kept so a renderer that mounts mid-flight (or after a
- * window reload) can render the right state without re-triggering a check.
- */
-let currentStatus: UpdateStatus = { state: 'idle' }
-let wired = false
-
-function setStatus(ctx: UpdaterContext, status: UpdateStatus): void {
-  currentStatus = status
-  const win = ctx.getMainWindow()
-  if (win && !win.isDestroyed()) win.webContents.send(IPC.updateStatus, status)
-}
-
-/** Updates only work from a signed, packaged build; checks are no-ops in dev. */
-async function runCheck(ctx: UpdaterContext): Promise<UpdateStatus> {
-  if (!app.isPackaged) {
-    setStatus(ctx, { state: 'error', message: 'Updates are only available in the installed app.' })
-    return currentStatus
-  }
-  try {
-    await autoUpdater.checkForUpdates()
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    log.warn('[updater] check failed', message)
-    setStatus(ctx, { state: 'error', message })
-  }
-  return currentStatus
-}
-
-function showDialog(ctx: UpdaterContext, options: MessageBoxOptions): Promise<number> {
-  const win = ctx.getMainWindow()
-  return (
-    win && !win.isDestroyed() ? dialog.showMessageBox(win, options) : dialog.showMessageBox(options)
-  ).then((r) => r.response)
-}
-
-/**
- * Menu-initiated check: unlike the silent startup check, this always reports an
- * outcome with a native dialog — the macOS-standard "Check for Updates…" feel.
- */
-async function checkInteractive(ctx: UpdaterContext): Promise<void> {
-  if (!app.isPackaged) {
-    await showDialog(ctx, {
-      type: 'info',
-      message: 'Updates are unavailable in development',
-      detail: 'Run an installed build to check for updates.',
-      buttons: ['OK']
-    })
-    return
-  }
-  const status = await runCheck(ctx)
-  switch (status.state) {
-    case 'not-available':
-      await showDialog(ctx, {
-        type: 'info',
-        message: 'You’re up to date',
-        detail: `CapShare ${app.getVersion()} is the latest version.`,
-        buttons: ['OK']
-      })
-      break
-    case 'available':
-    case 'downloading':
-      await showDialog(ctx, {
-        type: 'info',
-        message: 'A new version is available',
-        detail:
-          'It’s downloading in the background — you’ll be prompted to restart when it’s ready.',
-        buttons: ['OK']
-      })
-      break
-    case 'downloaded': {
-      const response = await showDialog(ctx, {
-        type: 'info',
-        message: `Update ${status.version} is ready`,
-        detail: 'Restart CapShare to install it.',
-        buttons: ['Restart', 'Later'],
-        defaultId: 0,
-        cancelId: 1
-      })
-      if (response === 0) autoUpdater.quitAndInstall(false, true)
-      break
-    }
-    case 'error':
-      await showDialog(ctx, {
-        type: 'error',
-        message: 'Couldn’t check for updates',
-        detail: status.message,
-        buttons: ['OK']
-      })
-      break
-  }
-}
-
-/**
- * Wires electron-updater to electron-log, mirrors its lifecycle to the renderer,
- * registers the update IPC surface, and runs one background check on startup.
- * Updates download automatically and install on the next quit; the UI also
- * offers an immediate restart once a build is downloaded.
- */
+/** Windows installed builds use only WakuShare's public GitHub Releases. */
 export function setupUpdater(ctx: UpdaterContext): UpdaterController {
-  const controller: UpdaterController = { checkInteractive: () => checkInteractive(ctx) }
-  if (wired) return controller
-  wired = true
-
-  autoUpdater.logger = log
-  autoUpdater.autoDownload = true
-  autoUpdater.autoInstallOnAppQuit = true
-
-  autoUpdater.on('checking-for-update', () => setStatus(ctx, { state: 'checking' }))
-  autoUpdater.on('update-available', (info) =>
-    setStatus(ctx, { state: 'available', version: info.version })
-  )
-  autoUpdater.on('update-not-available', () => setStatus(ctx, { state: 'not-available' }))
-  autoUpdater.on('download-progress', (progress) =>
-    setStatus(ctx, { state: 'downloading', percent: Math.round(progress.percent) })
-  )
-  autoUpdater.on('update-downloaded', (info) =>
-    setStatus(ctx, { state: 'downloaded', version: info.version })
-  )
-  autoUpdater.on('error', (error) =>
-    setStatus(ctx, {
+  let status: UpdateStatus = { state: 'idle' }
+  const installed =
+    app.isPackaged &&
+    process.platform === 'win32' &&
+    !process.env['PORTABLE_EXECUTABLE_FILE'] &&
+    !process.env['PORTABLE_EXECUTABLE_DIR']
+  const updater = installed ? new electronUpdater.NsisUpdater(UPDATE_FEED) : null
+  let checking: Promise<UpdateStatus> | null = null
+  const send = (next: UpdateStatus): void => {
+    status = next
+    const win = ctx.getMainWindow()
+    if (win && !win.isDestroyed()) win.webContents.send(IPC.updateStatus, status)
+  }
+  const errorStatus = (error: unknown): void => {
+    const message = error instanceof Error ? error.message : String(error)
+    log.warn('[updater]', message)
+    send({
       state: 'error',
-      message: error instanceof Error ? error.message : String(error)
+      message: /404|NO_PUBLISHED_VERSIONS|NO_LATEST_VERSION/i.test(message)
+        ? 'No published WakuShare update is available yet. Try again later.'
+        : message
     })
-  )
+  }
+  const check = (): Promise<UpdateStatus> => {
+    if (!updater) {
+      send({
+        state: 'error',
+        message:
+          'Automatic updates require the installed Windows version. Portable copies can be updated from GitHub Releases.'
+      })
+      return Promise.resolve(status)
+    }
+    if (checking) return checking
+    checking = (async () => {
+      try {
+        await updater.checkForUpdates()
+      } catch (error) {
+        errorStatus(error)
+      }
+      return status
+    })().finally(() => {
+      checking = null
+    })
+    return checking
+  }
 
-  // Plain values (not IpcResult envelopes): the update surface carries its own
-  // status model and reports failures through the 'error' state, not throws.
+  if (updater) {
+    updater.logger = log
+    updater.allowPrerelease = false
+    updater.allowDowngrade = false
+    updater.autoDownload = true
+    // Installation always requires an explicit user action, after file tasks end.
+    updater.autoInstallOnAppQuit = false
+    updater.on('checking-for-update', () => send({ state: 'checking' }))
+    updater.on('update-available', (info) => send({ state: 'available', version: info.version }))
+    updater.on('update-not-available', () => send({ state: 'not-available' }))
+    updater.on('download-progress', (info) =>
+      send({ state: 'downloading', percent: Math.round(info.percent) })
+    )
+    updater.on('update-downloaded', (info) => send({ state: 'downloaded', version: info.version }))
+    updater.on('error', errorStatus)
+  }
   ipcMain.handle(IPC.getAppVersion, () => app.getVersion())
-  ipcMain.handle(IPC.updateGetStatus, () => currentStatus)
-  ipcMain.handle(IPC.updateCheck, () => runCheck(ctx))
+  ipcMain.handle(IPC.updateGetStatus, () => status)
+  ipcMain.handle(IPC.updateCheck, check)
   ipcMain.handle(IPC.updateInstall, () => {
-    // isSilent=false → show the OS install UI; isForceRunAfter=true → relaunch.
-    if (currentStatus.state === 'downloaded') autoUpdater.quitAndInstall(false, true)
+    if (!updater || status.state !== 'downloaded') return
+    if (ctx.isBusy()) {
+      const win = ctx.getMainWindow()
+      if (win && !win.isDestroyed())
+        win.webContents.send(IPC.updateStatus, {
+          state: 'error',
+          message: 'Finish the current export or import, then check for updates to restart.'
+        } satisfies UpdateStatus)
+      return
+    }
+    updater.quitAndInstall(false, true)
   })
-
-  // Fire-and-forget: a failed startup check must never block launch.
-  if (app.isPackaged) void runCheck(ctx)
-
-  return controller
+  if (updater) void check()
+  return {
+    checkInteractive: async () => {
+      await check()
+    }
+  }
 }

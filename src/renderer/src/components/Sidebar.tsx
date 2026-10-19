@@ -74,7 +74,7 @@ export function Sidebar({ view, onNavigate }: SidebarProps): JSX.Element {
       >
         <div className="mb-4 flex items-center gap-2.5 px-2">
           <img src={logo} alt="" draggable={false} className="size-8" />
-          <div className="text-[15px] font-semibold tracking-tight">CapShare</div>
+          <div className="text-[15px] font-semibold tracking-tight">WakuShare</div>
         </div>
 
         <nav className="app-no-drag flex flex-col gap-1">
