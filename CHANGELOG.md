@@ -1,5 +1,11 @@
 # Changes
 
+## 1.1.2
+
+- In portable Windows builds, Check for updates opens the latest WakuShare release page.
+- Show a normal portable-update explanation instead of an unsupported-updater error.
+- Open the browser only on request; installed Windows updates keep their existing behavior.
+
 ## 1.1.1
 
 - Remove the Settings subtitle and start its scroll area below the fixed header.

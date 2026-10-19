@@ -32,6 +32,7 @@ function updateHelp(status: UpdateStatus, version: string): string {
     case 'not-available':
       return `WakuShare ${version} · up to date`
     case 'error':
+    case 'manual':
       return status.message
     default:
       return version ? `WakuShare ${version}` : 'WakuShare'

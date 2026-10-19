@@ -9,10 +9,12 @@ const mocks = vi.hoisted(() => ({
   feeds: [] as unknown[],
   instances: [] as EventEmitter[],
   check: vi.fn(async () => null),
-  install: vi.fn()
+  install: vi.fn(),
+  openExternal: vi.fn(async (): Promise<void> => {})
 }))
 vi.mock('electron', () => ({
   app: mocks.app,
+  shell: { openExternal: mocks.openExternal },
   ipcMain: {
     handle: (key: string, handler: (...args: unknown[]) => unknown) =>
       mocks.handles.set(key, handler)
@@ -47,6 +49,7 @@ beforeEach(() => {
   mocks.instances.length = 0
   mocks.check.mockReset().mockResolvedValue(null)
   mocks.install.mockReset()
+  mocks.openExternal.mockReset().mockResolvedValue(undefined)
 })
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -66,16 +69,40 @@ describe('WakuShare updater', () => {
     expect(mocks.check).toHaveBeenCalledTimes(1)
     expect(mocks.install).not.toHaveBeenCalled()
   })
-  it('does not contact a feed in development or portable mode', async () => {
+  it('does not contact a feed or open a browser in development', async () => {
     mocks.app.isPackaged = false
     setupUpdater({ getMainWindow: () => null, isBusy: () => false })
     await mocks.handles.get(IPC.updateCheck)!()
     expect(mocks.feeds).toEqual([])
-    mocks.app.isPackaged = true
+    expect(mocks.openExternal).not.toHaveBeenCalled()
+  })
+  it.each(['PORTABLE_EXECUTABLE_FILE', 'PORTABLE_EXECUTABLE_DIR'])(
+    'opens only the latest WakuShare release after a user request in portable mode (%s)',
+    async (flag) => {
+      vi.stubEnv(flag, 'portable-location')
+      setupUpdater({ getMainWindow: () => null, isBusy: () => false })
+      expect(mocks.feeds).toEqual([])
+      expect(mocks.openExternal).not.toHaveBeenCalled()
+      expect(mocks.handles.get(IPC.updateGetStatus)!()).toMatchObject({ state: 'manual' })
+      await mocks.handles.get(IPC.updateCheck)!()
+      expect(mocks.openExternal).toHaveBeenCalledExactlyOnceWith(
+        'https://github.com/WAKUDOdani/WakuShare/releases/latest'
+      )
+      expect(mocks.handles.get(IPC.updateGetStatus)!()).toMatchObject({ state: 'manual' })
+      mocks.handles.get(IPC.updateInstall)!()
+      expect(mocks.install).not.toHaveBeenCalled()
+      expect(mocks.check).not.toHaveBeenCalled()
+    }
+  )
+  it('reports a failed browser launch in portable mode', async () => {
     vi.stubEnv('PORTABLE_EXECUTABLE_FILE', 'WakuShare-portable.exe')
+    mocks.openExternal.mockRejectedValue(new Error('Browser could not be opened'))
     setupUpdater({ getMainWindow: () => null, isBusy: () => false })
     await mocks.handles.get(IPC.updateCheck)!()
-    expect(mocks.feeds).toEqual([])
+    expect(mocks.handles.get(IPC.updateGetStatus)!()).toEqual({
+      state: 'error',
+      message: 'Browser could not be opened'
+    })
   })
   it('requires a downloaded update and refuses restart while a file task runs', async () => {
     let busy = true

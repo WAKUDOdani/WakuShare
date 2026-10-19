@@ -1,6 +1,6 @@
 {
   "name": "wakushare",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Free CapCut project backup and transfer, based on CapShare. Maintained by WAKUDO Dani.",
   "main": "./out/main/index.js",
   "author": {

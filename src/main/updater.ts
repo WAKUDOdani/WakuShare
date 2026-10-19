@@ -1,9 +1,9 @@
-import { app, ipcMain, type BrowserWindow } from 'electron'
+import { app, ipcMain, shell, type BrowserWindow } from 'electron'
 import log from 'electron-log/main'
 import electronUpdater from 'electron-updater'
 import { IPC } from '../shared/channels'
 import type { UpdateStatus } from '../shared/types'
-import { UPDATE_FEED } from '../shared/branding'
+import { BRAND, UPDATE_FEED } from '../shared/branding'
 
 interface UpdaterContext {
   getMainWindow: () => BrowserWindow | null
@@ -16,6 +16,10 @@ export interface UpdaterController {
 /** Windows installed builds use only WakuShare's public GitHub Releases. */
 export function setupUpdater(ctx: UpdaterContext): UpdaterController {
   let status: UpdateStatus = { state: 'idle' }
+  const portable =
+    app.isPackaged &&
+    process.platform === 'win32' &&
+    Boolean(process.env['PORTABLE_EXECUTABLE_FILE'] || process.env['PORTABLE_EXECUTABLE_DIR'])
   const installed =
     app.isPackaged &&
     process.platform === 'win32' &&
@@ -42,11 +46,24 @@ export function setupUpdater(ctx: UpdaterContext): UpdaterController {
     })
   }
   const check = (): Promise<UpdateStatus> => {
+    if (portable) {
+      return (async () => {
+        try {
+          await shell.openExternal(`${BRAND.repository}/releases/latest`)
+          send({
+            state: 'manual',
+            message: 'Release page opened. Download the latest portable .exe to update.'
+          })
+        } catch (error) {
+          errorStatus(error)
+        }
+        return status
+      })()
+    }
     if (!updater) {
       send({
         state: 'error',
-        message:
-          'Automatic updates require the installed Windows version. Portable copies can be updated from GitHub Releases.'
+        message: 'Automatic updates require the installed Windows version.'
       })
       return Promise.resolve(status)
     }
@@ -97,6 +114,11 @@ export function setupUpdater(ctx: UpdaterContext): UpdaterController {
     updater.quitAndInstall(false, true)
   })
   if (updater) void check()
+  else if (portable)
+    send({
+      state: 'manual',
+      message: 'Portable build. Check for updates opens the latest release on GitHub.'
+    })
   return {
     checkInteractive: async () => {
       await check()

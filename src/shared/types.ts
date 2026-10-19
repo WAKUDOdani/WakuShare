@@ -128,6 +128,7 @@ export type UpdateStatus =
   | { state: 'checking' }
   | { state: 'available'; version: string }
   | { state: 'not-available' }
+  | { state: 'manual'; message: string }
   | { state: 'downloading'; percent: number }
   | { state: 'downloaded'; version: string }
   | { state: 'error'; message: string }
