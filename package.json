@@ -1,6 +1,6 @@
 {
   "name": "wakushare",
-  "version": "1.2.0",
+  "version": "1.3.1",
   "description": "Free CapCut project backup and transfer, based on CapShare. Maintained by WAKUDO Dani.",
   "main": "./out/main/index.js",
   "author": {
@@ -33,7 +33,7 @@
     "build": "pnpm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps && node build/ensure-electron.cjs",
     "build:unpack": "pnpm run build && electron-builder --dir",
-    "build:win": "pnpm run build && electron-builder --win nsis portable --x64 --publish never",
+    "build:win": "pnpm run typecheck && node scripts/build-windows.mjs",
     "build:mac": "pnpm run build && electron-builder --mac",
     "build:linux": "pnpm run build && electron-builder --linux",
     "release": "node scripts/prepare-release.mjs",

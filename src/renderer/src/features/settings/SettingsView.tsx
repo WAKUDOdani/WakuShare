@@ -120,7 +120,7 @@ export function SettingsView({ settings, onChange, updates }: SettingsViewProps)
         <SettingsGroup title={t('Sharing')}>
           <SettingRow
             label={t('Include AI caches by default')}
-            help={t('Larger .capshare files; skips re-analysis after import')}
+            help={t('Larger .wakushare files; skips re-analysis after import')}
           >
             <Switch
               aria-label={t('Include AI caches by default')}

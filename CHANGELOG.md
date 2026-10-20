@@ -1,5 +1,19 @@
 # Changes
 
+## 1.3.1
+
+- Use neutral frosted-glass hover feedback instead of purple frames. Keep primary buttons bright on hover in the dark theme and preserve contrast in both themes.
+- Remove full-row highlighting when hovering a preset checkbox; keep feedback on the actual folder button.
+- Distinguish current preset breadcrumbs from navigation and make selection actions quieter, disabling redundant select-all/clear operations.
+
+## 1.3.0
+
+- Add Explorer: event-driven folder synchronization into existing and new CapCut projects, preserving nested folders and material identity.
+- Import a folder in one batch and show acknowledged progress; retain completed status during background checks.
+- Export project bundles as `.wakushare`; continue importing legacy `.capshare` bundles.
+- Show the current version below the wordmark, improve translucent button feedback and align preset folders, checkboxes and toolbars.
+- Bundle the accepted synchronization worker and runtimes. This local build has not been published to GitHub.
+
 ## 1.2.0
 
 - Transfer CapCut composition presets as `.wakupresets` packages, with folder and individual selection.

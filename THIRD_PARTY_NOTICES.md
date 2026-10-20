@@ -15,3 +15,10 @@ Application dependencies retain their respective licenses and notices in the
 distributed node_modules. The Electron runtime includes its own LICENSE and
 LICENSES.chromium.html. The WakuShare icon is a new geometric W mark; it does not
 reuse the CapShare icon.
+
+The Windows Explorer runtime additionally bundles CPython 3.11 (PSF license),
+Microsoft .NET 10 runtime (MIT and third-party notices), and FFprobe from the
+Gyan FFmpeg 9.0.2 full build (GPL). Their original license texts and source
+locations are included under `resources/explorer/licenses/` and
+`resources/explorer/python/LICENSE.txt`. Native CapCut libraries and user
+projects are not distributed with WakuShare.

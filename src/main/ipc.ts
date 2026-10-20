@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import log from 'electron-log/main'
 import { z } from 'zod'
 import { IPC } from '../shared/channels'
+import { PROJECT_EXTENSION, PROJECT_IMPORT_EXTENSIONS } from '../shared/project-package'
 import type {
   AppSettings,
   ExportResult,
@@ -267,12 +268,12 @@ export function registerIpcHandlers(ctx: IpcContext): void {
         const name = typeof defaultName === 'string' && defaultName ? defaultName : 'Project'
         const settings = getSettings()
         const result = await dialog.showSaveDialog(win!, {
-          title: mainT('Export .capshare'),
+          title: mainT('Export .wakushare'),
           defaultPath: join(
             settings.defaultExportDir ?? app.getPath('downloads'),
-            `${name}.capshare`
+            `${name}.${PROJECT_EXTENSION}`
           ),
-          filters: [{ name: mainT('CapShare Project'), extensions: ['capshare'] }]
+          filters: [{ name: mainT('WakuShare Project'), extensions: [PROJECT_EXTENSION] }]
         })
         return ok(result.canceled || !result.filePath ? null : result.filePath)
       } catch (error) {
@@ -311,9 +312,11 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     try {
       const win = ctx.getMainWindow()
       const result = await dialog.showOpenDialog(win!, {
-        title: mainT('Open .capshare'),
+        title: mainT('Open project package'),
         properties: ['openFile'],
-        filters: [{ name: mainT('CapShare Project'), extensions: ['capshare'] }]
+        filters: [
+          { name: mainT('WakuShare / CapShare Project'), extensions: PROJECT_IMPORT_EXTENSIONS }
+        ]
       })
       return ok(result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0])
     } catch (error) {

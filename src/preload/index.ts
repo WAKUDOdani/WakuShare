@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC } from '../shared/channels'
+import type { ExplorerEdit, ExplorerSnapshot } from '../shared/explorer'
 import type {
   AppSettings,
   ExportResult,
@@ -24,6 +25,20 @@ import type {
  * return unsubscribe functions.
  */
 const api = {
+  explorerGet: (): Promise<IpcResult<ExplorerSnapshot>> => ipcRenderer.invoke(IPC.explorerGet),
+  explorerEdit: (
+    expectedRevision: number,
+    edit: ExplorerEdit
+  ): Promise<IpcResult<ExplorerSnapshot>> =>
+    ipcRenderer.invoke(IPC.explorerEdit, { expectedRevision, edit }),
+  explorerRescan: (sourceId?: string): Promise<IpcResult<void>> =>
+    ipcRenderer.invoke(IPC.explorerRescan, sourceId),
+  onExplorerSnapshot: (callback: (snapshot: ExplorerSnapshot) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, snapshot: ExplorerSnapshot): void =>
+      callback(snapshot)
+    ipcRenderer.on(IPC.explorerSnapshot, handler)
+    return () => ipcRenderer.removeListener(IPC.explorerSnapshot, handler)
+  },
   /** Announce the renderer is ready; resolves with a pending .capshare path if the app was opened via a file. */
   rendererReady: (): Promise<string | null> => ipcRenderer.invoke(IPC.rendererReady),
 

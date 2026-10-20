@@ -57,93 +57,96 @@ function readJson(path: string): Record<string, unknown> {
 const TEST_UUIDS = ['11111111-AAAA-4AAA-8AAA-111111111111', '22222222-BBBB-4BBB-8BBB-222222222222']
 
 describe('Mac → Windows roundtrip', () => {
-  it('imports a mac-exported capshare onto a fresh windows machine', async () => {
-    const looseDir = join(tmp, 'mac-external')
-    const draft = createMacDraft(mac, { name: 'Cross Platform', looseMediaDir: looseDir })
-    const capshare = join(tmp, 'cross.capshare')
+  it.each(['wakushare', 'capshare'])(
+    'imports a mac-exported .%s onto a fresh windows machine',
+    async (extension) => {
+      const looseDir = join(tmp, 'mac-external')
+      const draft = createMacDraft(mac, { name: 'Cross Platform', looseMediaDir: looseDir })
+      const capshare = join(tmp, `cross.${extension}`)
 
-    await exportDraft({
-      draftFolder: draft.folder,
-      env: macEnv(),
-      destinationPath: capshare,
-      includeCaches: false,
-      capshareVersion: 'test'
-    })
+      await exportDraft({
+        draftFolder: draft.folder,
+        env: macEnv(),
+        destinationPath: capshare,
+        includeCaches: false,
+        capshareVersion: 'test'
+      })
 
-    const env = winEnv()
-    const result = await importCapshare({
-      filePath: capshare,
-      env,
-      backupDir: join(tmp, 'backups')
-    })
+      const env = winEnv()
+      const result = await importCapshare({
+        filePath: capshare,
+        env,
+        backupDir: join(tmp, 'backups')
+      })
 
-    expect(result.draftName).toBe('Cross Platform')
-    const folder = result.folderPath
-    expect(existsSync(folder)).toBe(true)
+      expect(result.draftName).toBe('Cross Platform')
+      const folder = result.folderPath
+      expect(existsSync(folder)).toBe(true)
 
-    // Fresh win machine → no local evidence → both timeline filenames written.
-    expect(existsSync(join(folder, 'draft_content.json'))).toBe(true)
-    expect(existsSync(join(folder, 'draft_info.json'))).toBe(true)
+      // Fresh win machine → no local evidence → both timeline filenames written.
+      expect(existsSync(join(folder, 'draft_content.json'))).toBe(true)
+      expect(existsSync(join(folder, 'draft_info.json'))).toBe(true)
 
-    const timeline = readJson(join(folder, 'draft_content.json'))
-    const timelineText = JSON.stringify(timeline)
+      const timeline = readJson(join(folder, 'draft_content.json'))
+      const timelineText = JSON.stringify(timeline)
 
-    // Platform identity now belongs to the target machine (synthesized).
-    expect((timeline['platform'] as Record<string, unknown>)['os']).toBe('windows')
-    expect((timeline['last_modified_platform'] as Record<string, unknown>)['os']).toBe('windows')
-    expect((timeline['platform'] as Record<string, unknown>)['device_id']).toBe('')
-    expect(result.warnings.some((w) => w.includes('synthesized'))).toBe(true)
+      // Platform identity now belongs to the target machine (synthesized).
+      expect((timeline['platform'] as Record<string, unknown>)['os']).toBe('windows')
+      expect((timeline['last_modified_platform'] as Record<string, unknown>)['os']).toBe('windows')
+      expect((timeline['platform'] as Record<string, unknown>)['device_id']).toBe('')
+      expect(result.warnings.some((w) => w.includes('synthesized'))).toBe(true)
 
-    // Effect-cache paths rewritten to the windows cache root.
-    const cacheJson = env.canonicalCacheDirJson
-    for (const suffix of draft.cacheSuffixes) {
-      expect(timelineText).toContain(`${cacheJson}/${suffix}`)
+      // Effect-cache paths rewritten to the windows cache root.
+      const cacheJson = env.canonicalCacheDirJson
+      for (const suffix of draft.cacheSuffixes) {
+        expect(timelineText).toContain(`${cacheJson}/${suffix}`)
+      }
+      // No mac container spellings survive.
+      expect(timelineText).not.toContain('com.lemon.lvoverseas')
+
+      // Effect-cache files restored on the target machine.
+      for (const suffix of draft.cacheSuffixes) {
+        expect(existsSync(join(env.cacheDir, ...suffix.split('/')))).toBe(true)
+      }
+
+      // Placeholder media untouched; loose media relocated into the draft.
+      expect(timelineText).toContain(
+        `${DRAFT_PATH_PLACEHOLDER}/Resources/local/Исходники/${draft.localMedia[0].fileName}`
+      )
+      expect(timelineText).toContain(
+        `${DRAFT_PATH_PLACEHOLDER}/Resources/local/Исходники/b-roll clip.mp4`
+      )
+      expect(existsSync(join(folder, 'Resources', 'local', 'Исходники', 'b-roll clip.mp4'))).toBe(
+        true
+      )
+      expect(timelineText).not.toContain(mac.homeDir.split('\\').join('/'))
+
+      // Meta rewritten for the target machine.
+      const meta = readJson(join(folder, 'draft_meta_info.json'))
+      expect(meta['draft_fold_path']).toBe(folder.split('\\').join('/'))
+      expect(meta['draft_root_path']).toBe(env.draftRoot.split('\\').join('/'))
+      const metaText = JSON.stringify(meta)
+      expect(metaText).toContain('./Resources/local/Исходники/b-roll clip.mp4')
+
+      // Volatile files never survive the trip.
+      expect(existsSync(join(folder, 'draft_info.json.bak'))).toBe(false)
+      expect(existsSync(join(folder, 'template-2.tmp'))).toBe(false)
+      expect(existsSync(join(folder, 'template.tmp'))).toBe(false)
+
+      // Lean export → AI caches not carried over.
+      expect(existsSync(join(folder, 'matting'))).toBe(false)
+
+      // Fresh machine has no registry → none invented.
+      expect(existsSync(join(env.draftRoot, 'root_meta_info.json'))).toBe(false)
+
+      // No leftover staging dirs.
+      const leftovers: string[] = []
+      for await (const f of walkFiles(env.draftRoot)) {
+        if (f.relPath.includes('.capshare-staging')) leftovers.push(f.relPath)
+      }
+      expect(leftovers).toEqual([])
     }
-    // No mac container spellings survive.
-    expect(timelineText).not.toContain('com.lemon.lvoverseas')
-
-    // Effect-cache files restored on the target machine.
-    for (const suffix of draft.cacheSuffixes) {
-      expect(existsSync(join(env.cacheDir, ...suffix.split('/')))).toBe(true)
-    }
-
-    // Placeholder media untouched; loose media relocated into the draft.
-    expect(timelineText).toContain(
-      `${DRAFT_PATH_PLACEHOLDER}/Resources/local/Исходники/${draft.localMedia[0].fileName}`
-    )
-    expect(timelineText).toContain(
-      `${DRAFT_PATH_PLACEHOLDER}/Resources/local/Исходники/b-roll clip.mp4`
-    )
-    expect(existsSync(join(folder, 'Resources', 'local', 'Исходники', 'b-roll clip.mp4'))).toBe(
-      true
-    )
-    expect(timelineText).not.toContain(mac.homeDir.split('\\').join('/'))
-
-    // Meta rewritten for the target machine.
-    const meta = readJson(join(folder, 'draft_meta_info.json'))
-    expect(meta['draft_fold_path']).toBe(folder.split('\\').join('/'))
-    expect(meta['draft_root_path']).toBe(env.draftRoot.split('\\').join('/'))
-    const metaText = JSON.stringify(meta)
-    expect(metaText).toContain('./Resources/local/Исходники/b-roll clip.mp4')
-
-    // Volatile files never survive the trip.
-    expect(existsSync(join(folder, 'draft_info.json.bak'))).toBe(false)
-    expect(existsSync(join(folder, 'template-2.tmp'))).toBe(false)
-    expect(existsSync(join(folder, 'template.tmp'))).toBe(false)
-
-    // Lean export → AI caches not carried over.
-    expect(existsSync(join(folder, 'matting'))).toBe(false)
-
-    // Fresh machine has no registry → none invented.
-    expect(existsSync(join(env.draftRoot, 'root_meta_info.json'))).toBe(false)
-
-    // No leftover staging dirs.
-    const leftovers: string[] = []
-    for await (const f of walkFiles(env.draftRoot)) {
-      if (f.relPath.includes('.capshare-staging')) leftovers.push(f.relPath)
-    }
-    expect(leftovers).toEqual([])
-  })
+  )
 })
 
 describe('Windows-authored capshare → Mac machine', () => {

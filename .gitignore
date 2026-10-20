@@ -18,7 +18,12 @@ out/
 artifacts/
 research/
 *.capshare
+*.wakushare
 *.wakupresets
 *.partial
 *.dmp
 /native/macos-window-effects/build/
+.runtime-cache/
+__pycache__/
+**/bin/
+**/obj/

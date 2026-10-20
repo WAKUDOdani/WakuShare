@@ -1,0 +1,360 @@
+{
+  "build": "9.6.0.4097",
+  "exports": {
+    "videoCtor": {
+      "name": "??0MaterialVideo@lvve@@QEAA@_N@Z",
+      "rva": "0x9209b0"
+    },
+    "videoDtor": {
+      "name": "??1MaterialVideo@lvve@@UEAA@XZ",
+      "rva": "0x921370"
+    },
+    "videoFromJson": {
+      "name": "?patch_from_json@MaterialVideo@lvve@@UEAAXAEBV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@@Z",
+      "rva": "0x931200"
+    },
+    "videoToJson": {
+      "name": "?to_patch_json@MaterialVideo@lvve@@UEAAXAEAV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@AEBV34@@Z",
+      "rva": "0x93c210"
+    },
+    "audioCtor": {
+      "name": "??0MaterialAudio@lvve@@QEAA@_N@Z",
+      "rva": "0x76aff0"
+    },
+    "audioDtor": {
+      "name": "??1MaterialAudio@lvve@@UEAA@XZ",
+      "rva": "0x76b610"
+    },
+    "audioFromJson": {
+      "name": "?patch_from_json@MaterialAudio@lvve@@UEAAXAEBV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@@Z",
+      "rva": "0x773c00"
+    },
+    "audioToJson": {
+      "name": "?to_patch_json@MaterialAudio@lvve@@UEAAXAEAV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@AEBV34@@Z",
+      "rva": "0x77b360"
+    },
+    "draftCtor": {
+      "name": "??0Draft@lvve@@QEAA@_N@Z",
+      "rva": "0x65a840"
+    },
+    "draftDtor": {
+      "name": "??1Draft@lvve@@UEAA@XZ",
+      "rva": "0xab470"
+    },
+    "draftFromJson": {
+      "name": "?patch_from_json@Draft@lvve@@UEAAXAEBV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@@Z",
+      "rva": "0x674630"
+    },
+    "draftToJson": {
+      "name": "?to_patch_json@Draft@lvve@@UEAAXAEAV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@AEBV34@@Z",
+      "rva": "0x684360"
+    },
+    "trackCtor": {
+      "name": "??0Track@lvve@@QEAA@_N@Z",
+      "rva": "0xba1740"
+    },
+    "trackDtor": {
+      "name": "??1Track@lvve@@UEAA@XZ",
+      "rva": "0xac550"
+    },
+    "trackFromJson": {
+      "name": "?patch_from_json@Track@lvve@@UEAAXAEBV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@@Z",
+      "rva": "0xba43e0"
+    },
+    "trackToJson": {
+      "name": "?to_patch_json@Track@lvve@@UEAAXAEAV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@AEBV34@@Z",
+      "rva": "0xba65f0"
+    },
+    "segmentVideoCtor": {
+      "name": "??0SegmentVideo@lvve@@QEAA@_N@Z",
+      "rva": "0xaee3b0"
+    },
+    "segmentVideoDtor": {
+      "name": "??1SegmentVideo@lvve@@UEAA@XZ",
+      "rva": "0xaef170"
+    },
+    "segmentVideoFromJson": {
+      "name": "?patch_from_json@SegmentVideo@lvve@@UEAAXAEBV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@@Z",
+      "rva": "0xb1d920"
+    },
+    "segmentVideoToJson": {
+      "name": "?to_patch_json@SegmentVideo@lvve@@UEAAXAEAV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@AEBV34@@Z",
+      "rva": "0xb413a0"
+    },
+    "segmentAudioCtor": {
+      "name": "??0SegmentAudio@lvve@@QEAA@_N@Z",
+      "rva": "0xa0dda0"
+    },
+    "segmentAudioDtor": {
+      "name": "??1SegmentAudio@lvve@@UEAA@XZ",
+      "rva": "0xa0de50"
+    },
+    "segmentAudioFromJson": {
+      "name": "?patch_from_json@SegmentAudio@lvve@@UEAAXAEBV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@@Z",
+      "rva": "0xa222f0"
+    },
+    "segmentAudioToJson": {
+      "name": "?to_patch_json@SegmentAudio@lvve@@UEAAXAEAV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@AEBV34@@Z",
+      "rva": "0xa337f0"
+    },
+    "nodeId": {
+      "name": "?get_id@Node@lvve@@QEBAAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ",
+      "rva": "0xbb480"
+    },
+    "videoSetPath": {
+      "name": "?set_path@MaterialVideo@lvve@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "rva": "0x189760"
+    },
+    "audioSetPath": {
+      "name": "?set_path@MaterialAudio@lvve@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "rva": "0x156c00"
+    },
+    "enum": {
+      "name": "?enum_segments_recursion@DraftQuery@lvve@@SAXV?$shared_ptr@VDraft@lvve@@@std@@AEBV?$function@$$A6AXAEBV?$vector@V?$shared_ptr@VSegment@lvve@@@std@@V?$allocator@V?$shared_ptr@VSegment@lvve@@@std@@@2@@std@@AEBV?$shared_ptr@VSegment@lvve@@@2@AEBV?$shared_ptr@VTrack@lvve@@@2@PEA_N@Z@4@_NW4LVVETrackType@@W4LVVEMetaType@@@Z",
+      "rva": "0x107be30"
+    },
+    "videoMaterial": {
+      "name": "?get_material@SegmentVideo@lvve@@QEBAAEBV?$shared_ptr@VMaterialVideo@lvve@@@std@@XZ",
+      "rva": "0x1aad80"
+    },
+    "audioMaterial": {
+      "name": "?get_material@SegmentAudio@lvve@@QEBAAEBV?$shared_ptr@VMaterialAudio@lvve@@@std@@XZ",
+      "rva": "0x124a50"
+    },
+    "videoPath": {
+      "name": "?get_path@MaterialVideo@lvve@@QEBAAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ",
+      "rva": "0x11a940"
+    },
+    "audioPath": {
+      "name": "?get_path@MaterialAudio@lvve@@QEBAAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ",
+      "rva": "0x11d500"
+    },
+    "videoSetMaterial": {
+      "name": "?set_material@SegmentVideo@lvve@@QEAAXAEBV?$shared_ptr@VMaterialVideo@lvve@@@std@@@Z",
+      "rva": "0x683cf0"
+    },
+    "audioSetMaterial": {
+      "name": "?set_material@SegmentAudio@lvve@@QEAAXAEBV?$shared_ptr@VMaterialAudio@lvve@@@std@@@Z",
+      "rva": "0xa33350"
+    },
+    "trackSetType": {
+      "name": "?set_type@Track@lvve@@QEAAXAEBW4LVVETrackType@@@Z",
+      "rva": "0x11ff50"
+    },
+    "trackSetSegments": {
+      "name": "?set_segments@Track@lvve@@QEAAXAEBV?$vector@V?$shared_ptr@VSegment@lvve@@@std@@V?$allocator@V?$shared_ptr@VSegment@lvve@@@std@@@2@@std@@@Z",
+      "rva": "0xba64d0"
+    },
+    "draftSetTracks": {
+      "name": "?set_tracks@Draft@lvve@@QEAAXAEBV?$vector@V?$shared_ptr@VTrack@lvve@@@std@@V?$allocator@V?$shared_ptr@VTrack@lvve@@@std@@@2@@std@@@Z",
+      "rva": "0x684140"
+    },
+    "loadDraft": {
+      "name": "?GetDraftFromJson@lvve@@YA?AV?$shared_ptr@VDraft@lvve@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@3@@Z",
+      "rva": "0x1109890"
+    },
+    "saveDraft": {
+      "name": "?GetJsonFromDraft@lvve@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV?$shared_ptr@VDraft@lvve@@@3@@Z",
+      "rva": "0x110aea0"
+    },
+    "draftTracks": {
+      "name": "?get_tracks@Draft@lvve@@QEBAAEBV?$vector@V?$shared_ptr@VTrack@lvve@@@std@@V?$allocator@V?$shared_ptr@VTrack@lvve@@@std@@@2@@std@@XZ",
+      "rva": "0x66e5b0"
+    },
+    "trackType": {
+      "name": "?get_type@Track@lvve@@QEBAAEBW4LVVETrackType@@XZ",
+      "rva": "0x102420"
+    },
+    "trackSegments": {
+      "name": "?get_segments@Track@lvve@@QEBAAEBV?$vector@V?$shared_ptr@VSegment@lvve@@@std@@V?$allocator@V?$shared_ptr@VSegment@lvve@@@std@@@2@@std@@XZ",
+      "rva": "0x111a50"
+    },
+    "videoSetName": {
+      "name": "?set_material_name@MaterialVideo@lvve@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "rva": "0x262600"
+    },
+    "audioSetName": {
+      "name": "?set_name@MaterialAudio@lvve@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "rva": "0x1059e0"
+    }
+  },
+  "avExports": {
+    "videoCtor": {
+      "name": "??0MaterialVideo@lvve@@QEAA@_N@Z",
+      "rva": "0x9209b0"
+    },
+    "videoDtor": {
+      "name": "??1MaterialVideo@lvve@@UEAA@XZ",
+      "rva": "0x921370"
+    },
+    "videoFromJson": {
+      "name": "?patch_from_json@MaterialVideo@lvve@@UEAAXAEBV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@@Z",
+      "rva": "0x931200"
+    },
+    "videoToJson": {
+      "name": "?to_patch_json@MaterialVideo@lvve@@UEAAXAEAV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@AEBV34@@Z",
+      "rva": "0x93c210"
+    },
+    "audioCtor": {
+      "name": "??0MaterialAudio@lvve@@QEAA@_N@Z",
+      "rva": "0x76aff0"
+    },
+    "audioDtor": {
+      "name": "??1MaterialAudio@lvve@@UEAA@XZ",
+      "rva": "0x76b610"
+    },
+    "audioFromJson": {
+      "name": "?patch_from_json@MaterialAudio@lvve@@UEAAXAEBV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@@Z",
+      "rva": "0x773c00"
+    },
+    "audioToJson": {
+      "name": "?to_patch_json@MaterialAudio@lvve@@UEAAXAEAV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@AEBV34@@Z",
+      "rva": "0x77b360"
+    },
+    "draftCtor": {
+      "name": "??0Draft@lvve@@QEAA@_N@Z",
+      "rva": "0x65a840"
+    },
+    "draftDtor": {
+      "name": "??1Draft@lvve@@UEAA@XZ",
+      "rva": "0xab470"
+    },
+    "draftFromJson": {
+      "name": "?patch_from_json@Draft@lvve@@UEAAXAEBV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@@Z",
+      "rva": "0x674630"
+    },
+    "draftToJson": {
+      "name": "?to_patch_json@Draft@lvve@@UEAAXAEAV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@AEBV34@@Z",
+      "rva": "0x684360"
+    },
+    "trackCtor": {
+      "name": "??0Track@lvve@@QEAA@_N@Z",
+      "rva": "0xba1740"
+    },
+    "trackDtor": {
+      "name": "??1Track@lvve@@UEAA@XZ",
+      "rva": "0xac550"
+    },
+    "trackFromJson": {
+      "name": "?patch_from_json@Track@lvve@@UEAAXAEBV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@@Z",
+      "rva": "0xba43e0"
+    },
+    "trackToJson": {
+      "name": "?to_patch_json@Track@lvve@@UEAAXAEAV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@AEBV34@@Z",
+      "rva": "0xba65f0"
+    },
+    "segmentVideoCtor": {
+      "name": "??0SegmentVideo@lvve@@QEAA@_N@Z",
+      "rva": "0xaee3b0"
+    },
+    "segmentVideoDtor": {
+      "name": "??1SegmentVideo@lvve@@UEAA@XZ",
+      "rva": "0xaef170"
+    },
+    "segmentVideoFromJson": {
+      "name": "?patch_from_json@SegmentVideo@lvve@@UEAAXAEBV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@@Z",
+      "rva": "0xb1d920"
+    },
+    "segmentVideoToJson": {
+      "name": "?to_patch_json@SegmentVideo@lvve@@UEAAXAEAV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@AEBV34@@Z",
+      "rva": "0xb413a0"
+    },
+    "segmentAudioCtor": {
+      "name": "??0SegmentAudio@lvve@@QEAA@_N@Z",
+      "rva": "0xa0dda0"
+    },
+    "segmentAudioDtor": {
+      "name": "??1SegmentAudio@lvve@@UEAA@XZ",
+      "rva": "0xa0de50"
+    },
+    "segmentAudioFromJson": {
+      "name": "?patch_from_json@SegmentAudio@lvve@@UEAAXAEBV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@@Z",
+      "rva": "0xa222f0"
+    },
+    "segmentAudioToJson": {
+      "name": "?to_patch_json@SegmentAudio@lvve@@UEAAXAEAV?$basic_json@Vmap@std@@Vvector@2@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@_N_J_KNVallocator@2@Uadl_serializer@nlohmann@@V?$vector@EV?$allocator@E@std@@@2@@nlohmann@@AEBV34@@Z",
+      "rva": "0xa337f0"
+    },
+    "nodeId": {
+      "name": "?get_id@Node@lvve@@QEBAAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ",
+      "rva": "0xbb480"
+    },
+    "videoSetPath": {
+      "name": "?set_path@MaterialVideo@lvve@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "rva": "0x189760"
+    },
+    "audioSetPath": {
+      "name": "?set_path@MaterialAudio@lvve@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "rva": "0x156c00"
+    },
+    "enum": {
+      "name": "?enum_segments_recursion@DraftQuery@lvve@@SAXV?$shared_ptr@VDraft@lvve@@@std@@AEBV?$function@$$A6AXAEBV?$vector@V?$shared_ptr@VSegment@lvve@@@std@@V?$allocator@V?$shared_ptr@VSegment@lvve@@@std@@@2@@std@@AEBV?$shared_ptr@VSegment@lvve@@@2@AEBV?$shared_ptr@VTrack@lvve@@@2@PEA_N@Z@4@_NW4LVVETrackType@@W4LVVEMetaType@@@Z",
+      "rva": "0x107be30"
+    },
+    "videoMaterial": {
+      "name": "?get_material@SegmentVideo@lvve@@QEBAAEBV?$shared_ptr@VMaterialVideo@lvve@@@std@@XZ",
+      "rva": "0x1aad80"
+    },
+    "audioMaterial": {
+      "name": "?get_material@SegmentAudio@lvve@@QEBAAEBV?$shared_ptr@VMaterialAudio@lvve@@@std@@XZ",
+      "rva": "0x124a50"
+    },
+    "videoPath": {
+      "name": "?get_path@MaterialVideo@lvve@@QEBAAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ",
+      "rva": "0x11a940"
+    },
+    "audioPath": {
+      "name": "?get_path@MaterialAudio@lvve@@QEBAAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ",
+      "rva": "0x11d500"
+    },
+    "videoSetMaterial": {
+      "name": "?set_material@SegmentVideo@lvve@@QEAAXAEBV?$shared_ptr@VMaterialVideo@lvve@@@std@@@Z",
+      "rva": "0x683cf0"
+    },
+    "audioSetMaterial": {
+      "name": "?set_material@SegmentAudio@lvve@@QEAAXAEBV?$shared_ptr@VMaterialAudio@lvve@@@std@@@Z",
+      "rva": "0xa33350"
+    },
+    "trackSetType": {
+      "name": "?set_type@Track@lvve@@QEAAXAEBW4LVVETrackType@@@Z",
+      "rva": "0x11ff50"
+    },
+    "trackSetSegments": {
+      "name": "?set_segments@Track@lvve@@QEAAXAEBV?$vector@V?$shared_ptr@VSegment@lvve@@@std@@V?$allocator@V?$shared_ptr@VSegment@lvve@@@std@@@2@@std@@@Z",
+      "rva": "0xba64d0"
+    },
+    "draftSetTracks": {
+      "name": "?set_tracks@Draft@lvve@@QEAAXAEBV?$vector@V?$shared_ptr@VTrack@lvve@@@std@@V?$allocator@V?$shared_ptr@VTrack@lvve@@@std@@@2@@std@@@Z",
+      "rva": "0x684140"
+    },
+    "loadDraft": {
+      "name": "?GetDraftFromJson@lvve@@YA?AV?$shared_ptr@VDraft@lvve@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@3@@Z",
+      "rva": "0x1109890"
+    },
+    "saveDraft": {
+      "name": "?GetJsonFromDraft@lvve@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV?$shared_ptr@VDraft@lvve@@@3@@Z",
+      "rva": "0x110aea0"
+    },
+    "draftTracks": {
+      "name": "?get_tracks@Draft@lvve@@QEBAAEBV?$vector@V?$shared_ptr@VTrack@lvve@@@std@@V?$allocator@V?$shared_ptr@VTrack@lvve@@@std@@@2@@std@@XZ",
+      "rva": "0x66e5b0"
+    },
+    "trackType": {
+      "name": "?get_type@Track@lvve@@QEBAAEBW4LVVETrackType@@XZ",
+      "rva": "0x102420"
+    },
+    "trackSegments": {
+      "name": "?get_segments@Track@lvve@@QEBAAEBV?$vector@V?$shared_ptr@VSegment@lvve@@@std@@V?$allocator@V?$shared_ptr@VSegment@lvve@@@std@@@2@@std@@XZ",
+      "rva": "0x111a50"
+    },
+    "videoSetName": {
+      "name": "?set_material_name@MaterialVideo@lvve@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "rva": "0x262600"
+    },
+    "audioSetName": {
+      "name": "?set_name@MaterialAudio@lvve@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "rva": "0x1059e0"
+    }
+  },
+  "draftVtableRva": 50744248
+}

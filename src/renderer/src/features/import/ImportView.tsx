@@ -16,6 +16,7 @@ import {
 import { AnimatePresence, motion } from 'motion/react'
 import { AlertDialog, Button, ProgressBar } from '@heroui/react'
 import type { CollisionResolution, ImportPreview, ImportResult } from '@shared/types'
+import { isProjectPackage } from '@shared/project-package'
 import { FaApple, FaWindows } from 'react-icons/fa6'
 import { AnimatedHeight } from '@/components/AnimatedHeight'
 import { StatChip } from '@/components/StatChip'
@@ -87,8 +88,8 @@ export function ImportView({
     const file = event.dataTransfer.files[0]
     if (!file) return
     const path = window.capshare.getPathForFile(file)
-    if (!path.toLowerCase().endsWith('.capshare')) {
-      toast.danger(t('That is not a .capshare file.'))
+    if (!isProjectPackage(path)) {
+      toast.danger(t('Choose a .wakushare or .capshare file.'))
       return
     }
     void inspect(path)
@@ -200,10 +201,10 @@ export function ImportView({
               </motion.div>
               <div className="text-center">
                 <div className="text-[15px] font-semibold">
-                  {dragging ? t('Drop to import') : t('Drop a .capshare file here')}
+                  {dragging ? t('Drop to import') : t('Drop a .wakushare file here')}
                 </div>
                 <div className="mt-1 text-[12px] text-muted-foreground">
-                  {t('or click to browse — double-clicking a .capshare file works too')}
+                  {t('or click to browse - legacy .capshare packages are supported too')}
                 </div>
               </div>
             </motion.button>

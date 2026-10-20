@@ -9,6 +9,7 @@ import { isLocalPreview } from '../shared/build'
 interface UpdaterContext {
   getMainWindow: () => BrowserWindow | null
   isBusy: () => boolean
+  beforeInstall?: () => Promise<void>
 }
 export interface UpdaterController {
   checkInteractive: () => Promise<void>
@@ -29,6 +30,7 @@ export function setupUpdater(ctx: UpdaterContext): UpdaterController {
     !process.env['PORTABLE_EXECUTABLE_DIR']
   const updater = installed ? new electronUpdater.NsisUpdater(UPDATE_FEED) : null
   let checking: Promise<UpdateStatus> | null = null
+  let installing = false
   const send = (next: UpdateStatus): void => {
     status = next
     const win = ctx.getMainWindow()
@@ -107,7 +109,7 @@ export function setupUpdater(ctx: UpdaterContext): UpdaterController {
   ipcMain.handle(IPC.updateGetStatus, () => status)
   ipcMain.handle(IPC.updateCheck, check)
   ipcMain.handle(IPC.updateInstall, () => {
-    if (!updater || status.state !== 'downloaded') return
+    if (!updater || status.state !== 'downloaded' || installing) return
     if (ctx.isBusy()) {
       const win = ctx.getMainWindow()
       if (win && !win.isDestroyed())
@@ -117,7 +119,18 @@ export function setupUpdater(ctx: UpdaterContext): UpdaterController {
         } satisfies UpdateStatus)
       return
     }
-    updater.quitAndInstall(false, true)
+    if (!ctx.beforeInstall) {
+      updater.quitAndInstall(false, true)
+      return
+    }
+    installing = true
+    return ctx
+      .beforeInstall()
+      .then(() => updater.quitAndInstall(false, true))
+      .catch(errorStatus)
+      .finally(() => {
+        installing = false
+      })
   })
   if (updater) void check()
   else if (isLocalPreview())

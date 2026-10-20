@@ -13,13 +13,16 @@ import { ImportView } from '@/features/import/ImportView'
 import { ProjectsView } from '@/features/projects/ProjectsView'
 import { SettingsView } from '@/features/settings/SettingsView'
 import { PresetsView } from '@/features/presets/PresetsView'
+import { ExplorerView } from '@/features/explorer/ExplorerView'
 import { useUpdates } from '@/hooks/use-updates'
 import { errorMessage, unwrap } from '@/lib/ipc'
+import { isExplorerPreview } from '@shared/build'
 
 const HEADERS: Record<View, { title: string; subtitle: string }> = {
   projects: { title: 'Projects', subtitle: 'CapCut library' },
-  import: { title: 'Import', subtitle: "Bring a .capshare project into this machine's CapCut" },
+  import: { title: 'Import', subtitle: "Bring a .wakushare project into this machine's CapCut" },
   presets: { title: 'Presets', subtitle: 'Back up and transfer your composition presets' },
+  explorer: { title: 'Explorer', subtitle: 'Windows folders in your CapCut media library' },
   settings: { title: 'Settings', subtitle: '' }
 }
 function useTheme(theme: AppSettings['theme'] | undefined): void {
@@ -39,7 +42,7 @@ function useTheme(theme: AppSettings['theme'] | undefined): void {
 function App(): JSX.Element {
   const language = useLanguage()
 
-  const [view, setView] = useState<View>('projects')
+  const [view, setView] = useState<View>(isExplorerPreview() ? 'explorer' : 'projects')
   const [presetsBusy, setPresetsBusy] = useState(false)
   const [projects, setProjects] = useState<ProjectsResponse | null>(null)
   const [loadingProjects, setLoadingProjects] = useState(true)
@@ -185,6 +188,7 @@ function App(): JSX.Element {
                   />
                 )}
                 {view === 'presets' && <PresetsView onBusyChange={setPresetsBusy} />}
+                {view === 'explorer' && <ExplorerView />}
               </motion.div>
             </AnimatePresence>
           </main>

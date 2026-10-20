@@ -7,18 +7,26 @@ import { isMacLike } from '@/lib/format'
 import { Clapperboard } from '@/components/animate-ui/icons/clapperboard'
 import { CloudDownload } from '@/components/animate-ui/icons/cloud-download'
 import { Settings } from '@/components/animate-ui/icons/settings'
+import { FolderOpen } from 'lucide-react'
+import type { ComponentProps } from 'react'
 import logo from '@/assets/logo.png'
 import { isLocalPreview } from '@shared/build'
 import { BrandWordmark } from './BrandWordmark'
 
-export type View = 'projects' | 'import' | 'presets' | 'settings'
+export type View = 'projects' | 'import' | 'presets' | 'explorer' | 'settings'
 
 type AnimatedIcon = typeof Clapperboard
+function ExplorerIcon({ size = 16, className }: ComponentProps<AnimatedIcon>): JSX.Element {
+  return (
+    <FolderOpen size={size} className={typeof className === 'string' ? className : undefined} />
+  )
+}
 
 const NAV: { view: View; label: string; icon: AnimatedIcon }[] = [
   { view: 'projects', label: 'Projects', icon: Clapperboard },
   { view: 'import', label: 'Import', icon: CloudDownload },
   { view: 'presets', label: 'Presets', icon: Clapperboard },
+  { view: 'explorer', label: 'Explorer', icon: ExplorerIcon },
   { view: 'settings', label: 'Settings', icon: Settings }
 ]
 
@@ -89,15 +97,20 @@ export function Sidebar({ view, onNavigate, disabled, version }: SidebarProps): 
           isMacLike ? 'pt-12' : 'pt-4'
         )}
       >
-        <div className="mb-3 flex items-center gap-2 px-3 pb-1">
-          <img src={logo} alt="" draggable={false} className="size-6 shrink-0" />
-          <div className="text-left text-[21px] leading-tight font-semibold tracking-tight">
+        <div className="mb-4 flex items-center gap-2.5 px-2 pb-1">
+          <img src={logo} alt="" draggable={false} className="size-8 shrink-0" />
+          <div className="min-w-0 text-left text-[21px] leading-tight font-semibold tracking-tight">
             <BrandWordmark />
+            {version && (
+              <span
+                className="mt-1 block text-[11px] leading-4 font-medium tracking-wide text-muted-foreground"
+                data-app-version
+              >
+                {`v${version}`}
+              </span>
+            )}
             {isLocalPreview() && (
               <span className="block text-[10px] text-muted-foreground">{t('Local preview')}</span>
-            )}
-            {isLocalPreview() && version && (
-              <span className="block text-xs font-semibold text-primary">{`v${version}`}</span>
             )}
           </div>
         </div>

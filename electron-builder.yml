@@ -23,6 +23,11 @@ asarUnpack:
   - resources/**
 afterPack: build/windows-after-pack.cjs
 fileAssociations:
+  - ext: wakushare
+    name: WakuShare Project
+    description: Portable CapCut project bundle
+    mimeType: application/x-wakushare
+    role: Editor
   - ext: capshare
     name: CapShare Project
     description: Portable CapCut project bundle

@@ -27,6 +27,7 @@ jobs:
         run: pnpm run build:win
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Verify packaged app and update metadata
         run: pnpm run verify:package
         env:
@@ -41,19 +42,6 @@ jobs:
             dist/SHA256SUMS.txt
             dist/package-verification.json
           if-no-files-found: error
-  draft:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: wakushare-windows
-          path: release
-      - name: Create release draft
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" release/* --verify-tag --draft --title "WakuShare $GITHUB_REF_NAME" --generate-notes
+  # The maintainer publishes the already accepted local binaries after this
+  # independent build succeeds. Do not replace them with another build's bytes
+  # or create a second draft. The pinned runtime is uploaded to the draft first.

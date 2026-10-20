@@ -139,7 +139,7 @@ export function ProjectsView({
           <EmptyState
             title={t('No projects yet')}
             body={t(
-              'Projects you create in CapCut will appear here, ready to export as .capshare files.'
+              'Projects you create in CapCut will appear here, ready to export as .wakushare files.'
             )}
           />
         ) : (

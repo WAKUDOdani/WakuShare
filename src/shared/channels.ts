@@ -1,5 +1,9 @@
 /** IPC channel names — single source of truth for main, preload, and renderer. */
 export const IPC = {
+  explorerGet: 'explorer:get',
+  explorerEdit: 'explorer:edit',
+  explorerRescan: 'explorer:rescan',
+  explorerSnapshot: 'explorer:snapshot',
   /** invoke: renderer announces it can receive events; returns a pending .capshare path if any. */
   rendererReady: 'app:renderer-ready',
   /** event main→renderer: OS asked us to open a .capshare file. */

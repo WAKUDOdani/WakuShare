@@ -286,7 +286,7 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                         </div>
                       </div>
                       <Button onPress={() => void startExport()} className="mt-2 w-full rounded-xl">
-                        <FileDown className="size-4" /> {t('Export .capshare')}{' '}
+                        <FileDown className="size-4" /> {t('Export .wakushare')}{' '}
                       </Button>
                     </motion.div>
                   )}

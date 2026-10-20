@@ -320,9 +320,12 @@ export function PresetsView({
   }
 
   return (
-    <div className="h-full overflow-y-auto px-4 pt-24 pb-5">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap gap-2">
+    <section
+      className="presets-view h-full overflow-y-auto px-4 pt-24 pb-8"
+      aria-label={t('Presets')}
+    >
+      <div className="mx-auto flex max-w-4xl flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
             variant={archive ? 'secondary' : 'primary'}
@@ -350,6 +353,7 @@ export function PresetsView({
             </Button>
           )}
           <Button
+            isIconOnly
             size="sm"
             variant="ghost"
             aria-label={t('Refresh presets')}
@@ -359,7 +363,7 @@ export function PresetsView({
             <RefreshCw size={15} />
           </Button>
         </div>
-        <div className="text-xs text-muted-foreground">
+        <div className="glass-subtle space-y-2 rounded-2xl px-4 py-3 text-xs leading-relaxed text-muted-foreground">
           <p>
             {t('Composition presets, including their media, available fonts and effect resources.')}
           </p>
@@ -441,41 +445,53 @@ export function PresetsView({
             {t(warning)}
           </p>
         ))}
-        <div className="glass-subtle rounded-2xl p-3">
+        <div className="glass-subtle overflow-hidden rounded-2xl">
           <nav
             aria-label={t('Preset folders')}
-            className="mb-3 flex flex-wrap items-center gap-1 text-sm"
+            className="flex min-h-14 flex-wrap items-center gap-1 border-b border-foreground/10 px-4 py-2 text-sm"
           >
-            <Button
-              size="sm"
-              variant="ghost"
-              isDisabled={busy}
-              onPress={() => setParent(null)}
-              className="rounded px-2 py-1 hover:bg-foreground/5"
-            >
-              {t('All presets')}
-            </Button>
-            {crumbs.map((node) => (
+            {parent === null ? (
+              <span aria-current="page" className="px-2 py-2 font-semibold">
+                {t('All presets')}
+              </span>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                isDisabled={busy}
+                onPress={() => setParent(null)}
+                className="max-w-full rounded-lg px-2 font-semibold"
+              >
+                {t('All presets')}
+              </Button>
+            )}
+            {crumbs.map((node, index) => (
               <span className="flex items-center gap-1" key={node.id}>
                 <ChevronRight size={13} />
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  isDisabled={busy}
-                  onPress={() => setParent(node.id)}
-                  className="rounded px-2 py-1 hover:bg-foreground/5"
-                >
-                  {node.name}
-                </Button>
+                {index === crumbs.length - 1 ? (
+                  <span aria-current="page" className="max-w-full truncate px-2 py-2 font-semibold">
+                    {node.name}
+                  </span>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    isDisabled={busy}
+                    onPress={() => setParent(node.id)}
+                    className="max-w-full rounded-lg px-2"
+                  >
+                    {node.name}
+                  </Button>
+                )}
               </span>
             ))}
           </nav>
-          <div className="mb-3 flex flex-wrap items-center gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3 text-xs">
             <Button
               size="sm"
               variant="ghost"
-              isDisabled={busy}
-              className="text-primary rounded-full"
+              isDisabled={busy || !nodes.length || nodes.every((node) => selection.has(node.id))}
+              className="preset-selection-action rounded-lg"
               onPress={() => {
                 setSelection(new Set(nodes.map((node) => node.id)))
                 setReview(null)
@@ -487,8 +503,8 @@ export function PresetsView({
             <Button
               size="sm"
               variant="ghost"
-              isDisabled={busy}
-              className="text-primary rounded-full"
+              isDisabled={busy || selection.size === 0}
+              className="preset-selection-action rounded-lg"
               onPress={() => {
                 setSelection(new Set())
                 setReview(null)
@@ -497,11 +513,11 @@ export function PresetsView({
             >
               {t('Clear')}
             </Button>
-            <span className="text-muted-foreground">
+            <span className="ml-auto px-2 tabular-nums text-muted-foreground">
               {t('{0} presets selected', [presetCount])}
             </span>
           </div>
-          <ul className="divide-y divide-foreground/5">
+          <ul className="divide-y divide-foreground/5 px-4 pb-3">
             {nodes
               .filter((node) => node.parentId === parent)
               .map((node) => {
@@ -510,8 +526,12 @@ export function PresetsView({
                 )
                 const count = terminals.filter((id) => selection.has(id)).length
                 return (
-                  <li key={node.id} className="flex items-center gap-3 py-2.5">
+                  <li
+                    key={node.id}
+                    className="preset-row flex min-h-12 items-center gap-2 rounded-xl px-2 py-1.5"
+                  >
                     <Checkbox
+                      className="shrink-0 p-2"
                       aria-label={t(`Select ${node.name}`)}
                       isDisabled={busy}
                       isSelected={count === terminals.length}
@@ -523,24 +543,24 @@ export function PresetsView({
                       </Checkbox.Control>
                     </Checkbox>
                     {node.kind === 'folder' ? (
-                      <Folder size={18} className="text-primary" />
-                    ) : (
-                      <Package size={18} className="text-muted-foreground" />
-                    )}
-                    {node.kind === 'folder' ? (
                       <Button
                         size="sm"
                         variant="ghost"
                         isDisabled={busy}
                         onPress={() => setParent(node.id)}
-                        className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left text-sm"
+                        className="preset-folder-link h-10 min-w-0 flex-1 justify-start gap-2.5 rounded-lg px-2 text-left text-sm"
                       >
+                        <Folder size={18} />
                         <span className="truncate">{node.name}</span>
-                        <ChevronRight size={15} />
+                        <ChevronRight size={15} className="ml-auto" />
                       </Button>
                     ) : (
-                      <span className="min-w-0 flex-1 truncate text-sm" title={node.name}>
-                        {node.name}
+                      <span
+                        className="flex min-w-0 flex-1 items-center gap-2.5 px-2 text-sm"
+                        title={node.name}
+                      >
+                        <Package size={18} className="shrink-0 text-muted-foreground" />
+                        <span className="truncate">{node.name}</span>
                       </span>
                     )}
                   </li>
@@ -745,7 +765,7 @@ export function PresetsView({
             {t('First review the import to choose duplicate actions and enable importing.')}
           </p>
         )}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           {archive && (
             <Button
               variant="secondary"
@@ -834,6 +854,6 @@ export function PresetsView({
           </div>
         )}
       </div>
-    </div>
+    </section>
   )
 }

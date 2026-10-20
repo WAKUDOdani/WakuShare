@@ -145,6 +145,24 @@ describe('WakuShare updater', () => {
       message: 'No published WakuShare update is available yet. Try again later.'
     })
   })
+  it('waits for Explorer shutdown once before handing control to the installer', async () => {
+    let finish!: () => void
+    const beforeInstall = vi.fn(
+      () =>
+        new Promise<void>((yes) => {
+          finish = yes
+        })
+    )
+    setupUpdater({ getMainWindow: () => null, isBusy: () => false, beforeInstall })
+    mocks.instances[0].emit('update-downloaded', { version: '1.0.1' })
+    const pending = mocks.handles.get(IPC.updateInstall)!()
+    mocks.handles.get(IPC.updateInstall)!()
+    expect(beforeInstall).toHaveBeenCalledOnce()
+    expect(mocks.install).not.toHaveBeenCalled()
+    finish()
+    await pending
+    expect(mocks.install).toHaveBeenCalledExactlyOnceWith(false, true)
+  })
   it('explains the actual GitHub empty-feed parse error without exposing its stack/XML', async () => {
     mocks.check.mockRejectedValue(
       new Error(

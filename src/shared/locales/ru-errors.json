@@ -1,4 +1,5 @@
 {
+  "EXPLORER_VIEW_DEFERRED": "Файлы синхронизированы. Обновление медиатеки ожидает завершения текущего действия в CapCut.",
   "Could not verify whether CapCut is running. Import is blocked; check CapCut and try again.": "Не удалось проверить, запущен ли CapCut. Импорт недоступен. Проверь CapCut и повтори попытку.",
   "CapCut process detection is unavailable on this platform.": "На этой платформе недоступна проверка запуска CapCut.",
   "Close CapCut before importing presets. Its preset catalog must not be open while it is updated.": "Закрой CapCut перед импортом пресетов, чтобы программа не изменяла каталог во время переноса.",
