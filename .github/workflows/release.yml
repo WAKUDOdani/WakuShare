@@ -2,8 +2,15 @@ name: Release Windows
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to verify
+        required: true
+        type: string
 permissions:
-  contents: read
+  # GitHub exposes draft release assets only to callers with push access.
+  contents: write
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -12,13 +19,19 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
       - name: Verify tag
-        run: node -e "if(process.env.GITHUB_REF_NAME !== 'v'+require('./package.json').version) throw new Error('Tag/version mismatch')"
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          node -e "const {execFileSync}=require('node:child_process'); const tag=process.env.RELEASE_TAG; if(!/^v\d+\.\d+\.\d+$/.test(tag)||tag!=='v'+require('./package.json').version)throw Error('Tag/version mismatch'); const git=(...args)=>execFileSync('git',args,{encoding:'utf8'}).trim(); const sha=git('rev-parse','HEAD'); if(sha!==git('rev-parse',tag+'^{}'))throw Error('Checkout/tag mismatch'); console.log('WAKUSHARE_RELEASE_SOURCE='+sha)"
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint
       - run: pnpm run typecheck
