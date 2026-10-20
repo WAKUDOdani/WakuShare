@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -158,7 +158,7 @@ describe('Explorer durable configuration', () => {
     'checks an actual local Windows volume only when adding a source',
     async () => {
       const policy = new ExplorerSourcePolicy([privateRoot])
-      expect(await policy.resolve(sources)).toBe(sources)
+      expect(await policy.resolve(sources)).toBe(await realpath(sources))
     }
   )
 })

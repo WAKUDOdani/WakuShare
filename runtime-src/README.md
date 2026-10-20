@@ -2,7 +2,7 @@
 
 This directory contains the C# planner/worker, the C++ source/header closure for
 the 16 accepted product modules, Python helper closure, sealed manifests, reduced
-SDK export contract and runtime-file SHA-256 index shipped with WakuShare 1.3.1.
+SDK export contract and runtime-file SHA-256 index shipped with WakuShare 1.3.x.
 The product entry is `tools/explorer_product_runtime_v6.py`. Some inherited helper
 files also contain unused laboratory CLI functions; those are not product routes.
 No fixture media, private observation state, session credentials or project

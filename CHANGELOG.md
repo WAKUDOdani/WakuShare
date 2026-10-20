@@ -1,5 +1,11 @@
 # Changes
 
+## 1.3.2
+
+- Make secondary button backgrounds darker and opaque over acrylic before hover.
+- Simplify the import headline to `.wakushare`; keep legacy `.capshare` support in the helper text.
+- Compare canonical Windows paths in the source-policy test, including 8.3 paths used by hosted CI.
+
 ## 1.3.1
 
 - Use neutral frosted-glass hover feedback instead of purple frames. Keep primary buttons bright on hover in the dark theme and preserve contrast in both themes.
