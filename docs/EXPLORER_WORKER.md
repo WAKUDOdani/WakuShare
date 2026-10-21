@@ -1,5 +1,7 @@
 # Explorer integration
 
+[Documentation](README.md) · [User guide](USAGE.md#настроить-автосинхронизацию)
+
 Explorer synchronizes Windows media folders with the currently open CapCut
 International 9.6.0.4097 project. Global sources apply to existing and new projects;
 project sources and overrides remain scoped to a confirmed ProjectKey. Nested
@@ -21,9 +23,11 @@ the private PATH and DOTNET_ROOT. Native staging uses userData/explorer/native-m
 A product DLL already loaded from an earlier app location is reused only when
 its unique name and loaded/staged file hashes agree with the sealed generation.
 
-Build inputs are pinned by runtime-lock.json and the complete runtime-file index.
-scripts/build-windows.mjs retrieves and verifies them; it never rebuilds loaded
-modules. Source is in runtime-src/. The reduced SDK contract has no private data.
+Base build inputs are pinned by runtime-lock.json and the complete runtime-file index.
+scripts/build-windows.mjs retrieves and verifies them; runtime-security-lock.json
+and scripts/runtime-refresh.mjs then pin and verify the refreshed Python/.NET
+distributions and final file index. Refresh happens at build time and preserves
+accepted worker/helper/native bytes; it never rebuilds loaded modules. Source is in runtime-src/. The reduced SDK contract has no private data.
 
 Configuration uses optimistic revisions and stable source IDs. Project identity
 combines draft UUID and canonical location. Native callbacks recheck process,

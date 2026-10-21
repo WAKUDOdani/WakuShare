@@ -1,74 +1,82 @@
-# Changes
+# История изменений
 
-## 1.3.4
+Заметные изменения опубликованных выпусков. Даты указаны по времени Екатеринбурга (UTC+5).
 
-- Harden project/preset archives, paths, payload declarations, JSON limits and resource references; verify staged files before installing them.
-- Require explicit trust for active effect resources; block executable payloads, shortcuts and system scripts, including renamed binaries. Ordinary media transfers keep their existing workflow.
-- Restrict IPC to the main window/frame, browser schemes and process startup environment. Refresh Electron and bundled Python/.NET; enable production Electron fuses and package integrity checks.
-- Add a pointer light and a single reflection to the sidebar Telegram card.
-- Give action buttons softer hover and press feedback. Unify sidebar feedback and replay every icon on hover, including Explorer and the current section; respect reduced motion.
+## [1.3.4](https://github.com/WAKUDOdani/WakuShare/releases/tag/v1.3.4) - 2026-10-21
 
-## 1.3.3
+### Безопасность
 
-- Add the sidebar Telegram card and a single reflection on the welcome dialog's Telegram button.
-- Make Explorer scope controls more prominent and show Portable beside the version in portable builds.
+- Усилены проверки архивов, путей, метаданных, ссылок и целостности ресурсов при переносе проектов и пресетов.
+- Активные ресурсы эффектов требуют подтверждения доверия с отменой по умолчанию. Программы, ярлыки и системные сценарии блокируются; обычные медиа и автосинхронизация не требуют новых подтверждений.
+- Обновлены Electron и встроенные Python/.NET, ограничены IPC, навигация и окружение запуска процессов.
 
-## 1.3.2
+### Интерфейс
 
-- Make secondary button backgrounds darker and opaque over acrylic before hover.
-- Simplify the import headline to `.wakushare`; keep legacy `.capshare` support in the helper text.
-- Compare canonical Windows paths in the source-policy test, including 8.3 paths used by hosted CI.
+- Карточка Telegram в боковой панели получила подсветку за курсором, короткий блик и движение иконки.
+- Кнопки получили мягкое наведение и прожатие. Все пять иконок меню реагируют повторно, включая «Проводник» и выбранный раздел; учитывается уменьшение движения.
 
-## 1.3.1
+## [1.3.3](https://github.com/WAKUDOdani/WakuShare/releases/tag/v1.3.3) - 2026-10-21
 
-- Use neutral frosted-glass hover feedback instead of purple frames. Keep primary buttons bright on hover in the dark theme and preserve contrast in both themes.
-- Remove full-row highlighting when hovering a preset checkbox; keep feedback on the actual folder button.
-- Distinguish current preset breadcrumbs from navigation and make selection actions quieter, disabling redundant select-all/clear operations.
+### Что нового
 
-## 1.3.0
+- Карточка Telegram внизу боковой панели: пресеты и находки для монтажа.
+- Один световой блик на кнопке Telegram в приветственном окне; учитывается уменьшение движения.
 
-- Add Explorer: event-driven folder synchronization into existing and new CapCut projects, preserving nested folders and material identity.
-- Import a folder in one batch and show acknowledged progress; retain completed status during background checks.
-- Export project bundles as `.wakushare`; continue importing legacy `.capshare` bundles.
-- Show the current version below the wordmark, improve translucent button feedback and align preset folders, checkboxes and toolbars.
-- Bundle the accepted synchronization worker and runtimes. This local build has not been published to GitHub.
+### Улучшения
 
-## 1.2.0
+- Увеличен переключатель «Все проекты / Этот проект» в «Проводнике», улучшен контраст и выровнена высота кнопки добавления папки.
+- Портативная версия показывает подпись `v1.3.3 · Portable`; установленная - номер версии.
 
-- Transfer CapCut composition presets as `.wakupresets` packages, with folder and individual selection.
-- Collect referenced media and font files in `Исходники`, preserving links and handling equal filenames.
-- Choose an import folder, merge matching folders and review full duplicates before copying, skipping or replacing them.
-- Back up replaced presets and check that CapCut is closed before importing. Launch CapCut from the result screen.
-- Switch the full interface between English and Russian in Settings.
-- Refresh the app icon, gradient wordmark, dropdown styling and dialog layout.
-- Show an optional Telegram invitation on each launch, with a permanent Don't show again checkbox.
+## [1.3.2](https://github.com/WAKUDOdani/WakuShare/releases/tag/v1.3.2) - 2026-10-21
 
-Tested with CapCut International Windows 9.6.0.4097. Only composition presets are supported. Font files are collected when explicitly referenced; system fonts are not installed automatically.
+### Что нового
 
-## 1.1.2
+- Раздел «Проводник»: общие подключения или папки для одного проекта, с сохранением вложенности.
+- Синхронизация по событиям, массовый импорт одним списком и подтверждённый прогресс; сохранение привязок при переименовании и переносе источников.
+- Экспорт проектов в `.wakushare` с сохранением импорта прежних `.capshare`.
 
-- In portable Windows builds, Check for updates opens the latest WakuShare release page.
-- Show a normal portable-update explanation instead of an unsupported-updater error.
-- Open the browser only on request; installed Windows updates keep their existing behavior.
+### Улучшения
 
-## 1.1.1
+- В пресетах выровнены отступы, навигация и выбор; нейтральное стеклянное наведение заменяет фиолетовые рамки.
+- Тёмные кнопки лучше видны на прозрачном фоне, светлые сохраняют яркость при наведении. Версия показана под названием приложения.
 
-- Remove the Settings subtitle and start its scroll area below the fixed header.
-- Update author display to WAKUDO Dani throughout the application and attribution.
-- Keep the installed version number visible while checking updates or reporting an error.
-- Explain GitHub's empty release feed with a short message instead of raw parse errors.
+## [1.2.0](https://github.com/WAKUDOdani/WakuShare/releases/tag/v1.2.0) - 2026-10-19
 
-## 1.1.0 — initial WakuShare release
+### Что нового
 
-- Based on CapShare 1.0.2 by Ilyasse Salama (MIT); original history retained.
-- Consistent multi-timeline cloning, including manifests, layouts and nested documents.
-- Collect media referenced outside the first timeline; organize sources in one folder.
-- Verify package integrity and local media links before registering an import.
-- Detect saved-project changes during export and preserve the previous archive on failure.
-- Keep export warnings visible; include project caches by default.
-- Independent WakuShare identity, attribution and Telegram link.
-- Windows NSIS updates from WAKUDOdani/WakuShare only; manual installation after file tasks.
-- Target tested in this release: CapCut International Windows 9.6.0.4097.
+- Импорт и экспорт `.wakupresets`: целиком, по папкам или по отдельности, с доступными исходниками.
+- Выбор папки назначения, объединение одноимённых папок и проверка полных дубликатов: пропуск, отдельная копия или замена с резервной копией.
+- Проверка закрытия CapCut перед импортом пресетов и кнопка его запуска после переноса.
 
-Limitations: no missing-media replacement picker; portable does not self-update;
-other CapCut versions and a real installed-version update cycle require separate validation.
+### Интерфейс
+
+- Переключение EN/RU, новый логотип и градиентное название, единые выпадающие списки.
+- Окно «Будем на связи?» при запуске с постоянной настройкой «Больше не показывать».
+
+## [1.1.2](https://github.com/WAKUDOdani/WakuShare/releases/tag/v1.1.2) - 2026-10-19
+
+### Исправления
+
+- Кнопка Check for updates в Portable открывает GitHub Releases для ручного скачивания нового EXE.
+- Под версией показано пояснение; браузер открывается только по нажатию. Установленная версия сохраняет скачивание и установку через Restart to update.
+
+## [1.1.1](https://github.com/WAKUDOdani/WakuShare/releases/tag/v1.1.1) - 2026-10-19
+
+### Исправления
+
+- Подпись автора изменена на WakuShare by WAKUDO Dani.
+- Номер версии остаётся виден при проверке обновлений и ошибке сети.
+- В настройках убрана поясняющая строка, прокрутка начинается ниже заголовка.
+- Пустая лента релизов обрабатывается понятным сообщением вместо технической ошибки разбора.
+
+## [1.1.0](https://github.com/WAKUDOdani/WakuShare/releases/tag/v1.1.0) - 2026-10-19
+
+### Что нового
+
+- Согласованный перенос нескольких временных шкал, их идентификаторов, каталогов и раскладки.
+- Сбор исходников из дополнительных шкал и вложенных композиций. Размещение пользовательских медиа в `Resources/local/Исходники` с рабочими ссылками.
+- Проверка размеров, SHA-256 и самостоятельности новой копии. Собственный канал обновлений WakuShare и ссылка на Telegram.
+
+## История подготовки 1.3.x
+
+1.3.0 и 1.3.1 использовались при локальной подготовке «Проводника» и оформления интерфейса. Отдельных публичных релизов этих версий нет; изменения вошли в 1.3.2. [Архив подготовки 1.3.1](docs/RELEASE-1.3.1.md) сохранён для истории.

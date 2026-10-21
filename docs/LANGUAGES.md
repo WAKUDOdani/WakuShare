@@ -1,5 +1,7 @@
 # Interface languages
 
+[Documentation](README.md) · [User guide](USAGE.md)
+
 Choose **Settings > Appearance > Interface language** to switch between **EN · English** and **RU · Русский**. The choice takes effect immediately and is saved for the next launch. Existing settings default to English without changing other preferences.
 
 Translation covers navigation, project dialogs, preset transfer and duplicate review, progress, application warnings and errors, update status, and application-owned file dialog titles and filters. Dates, size units and accessibility labels follow the selection. Native operating system controls and low-level diagnostics from external libraries may follow the system language or remain in English.

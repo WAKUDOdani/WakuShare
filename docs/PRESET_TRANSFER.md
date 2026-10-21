@@ -1,5 +1,7 @@
 # Preset transfer
 
+[Documentation](README.md) · [User guide](USAGE.md#перенести-пресеты)
+
 Available in WakuShare 1.2.0, validated against Windows CapCut 9.6.0.4097.
 
 ## Scope
@@ -38,10 +40,14 @@ Project transfer already copies existing font files when a project explicitly re
 
 There is no font-family lookup or automatic Windows font installation. A family name without a usable font-file path is not enough to collect a font. Appearance on another computer without that font installed still needs a real CapCut check. The preset transfer uses the same explicit-file approach; it does not change the operating system's font store.
 
-## Validation status
+## Package trust
+
+Since WakuShare 1.3.4, active effect resources require explicit trust for the current import operation, with Cancel as the default. Executables, libraries, shortcuts and system scripts remain blocked even after confirmation; selected file contents are checked in the existing transfer stream. Approval allows effect code to reach CapCut and does not certify that code as safe. Ordinary media transfers do not require a new trust dialog. See the [security audit](security-audit-2026-10-21.md).
+
+## Validation history
 
 Automated tests cover folder selection, independent same-named sources, shared resources, font files, external subdraft dependencies, template mirrors, copy collisions, explicit missing-source replacement, hash failures, cancellation, and concurrent source or destination changes.
 
 A read-only check of the available user library restored 11 presets and two folders into a separate test library. It verified 989 packaged files and 211 restored absolute references, with no remaining old paths in the inspected documents. Five other presets already reference missing source media or effect caches; full-library export correctly refuses to hide those missing dependencies.
 
-Folder import, restored media and covers, destination selection, folder merging and duplicate decisions were accepted in CapCut during local testing. The final version passed 122 automated tests and renderer interaction checks; one existing opt-in live E2E test was skipped. Workspace-only import/copy/skip/replace checks used actual preset data without changing the source library. Existing imported native copies were also identified as full duplicates. Local Preview builds retain a separate profile and disabled updates; the normal installed build uses the WakuShare release feed.
+Folder import, restored media and covers, destination selection, folder merging and duplicate decisions were accepted in CapCut during local testing. The original 1.2.0 preset-transfer stage passed 122 automated tests and renderer interaction checks; one existing opt-in live E2E test was skipped. Workspace-only import/copy/skip/replace checks used actual preset data without changing the source library. Existing imported native copies were also identified as full duplicates. Local Preview builds retain a separate profile and disabled updates; the normal installed build uses the WakuShare release feed.

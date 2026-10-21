@@ -1,5 +1,7 @@
 # Welcome window
 
+[Documentation](README.md) · [User guide](USAGE.md)
+
 The welcome window uses the app's existing glass surfaces, dialog animation, brand icon, and wordmark. It supports English and Russian, light and dark themes, keyboard dismissal, reduced motion, and reduced transparency.
 
 It appears on every application launch after settings and the running version have loaded, unless permanently disabled. The invitation is the same on normal starts and after updates: Let's stay in touch, followed by the Telegram paragraph and actions. There is no introductory greeting or author biography. The Telegram button opens https://t.me/WAKUDOdani only after an explicit click and closes the window for the current session. Continue, the close button, Escape, and clicking the backdrop also close it for the current session without opening a link. Navigation and returning focus do not reopen it in that session.
@@ -15,6 +17,8 @@ The panel is 480 px wide with one 28 px outer inset. A separate static glass car
 
 ## Validation
 
-`tests/settings.test.ts` checks migration, atomic persistence, concurrent writes, and write failure/retry. `tools/verify_wakushare_presets_ui.cjs` checks first launch, reappearance on same-version restart, staying closed during navigation, later versions, the opt-out checkbox followed by Continue and its persistence on all later launches, save failure/retry, explicit Telegram opening, aligned button boundaries, English/Russian, both themes, and layout at 860×620. It runs in a fresh headless browser with a mocked bridge and never changes a real library or user profile.
+`tests/settings.test.ts` checks migration, atomic persistence, concurrent writes, and write failure/retry. Maintainer-side renderer fixtures check first launch, reappearance on same-version restart, staying closed during navigation, later versions, the opt-out checkbox followed by Continue and its persistence on all later launches, save failure/retry, explicit Telegram opening, aligned button boundaries, English/Russian, both themes, and layout at 860×620. It runs in a fresh headless browser with a mocked bridge and never changes a real library or user profile.
 
 The window is a friendly optional introduction. It does not check Telegram subscription status or restrict application features.
+
+The maintainer fixtures mentioned here are not distributed as a public `tools/` directory; public CI uses the tests committed under `tests/`.

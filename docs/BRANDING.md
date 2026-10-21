@@ -1,5 +1,7 @@
 # WakuShare icon and wordmark
 
+[Documentation](README.md) · [Application overview](../README.md)
+
 The current icon contains a large gradient ribbon W and a folded document on a transparent background. There is no surrounding tile or pair of arrows. The PNG master is in `build/icon-mark-source.png`. The earlier tile design is preserved in `build/icon-source.png` as a reference.
 
 The built-in image_gen tool edited the earlier master with transparent output. No API key or separate image API client was used. Current prompt:
@@ -12,6 +14,12 @@ Earlier tile extraction prompt, retained for provenance:
 
 `pnpm icons` converts the master using Sharp. It measures visible bounds and creates PNG assets, a multi-size ICO, and an ICNS. Windows window/shell assets fill their canvas without extra outer padding. The ICO includes 16, 20, 24, 28, 32, 36, 40, 48, 60, 64, 72, 96, 128 and 256 px images for different display scales. App UI and ICNS retain their own small padding. Converted assets are checked into the repository, so ordinary application builds do not need image generation.
 
-`BrandWordmark.tsx` renders WakuShare as text, with a pink, purple and blue CSS gradient on Share. Light and dark palettes preserve contrast. Forced-colors mode uses normal text color. The sidebar pairs a 24 px icon with the 21 px wordmark in one row, separated by an 8 px gap. The icon starts on the same left edge as the navigation icons using the same 12 px horizontal inset. The gap before navigation remains compact.
+`BrandWordmark.tsx` renders WakuShare as text, with a pink, purple and blue CSS gradient on Share. Light and dark palettes preserve contrast. Forced-colors mode uses normal text color. The current sidebar pairs a 32 px icon with the 21 px wordmark, separated by a 10 px gap; version and optional Portable label sit below the wordmark. Navigation and the community card use their own soft interaction feedback.
 
 The Windows afterPack hook embeds the ICO and product/version metadata in the app executable. It checks that executable code sections and unrelated resources retain their hashes. No code-signing credentials are involved. Package verification checks the embedded icon against the source ICO and verifies installer hashes. These checks are distinct from signing or publishing a release.
+
+## Repository presentation
+
+The root README uses a centered transparent icon, short Russian product copy, two download links and three small status badges. `docs/assets/logo.png` is a byte-for-byte copy of the checked-in UI logo; the SVG download labels are static local artwork without scripts or external assets.
+
+The application screenshots in `docs/assets/` render the actual 1.3.4 renderer against synthetic demonstration data, without a preload bridge or access to CapCut, user projects or settings. They illustrate layout and supported UI states, not a benchmark or a new live native acceptance. Keep captions and alternative text, and refresh the images when the depicted UI materially changes.
