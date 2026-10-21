@@ -1,3 +1,5 @@
+<p align="center"><strong>Русский</strong> / <a href="README.en.md">English</a></p>
+
 <p align="center">
   <img src="docs/assets/logo.png" width="104" height="104" alt="Логотип WakuShare">
 </p>

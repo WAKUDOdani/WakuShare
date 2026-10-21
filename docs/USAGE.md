@@ -1,3 +1,5 @@
+<p><strong>Русский</strong> / <a href="USAGE.en.md">English</a></p>
+
 # Как пользоваться WakuShare
 
 [← На главную](../README.md) · [Скачать](https://github.com/WAKUDOdani/WakuShare/releases/latest) · [Документация](README.md)
