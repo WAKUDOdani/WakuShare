@@ -20,5 +20,6 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: pnpm run lint
       - run: pnpm run typecheck
-      - run: pnpm test
+      # The real Windows volume probe permits 10s; a cold runner needs headroom.
+      - run: pnpm test --testTimeout=15000
       - run: pnpm exec electron-vite build

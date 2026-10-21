@@ -35,7 +35,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint
       - run: pnpm run typecheck
-      - run: pnpm test
+      # Keep the test budget above the real volume probe's own 10s timeout.
+      - run: pnpm test --testTimeout=15000
       - name: Build Windows installer and portable
         run: pnpm run build:win
         env:
