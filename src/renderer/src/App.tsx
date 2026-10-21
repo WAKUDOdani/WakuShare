@@ -136,6 +136,7 @@ function App(): JSX.Element {
             onNavigate={setView}
             disabled={presetsBusy}
             version={updates.version}
+            portable={updates.portable}
           />
           {/* No overflow clip: the ProgressiveBlur reaches left under the sidebar
             (-left-56) so the band has no seam at the main edge. The blur and

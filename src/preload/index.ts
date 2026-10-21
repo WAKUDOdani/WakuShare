@@ -131,6 +131,9 @@ const api = {
   /** The running app's version (e.g. "1.0.0"). */
   getAppVersion: (): Promise<string> => ipcRenderer.invoke(IPC.getAppVersion),
 
+  /** Only the distribution flag is exposed, never the launcher's filesystem paths. */
+  isPortable: (): Promise<boolean> => ipcRenderer.invoke(IPC.isPortable),
+
   /** Trigger a manual update check; resolves with the resulting status. */
   checkForUpdates: (): Promise<UpdateStatus> => ipcRenderer.invoke(IPC.updateCheck),
 

@@ -449,6 +449,121 @@
   }
 }
 
+/* Scope is a primary Explorer control, with the same readable scale as actions. */
+.explorer-scope {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+}
+.explorer-scope__tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 132px;
+  min-height: 36px;
+  padding: 8px 18px;
+  border-radius: 10px;
+  color: color-mix(in srgb, var(--foreground) 78%, transparent);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+  transition:
+    background 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+.explorer-scope__tab[aria-selected='false']:is(:hover, [data-hovered='true']) {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 7%, transparent);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+.explorer-scope__tab[aria-selected='true'] {
+  color: var(--primary-foreground);
+  background: var(--primary);
+  box-shadow:
+    0 2px 6px rgb(0 0 0 / 12%),
+    inset 0 1px 0 rgb(255 255 255 / 18%);
+}
+.explorer-scope__tab:focus-visible {
+  outline: 2px solid var(--action-outline);
+  outline-offset: 2px;
+}
+
+/* A quiet community link stays anchored below navigation in either theme. */
+.sidebar-telegram {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 10px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 4%, transparent);
+  border-radius: 14px;
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 2%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
+  text-decoration: none;
+  transition:
+    background 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease;
+}
+.sidebar-telegram:is(:hover, :focus-visible, [data-hovered='true']) {
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  border-color: color-mix(in srgb, var(--foreground) 10%, transparent);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    0 3px 12px rgb(0 0 0 / 6%);
+}
+.sidebar-telegram:focus-visible {
+  outline: 2px solid var(--action-outline);
+  outline-offset: 3px;
+}
+.sidebar-telegram__icon {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 10px;
+  color: #8050bc;
+  background: linear-gradient(145deg, rgb(165 115 232 / 12%), rgb(120 111 224 / 6%));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
+  transition: color 200ms ease;
+}
+.dark .sidebar-telegram__icon {
+  color: #b7a0e6;
+}
+.sidebar-telegram:is(:hover, :focus-visible, [data-hovered='true']) .sidebar-telegram__icon {
+  color: #9555d7;
+}
+.dark .sidebar-telegram:is(:hover, :focus-visible, [data-hovered='true']) .sidebar-telegram__icon {
+  color: #d6c4ff;
+}
+.sidebar-telegram__copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+.sidebar-telegram__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+}
+.sidebar-telegram__title > svg {
+  color: var(--muted-foreground);
+}
+.sidebar-telegram__description {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 15px;
+}
+
 /* Welcome uses the same glass material, with restrained brand-colored reflections. */
 .welcome-dialog {
   background:
@@ -469,10 +584,84 @@
   margin-top: 24px;
 }
 .welcome-telegram {
+  position: relative;
+  isolation: isolate;
   background: linear-gradient(115deg, #7752df, #963bd0 58%, #655bd5);
   box-shadow:
     0 4px 18px oklch(0.45 0.15 295 / 20%),
     inset 0 1px 0 #ffffff30;
+  transition: box-shadow 240ms ease;
+}
+.welcome-telegram:not(:disabled, [aria-disabled='true']):is(
+    :hover,
+    [data-hovered='true'],
+    [data-focus-visible='true']
+  ) {
+  box-shadow:
+    0 6px 24px oklch(0.52 0.2 295 / 32%),
+    inset 0 1px 0 #ffffff70,
+    inset 0 -1px 0 #ffffff18;
+}
+.welcome-telegram__label {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+/* Clip the reflection, keeping the button's keyboard focus ring unobstructed. */
+.welcome-telegram__shine {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.welcome-telegram__shine::before {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: 0;
+  width: 32%;
+  height: 300%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #ffffff0a 15%,
+    #ffffff30 38%,
+    #ffffff85 49%,
+    #ffffff60 52%,
+    #ffffff1a 68%,
+    transparent
+  );
+  opacity: 0;
+  transform: translateX(-180%) skewX(-22deg);
+}
+@keyframes welcome-telegram-shine {
+  0% {
+    opacity: 0;
+    transform: translateX(-180%) skewX(-22deg);
+  }
+  16%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(440%) skewX(-22deg);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .welcome-telegram:not(:disabled, [aria-disabled='true']):is(
+      :hover,
+      [data-hovered='true'],
+      [data-focus-visible='true']
+    )
+    .welcome-telegram__shine::before {
+    animation: welcome-telegram-shine 850ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
 }
 @media (prefers-reduced-transparency: reduce) {
   .welcome-dialog,

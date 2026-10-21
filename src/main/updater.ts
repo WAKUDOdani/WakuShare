@@ -106,6 +106,7 @@ export function setupUpdater(ctx: UpdaterContext): UpdaterController {
     updater.on('error', errorStatus)
   }
   ipcMain.handle(IPC.getAppVersion, () => app.getVersion())
+  ipcMain.handle(IPC.isPortable, () => portable)
   ipcMain.handle(IPC.updateGetStatus, () => status)
   ipcMain.handle(IPC.updateCheck, check)
   ipcMain.handle(IPC.updateInstall, () => {

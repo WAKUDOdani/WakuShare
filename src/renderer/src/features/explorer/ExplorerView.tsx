@@ -439,7 +439,7 @@ export function ExplorerView(): JSX.Element {
             <ImportProgress snapshot={snapshot} />
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div
-                className="glass-subtle inline-flex gap-1 rounded-full p-1"
+                className="glass-subtle explorer-scope"
                 role="tablist"
                 aria-label={t('Source scope')}
               >
@@ -453,7 +453,7 @@ export function ExplorerView(): JSX.Element {
                       setTab(scope)
                       setDraft(null)
                     }}
-                    className={`rounded-full px-4 py-2 text-xs font-medium transition-colors ${tab === scope ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                    className="explorer-scope__tab"
                   >
                     {t(scope === 'global' ? 'All projects' : 'This project')}
                   </button>
@@ -462,6 +462,7 @@ export function ExplorerView(): JSX.Element {
               <Button
                 size="sm"
                 variant="secondary"
+                className="min-h-10 px-4"
                 isDisabled={busy || (tab === 'project' && !snapshot.currentProject)}
                 onPress={() => {
                   void chooseFolder()

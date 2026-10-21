@@ -7,10 +7,11 @@ import { isMacLike } from '@/lib/format'
 import { Clapperboard } from '@/components/animate-ui/icons/clapperboard'
 import { CloudDownload } from '@/components/animate-ui/icons/cloud-download'
 import { Settings } from '@/components/animate-ui/icons/settings'
-import { FolderOpen } from 'lucide-react'
+import { ArrowUpRight, FolderOpen, Send } from 'lucide-react'
 import type { ComponentProps } from 'react'
 import logo from '@/assets/logo.png'
 import { isLocalPreview } from '@shared/build'
+import { BRAND } from '@shared/branding'
 import { BrandWordmark } from './BrandWordmark'
 
 export type View = 'projects' | 'import' | 'presets' | 'explorer' | 'settings'
@@ -35,6 +36,7 @@ interface SidebarProps {
   onNavigate: (view: View) => void
   disabled?: boolean
   version?: string
+  portable?: boolean
 }
 
 interface NavItemProps {
@@ -85,7 +87,13 @@ function NavItem({
 }
 
 /** Floating Tahoe-style glass sidebar (navigation layer). */
-export function Sidebar({ view, onNavigate, disabled, version }: SidebarProps): JSX.Element {
+export function Sidebar({
+  view,
+  onNavigate,
+  disabled,
+  version,
+  portable
+}: SidebarProps): JSX.Element {
   useLanguage()
 
   return (
@@ -106,7 +114,7 @@ export function Sidebar({ view, onNavigate, disabled, version }: SidebarProps): 
                 className="mt-1 block text-[11px] leading-4 font-medium tracking-wide text-muted-foreground"
                 data-app-version
               >
-                {`v${version}`}
+                {`v${version}${portable ? ' · Portable' : ''}`}
               </span>
             )}
             {isLocalPreview() && (
@@ -126,6 +134,29 @@ export function Sidebar({ view, onNavigate, disabled, version }: SidebarProps): 
             />
           ))}
         </nav>
+
+        <div className="mt-auto pt-6">
+          <a
+            href={BRAND.telegram}
+            target="_blank"
+            rel="noopener noreferrer"
+            draggable={false}
+            className="app-no-drag sidebar-telegram"
+          >
+            <span className="sidebar-telegram__icon" aria-hidden="true">
+              <Send size={17} strokeWidth={1.6} />
+            </span>
+            <span className="sidebar-telegram__copy">
+              <span className="sidebar-telegram__title">
+                Telegram
+                <ArrowUpRight size={12} aria-hidden="true" />
+              </span>
+              <span className="sidebar-telegram__description">
+                {t('Presets and editing finds')}
+              </span>
+            </span>
+          </a>
+        </div>
       </div>
     </aside>
   )

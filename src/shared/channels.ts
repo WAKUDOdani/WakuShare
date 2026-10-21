@@ -44,6 +44,8 @@ export const IPC = {
 
   /** invoke: the running app's version string. */
   getAppVersion: 'app:get-version',
+  /** invoke: whether this process was started by the Windows portable launcher. */
+  isPortable: 'app:is-portable',
   /** invoke: trigger a manual update check; resolves with the resulting status. */
   updateCheck: 'update:check',
   /** invoke: snapshot of the current update status. */

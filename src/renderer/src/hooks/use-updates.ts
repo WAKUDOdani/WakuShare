@@ -8,6 +8,8 @@ export interface UpdatesController {
   status: UpdateStatus
   /** The running app version, e.g. "1.0.0" (empty until loaded). */
   version: string
+  /** True only when started by the Windows portable launcher. */
+  portable: boolean
   /** Whether a check/download is in flight (used to disable the button). */
   busy: boolean
   /** Trigger a manual update check. */
@@ -26,10 +28,12 @@ export function useUpdates(): UpdatesController {
   useLanguage()
   const [status, setStatus] = useState<UpdateStatus>({ state: 'idle' })
   const [version, setVersion] = useState('')
+  const [portable, setPortable] = useState(false)
   const notifiedFor = useRef<string | null>(null)
 
   useEffect(() => {
     void window.capshare.getAppVersion().then(setVersion)
+    void window.capshare.isPortable().then(setPortable)
     void window.capshare.getUpdateStatus().then(setStatus)
     return window.capshare.onUpdateStatus(setStatus)
   }, [])
@@ -47,6 +51,7 @@ export function useUpdates(): UpdatesController {
   return {
     status,
     version,
+    portable,
     busy: status.state === 'checking' || status.state === 'downloading',
     check: () => void window.capshare.checkForUpdates(),
     install: () => void window.capshare.installUpdate()

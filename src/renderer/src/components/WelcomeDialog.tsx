@@ -105,9 +105,12 @@ export function WelcomeDialog({ settings, version, onSaved }: WelcomeDialogProps
                 void dismiss()
               }}
             >
-              <Send className="size-4" />
-              {t('Visit my Telegram')}
-              <ArrowUpRight className="size-4" />
+              <span aria-hidden="true" className="welcome-telegram__shine" />
+              <span className="welcome-telegram__label">
+                <Send className="size-4" />
+                {t('Visit my Telegram')}
+                <ArrowUpRight className="size-4" />
+              </span>
             </Button>
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <Button

@@ -73,6 +73,7 @@ describe('WakuShare updater', () => {
   })
   it('uses only its public release feed; never installs automatically on quit', async () => {
     setupUpdater({ getMainWindow: () => null, isBusy: () => false })
+    expect(mocks.handles.get(IPC.isPortable)!()).toBe(false)
     expect(mocks.feeds).toEqual([UPDATE_FEED])
     expect(mocks.instances[0]).toMatchObject({
       autoInstallOnAppQuit: false,
@@ -86,6 +87,7 @@ describe('WakuShare updater', () => {
   it('does not contact a feed or open a browser in development', async () => {
     mocks.app.isPackaged = false
     setupUpdater({ getMainWindow: () => null, isBusy: () => false })
+    expect(mocks.handles.get(IPC.isPortable)!()).toBe(false)
     await mocks.handles.get(IPC.updateCheck)!()
     expect(mocks.feeds).toEqual([])
     expect(mocks.openExternal).not.toHaveBeenCalled()
@@ -95,6 +97,7 @@ describe('WakuShare updater', () => {
     async (flag) => {
       vi.stubEnv(flag, 'portable-location')
       setupUpdater({ getMainWindow: () => null, isBusy: () => false })
+      expect(mocks.handles.get(IPC.isPortable)!()).toBe(true)
       expect(mocks.feeds).toEqual([])
       expect(mocks.openExternal).not.toHaveBeenCalled()
       expect(mocks.handles.get(IPC.updateGetStatus)!()).toMatchObject({ state: 'manual' })
