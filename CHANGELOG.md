@@ -1,5 +1,18 @@
 # Changes
 
+## 1.3.4
+
+- Harden project/preset archives, paths, payload declarations, JSON limits and resource references; verify staged files before installing them.
+- Require explicit trust for active effect resources; block executable payloads, shortcuts and system scripts, including renamed binaries. Ordinary media transfers keep their existing workflow.
+- Restrict IPC to the main window/frame, browser schemes and process startup environment. Refresh Electron and bundled Python/.NET; enable production Electron fuses and package integrity checks.
+- Add a pointer light and a single reflection to the sidebar Telegram card.
+- Give action buttons softer hover and press feedback. Unify sidebar feedback and replay every icon on hover, including Explorer and the current section; respect reduced motion.
+
+## 1.3.3
+
+- Add the sidebar Telegram card and a single reflection on the welcome dialog's Telegram button.
+- Make Explorer scope controls more prominent and show Portable beside the version in portable builds.
+
 ## 1.3.2
 
 - Make secondary button backgrounds darker and opaque over acrylic before hover.
