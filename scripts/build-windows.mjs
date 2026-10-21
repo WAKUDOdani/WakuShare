@@ -20,11 +20,7 @@ await writeFile(
   config,
   JSON.stringify({
     extends: join(project, 'electron-builder.yml'),
-    extraResources: [
-      { from: 'LICENSE', to: 'LICENSE-WakuShare.txt' },
-      { from: 'THIRD_PARTY_NOTICES.md', to: 'THIRD_PARTY_NOTICES.md' },
-      { from: runtime, to: 'explorer' }
-    ]
+    extraResources: [{ from: runtime, to: 'explorer' }]
   })
 )
 execFileSync(

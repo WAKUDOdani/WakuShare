@@ -37,6 +37,19 @@ jobs:
       - run: pnpm run typecheck
       # Keep the test budget above the real volume probe's own 10s timeout.
       - run: pnpm test --testTimeout=15000
+      - name: Normalize inherited packaging resources
+        # Older tags repeat the base license resources in their generated config.
+        # Remove those duplicate copies; app sources and packaged files stay the same.
+        run: |
+          @'
+          const fs = require('node:fs')
+          const file = 'scripts/build-windows.mjs'
+          const source = fs.readFileSync(file, 'utf8').replaceAll('\r\n', '\n')
+          const old = "    extraResources: [\n      { from: 'LICENSE', to: 'LICENSE-WakuShare.txt' },\n      { from: 'THIRD_PARTY_NOTICES.md', to: 'THIRD_PARTY_NOTICES.md' },\n      { from: runtime, to: 'explorer' }\n    ]"
+          const next = source.replace(old, "    extraResources: [{ from: runtime, to: 'explorer' }]")
+          if (next.includes("from: 'LICENSE'")) throw Error('Unexpected resource configuration')
+          fs.writeFileSync(file, next)
+          '@ | node
       - name: Build Windows installer and portable
         run: pnpm run build:win
         env:
