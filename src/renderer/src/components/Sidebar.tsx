@@ -142,7 +142,19 @@ export function Sidebar({
             rel="noopener noreferrer"
             draggable={false}
             className="app-no-drag sidebar-telegram"
+            onPointerMove={(event) => {
+              if (event.pointerType === 'touch') return
+              const card = event.currentTarget
+              const bounds = card.getBoundingClientRect()
+              card.style.setProperty('--telegram-x', `${event.clientX - bounds.left}px`)
+              card.style.setProperty('--telegram-y', `${event.clientY - bounds.top}px`)
+            }}
+            onPointerLeave={(event) => {
+              event.currentTarget.style.removeProperty('--telegram-x')
+              event.currentTarget.style.removeProperty('--telegram-y')
+            }}
           >
+            <span className="sidebar-telegram__reflection" aria-hidden="true" />
             <span className="sidebar-telegram__icon" aria-hidden="true">
               <Send size={17} strokeWidth={1.6} />
             </span>

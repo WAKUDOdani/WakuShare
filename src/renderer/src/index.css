@@ -296,7 +296,7 @@
    translucent (mapped to --popover), so we add the blur + hairline + shadow the
    .glass utilities provide. (Modal/AlertDialog panels get .glass-strong inline.) */
 @layer components {
-  /* Primary actions keep their contrast; hover gently lifts the glass face. */
+  /* A tactile material, rather than a bright horizontal hover stripe. */
   .button--primary {
     --button-bg-hover: var(--primary-action-hover);
     --button-bg-pressed: var(--primary-action-pressed);
@@ -304,26 +304,68 @@
 
   .button:is(.button--secondary, .button--tertiary) {
     --button-bg: var(--secondary-action-bg);
+    --button-bg-hover: color-mix(in srgb, var(--secondary-action-bg) 92%, var(--foreground));
+    --button-bg-pressed: color-mix(in srgb, var(--secondary-action-bg) 96%, var(--foreground));
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
   }
 
-  /* Neutral frosted faces stay readable over acrylic without a colored frame. */
-  .button:is(.button--ghost, .button--secondary, .button--tertiary, .button--outline) {
-    --button-bg-hover: var(--action-hover);
-    --button-bg-pressed: var(--action-pressed);
-    --button-fg: var(--foreground);
-    border-radius: 10px;
+  .button:is(.button--ghost, .button--outline) {
+    --button-bg-hover: color-mix(in srgb, var(--foreground) 4%, transparent);
+    --button-bg-pressed: color-mix(in srgb, var(--foreground) 7%, transparent);
   }
 
-  .button:not(:disabled, [aria-disabled='true']):is(
+  .button:is(.button--ghost, .button--secondary, .button--tertiary, .button--outline) {
+    --button-fg: var(--foreground);
+    border-radius: 11px;
+  }
+
+  /* This stationary, feathered light fades in; it never sweeps or tracks the pointer. */
+  .button:is(.button--ghost, .button--secondary, .button--tertiary, .button--outline)::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+      ellipse at 50% 0%,
+      color-mix(in srgb, var(--foreground) 6%, transparent),
+      transparent 75%
+    );
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+  }
+
+  .button:not(:disabled, [aria-disabled='true'], [data-pending='true']):is(
       :hover,
       [data-hovered='true'],
       [data-focus-visible='true']
-    ) {
-    background-image: linear-gradient(180deg, rgb(255 255 255 / 9%), transparent);
+    )::before {
+    opacity: 1;
+  }
+
+  .button:is(.button--secondary, .button--tertiary, .button--outline):not(
+      :disabled,
+      [aria-disabled='true'],
+      [data-pending='true']
+    ):is(:hover, [data-hovered='true']) {
     box-shadow:
-      inset 0 1px 0 var(--glass-highlight),
-      0 2px 6px rgb(0 0 0 / 10%);
+      inset 0 1px 0 color-mix(in srgb, var(--foreground) 9%, transparent),
+      0 3px 8px rgb(0 0 0 / 9%);
+  }
+
+  .button.button--primary:not(.welcome-telegram, :disabled, [aria-disabled='true']):is(
+      :hover,
+      [data-hovered='true']
+    ) {
+    box-shadow: 0 3px 10px rgb(0 0 0 / 12%);
+  }
+
+  .button:not(.welcome-telegram, :disabled, [aria-disabled='true']):is(
+      :active,
+      [data-pressed='true']
+    ) {
+    box-shadow: inset 0 1px 3px rgb(0 0 0 / 12%);
   }
 
   .button[data-focus-visible='true'] {
@@ -336,9 +378,56 @@
     font-weight: 500;
   }
 
-  .button.preset-folder-link:not(:disabled):is(:hover, [data-hovered='true']) {
-    --button-bg-hover: color-mix(in srgb, var(--action-hover) 55%, transparent);
-    box-shadow: inset 0 1px 0 var(--glass-highlight);
+  /* Folder navigation gets a soft pool of light by its name, not a solid full-width bar. */
+  .button.preset-folder-link {
+    --button-bg-hover: color-mix(in srgb, var(--foreground) 2%, transparent);
+    --button-bg-pressed: color-mix(in srgb, var(--foreground) 5%, transparent);
+  }
+  .button.preset-folder-link::before {
+    background: radial-gradient(
+      ellipse at 15% 50%,
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      transparent 78%
+    );
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .button:not(.welcome-telegram) {
+      transition:
+        transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+        background-color 180ms ease,
+        box-shadow 180ms ease;
+    }
+    .button:not(.welcome-telegram, .preset-folder-link, :disabled, [aria-disabled='true']):is(
+        :active,
+        [data-pressed='true']
+      ) {
+      transform: translateY(1px) scale(0.985);
+      transition-duration: 80ms;
+    }
+    .button.preset-folder-link:not(:disabled, [aria-disabled='true']):is(
+        :active,
+        [data-pressed='true']
+      ) {
+      transform: translateY(1px);
+      transition-duration: 80ms;
+    }
+    .preset-folder-link > svg:last-child {
+      transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .preset-folder-link:not(:disabled, [aria-disabled='true']):is(
+        :hover,
+        [data-hovered='true'],
+        [data-focus-visible='true']
+      )
+      > svg:last-child {
+      transform: translateX(3px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .button:not(.welcome-telegram):is(:active, [data-pressed='true']) {
+      transform: none;
+    }
   }
 
   .preset-row .checkbox {
@@ -477,7 +566,7 @@
 .explorer-scope__tab[aria-selected='false']:is(:hover, [data-hovered='true']) {
   color: var(--foreground);
   background: color-mix(in srgb, var(--foreground) 7%, transparent);
-  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 5%);
 }
 .explorer-scope__tab[aria-selected='true'] {
   color: var(--primary-foreground);
@@ -491,55 +580,112 @@
   outline-offset: 2px;
 }
 
-/* A quiet community link stays anchored below navigation in either theme. */
+/* Quiet at rest; pointer light and one reflection bring the glass to life on intent. */
 .sidebar-telegram {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 11px 10px;
-  border: 1px solid color-mix(in srgb, var(--foreground) 4%, transparent);
-  border-radius: 14px;
+  padding: 12px 10px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 7%, transparent);
+  border-radius: 16px;
   color: var(--foreground);
-  background: color-mix(in srgb, var(--foreground) 2%, transparent);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
+  background:
+    linear-gradient(125deg, rgb(144 112 220 / 7%), transparent 62%),
+    color-mix(in srgb, var(--foreground) 2%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 7%),
+    0 2px 8px rgb(0 0 0 / 3%);
   text-decoration: none;
   transition:
-    background 200ms ease,
-    border-color 200ms ease,
-    box-shadow 200ms ease;
+    background-color 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease;
 }
 .sidebar-telegram:is(:hover, :focus-visible, [data-hovered='true']) {
-  background: color-mix(in srgb, var(--foreground) 6%, transparent);
-  border-color: color-mix(in srgb, var(--foreground) 10%, transparent);
+  background-color: color-mix(in srgb, var(--foreground) 5%, transparent);
+  border-color: color-mix(in srgb, var(--foreground) 16%, transparent);
   box-shadow:
     inset 0 1px 0 var(--glass-highlight),
-    0 3px 12px rgb(0 0 0 / 6%);
+    inset 0 -1px 0 rgb(155 131 222 / 8%),
+    0 5px 16px rgb(0 0 0 / 8%);
 }
 .sidebar-telegram:focus-visible {
   outline: 2px solid var(--action-outline);
   outline-offset: 3px;
 }
+/* Separate clipped optics keep both the label and keyboard focus unobstructed. */
+.sidebar-telegram__reflection {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.sidebar-telegram__reflection::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    110px circle at var(--telegram-x, 30%) var(--telegram-y, 35%),
+    rgb(170 151 235 / 21%),
+    rgb(152 169 230 / 8%) 45%,
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.sidebar-telegram:is(:hover, :focus-visible, [data-hovered='true'])
+  .sidebar-telegram__reflection::before {
+  opacity: 1;
+}
+.sidebar-telegram__reflection::after {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: 0;
+  width: 28%;
+  height: 300%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 3%) 20%,
+    rgb(255 255 255 / 20%) 49%,
+    rgb(255 255 255 / 8%) 55%,
+    transparent
+  );
+  opacity: 0;
+  transform: translateX(-180%) skewX(-22deg);
+}
 .sidebar-telegram__icon {
   display: grid;
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
   place-items: center;
-  border-radius: 10px;
+  border: 1px solid rgb(150 120 205 / 12%);
+  border-radius: 11px;
   color: #8050bc;
-  background: linear-gradient(145deg, rgb(165 115 232 / 12%), rgb(120 111 224 / 6%));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
-  transition: color 200ms ease;
+  background: linear-gradient(145deg, rgb(165 115 232 / 17%), rgb(120 151 224 / 8%));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 13%);
+  transition:
+    color 220ms ease,
+    box-shadow 220ms ease;
 }
 .dark .sidebar-telegram__icon {
   color: #b7a0e6;
 }
 .sidebar-telegram:is(:hover, :focus-visible, [data-hovered='true']) .sidebar-telegram__icon {
-  color: #9555d7;
+  color: #8544c6;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 24%),
+    0 3px 12px rgb(140 109 220 / 16%);
 }
 .dark .sidebar-telegram:is(:hover, :focus-visible, [data-hovered='true']) .sidebar-telegram__icon {
-  color: #d6c4ff;
+  color: #e0d3ff;
 }
 .sidebar-telegram__copy {
   display: flex;
@@ -557,11 +703,50 @@
 }
 .sidebar-telegram__title > svg {
   color: var(--muted-foreground);
+  transition: color 220ms ease;
+}
+.sidebar-telegram:is(:hover, :focus-visible, [data-hovered='true']) .sidebar-telegram__title > svg {
+  color: var(--foreground);
 }
 .sidebar-telegram__description {
   color: var(--muted-foreground);
   font-size: 11px;
   line-height: 15px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar-telegram__icon > svg,
+  .sidebar-telegram__title > svg {
+    transition: transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .sidebar-telegram:is(:hover, :focus-visible, [data-hovered='true'])
+    .sidebar-telegram__icon
+    > svg {
+    transform: translate(1px, -2px) rotate(-8deg);
+  }
+  .sidebar-telegram:is(:hover, :focus-visible, [data-hovered='true'])
+    .sidebar-telegram__title
+    > svg {
+    transform: translate(2px, -2px);
+  }
+  .sidebar-telegram:is(:hover, :focus-visible, [data-hovered='true'])
+    .sidebar-telegram__reflection::after {
+    animation: welcome-telegram-shine 950ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+  .sidebar-telegram:active .sidebar-telegram__icon > svg {
+    transform: translate(1px, -1px) scale(0.92);
+    transition-duration: 100ms;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-telegram__reflection::before {
+    background-position: center;
+    background-image: radial-gradient(ellipse at center, rgb(170 151 235 / 15%), transparent 90%);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .sidebar-telegram {
+    background: var(--background);
+  }
 }
 
 /* Welcome uses the same glass material, with restrained brand-colored reflections. */
