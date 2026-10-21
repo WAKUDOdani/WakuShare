@@ -5,10 +5,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { removeRegistryEntry, upsertRegistryEntry } from '../src/main/core/capcut/registry'
 import { detectCapCutEnv } from '../src/main/core/capcut/locator'
 import { exportDraft } from '../src/main/core/capshare/export'
-import { importCapshare } from '../src/main/core/capshare/import'
+import { importCapshare as importCapshareCore } from '../src/main/core/capshare/import'
 import { ZipWriter } from '../src/main/core/zip'
 import { CAPSHARE_FORMAT_VERSION } from '../src/main/core/capshare/manifest'
 import { createMacDraft, makeMacMachine, type FakeMacMachine } from './fixtures/factory'
+
+// This compatibility fixture is trusted explicitly, never via a production bypass.
+const importCapshare: typeof importCapshareCore = (options) =>
+  importCapshareCore({ approveActiveContent: async () => true, ...options })
 
 let tmp: string
 let mac: FakeMacMachine

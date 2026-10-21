@@ -4,13 +4,17 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { exportDraft } from '../src/main/core/capshare/export'
-import { importCapshare } from '../src/main/core/capshare/import'
+import { importCapshare as importCapshareCore } from '../src/main/core/capshare/import'
 import { parseManifest } from '../src/main/core/capshare/manifest'
 import { readProjectDocuments, validateTimelineGraph } from '../src/main/core/capcut/project'
 import { DRAFT_PATH_PLACEHOLDER } from '../src/main/core/capcut/constants'
 import { walkJsonStrings } from '../src/main/core/capcut/scanner'
 import { readZipEntries, ZipWriter } from '../src/main/core/zip'
 import type { CapCutEnv } from '../src/main/core/capcut/model'
+
+// This compatibility fixture is trusted explicitly, never via a production bypass.
+const importCapshare: typeof importCapshareCore = (options) =>
+  importCapshareCore({ approveActiveContent: async () => true, ...options })
 
 let root: string
 let source: string

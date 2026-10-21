@@ -8,7 +8,7 @@ export default defineConfig({
     }
   },
   test: {
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.mjs'],
     environment: 'node',
     /* Core tests touch real temp dirs; keep them isolated and serial per file. */
     pool: 'forks'

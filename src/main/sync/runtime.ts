@@ -60,7 +60,7 @@ export async function createExplorerWorker(
     environment:
       bundled && nativeRoot
         ? {
-            ...process.env,
+            ...safeRuntimeEnvironment(process.env),
             PATH: [join(nativeRoot, 'python'), join(nativeRoot, 'bin'), process.env.PATH]
               .filter(Boolean)
               .join(';'),
@@ -69,6 +69,8 @@ export async function createExplorerWorker(
             DOTNET_MULTILEVEL_LOOKUP: '0',
             PYTHONHOME: join(nativeRoot, 'python'),
             PYTHONNOUSERSITE: '1',
+            PYTHONSAFEPATH: '1',
+            PYTHONPATH: join(nativeRoot, 'tools'),
             PYTHONDONTWRITEBYTECODE: '1',
             WAKUSHARE_NATIVE_CACHE: join(app.getPath('userData'), 'explorer', 'native-modules')
           }
@@ -76,4 +78,16 @@ export async function createExplorerWorker(
     timeoutMs: nativeRoot ? 120000 : 10000,
     ...callbacks
   })
+}
+
+/** Ignore interpreter and profiler hooks inherited from the caller's environment. */
+export function safeRuntimeEnvironment(input: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(input).filter(
+      ([name]) =>
+        !/^(?:PYTHON|DOTNET_|COMPLUS_|CORECLR_|COR_|NODE_OPTIONS$|ELECTRON_RUN_AS_NODE$)/i.test(
+          name
+        )
+    )
+  )
 }

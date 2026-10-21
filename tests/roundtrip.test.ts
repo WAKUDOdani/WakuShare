@@ -7,9 +7,12 @@ import { DRAFT_PATH_PLACEHOLDER } from '../src/main/core/capcut/constants'
 import { detectCapCutEnv } from '../src/main/core/capcut/locator'
 import type { CapCutEnv } from '../src/main/core/capcut/model'
 import { exportDraft } from '../src/main/core/capshare/export'
-import { importCapshare, inspectCapshare } from '../src/main/core/capshare/import'
+import {
+  importCapshare as importCapshareCore,
+  inspectCapshare
+} from '../src/main/core/capshare/import'
 import { CAPSHARE_FORMAT_VERSION, type CapShareManifest } from '../src/main/core/capshare/manifest'
-import { ZipWriter } from '../src/main/core/zip'
+import { readZipEntries, ZipWriter } from '../src/main/core/zip'
 import { walkFiles } from '../src/main/core/fsx'
 import {
   createMacDraft,
@@ -19,6 +22,10 @@ import {
   type FakeMacMachine,
   type FakeWinMachine
 } from './fixtures/factory'
+
+// This compatibility fixture is trusted explicitly, never via a production bypass.
+const importCapshare: typeof importCapshareCore = (options) =>
+  importCapshareCore({ approveActiveContent: async () => true, ...options })
 
 let tmp: string
 let mac: FakeMacMachine
@@ -401,5 +408,68 @@ describe('inspectCapshare', () => {
     expect(preview.compat.sourceCapcutVersion).toBe('8.7.0')
     expect(preview.collision).toBeNull()
     expect(preview.compat.warnings.some((w) => w.includes('exported on macOS'))).toBe(true)
+  })
+})
+
+describe('project package security boundary', () => {
+  it('requires trust for effects and leaves the target project list unchanged after refusal', async () => {
+    const source = createMacDraft(mac, { name: 'Untrusted effect fixture' })
+    const filePath = join(tmp, 'untrusted.wakushare')
+    await exportDraft({
+      draftFolder: source.folder,
+      env: macEnv(),
+      destinationPath: filePath,
+      includeCaches: true,
+      capshareVersion: 'security-test'
+    })
+    const target = winEnv()
+    await expect(
+      importCapshareCore({ filePath, env: target, backupDir: join(tmp, 'backups') })
+    ).rejects.toThrow(/explicit trust/)
+    const { readdir } = await import('node:fs/promises')
+    expect(
+      (await readdir(target.draftRoot)).filter((name) => name.startsWith('.wakushare-'))
+    ).toEqual([])
+    expect(existsSync(join(target.draftRoot, 'Untrusted effect fixture'))).toBe(false)
+  })
+
+  it('rejects undeclared local resource references even when the attacker recomputes every checksum', async () => {
+    const source = createMacDraft(mac, { name: 'Reference fixture' })
+    const original = join(tmp, 'original.wakushare')
+    await exportDraft({
+      draftFolder: source.folder,
+      env: macEnv(),
+      destinationPath: original,
+      includeCaches: true,
+      capshareVersion: 'security-test'
+    })
+    const manifest = JSON.parse(
+      (await readZipEntries(original, ['manifest.json'])).get('manifest.json')!.toString()
+    ) as CapShareManifest
+    const names = [
+      'manifest.json',
+      'cover.jpg',
+      ...Object.keys(manifest.integrity).map((name) => 'draft/' + name),
+      ...manifest.effectAssets.map((file) => file.archivePath),
+      ...manifest.looseMedia.map((file) => file.archivePath)
+    ]
+    const contents = await readZipEntries(original, names)
+    const document = 'draft/' + manifest.source.timelineFilename
+    const value = JSON.parse(contents.get(document)!.toString())
+    value.extra_path = 'C:/private/token.png'
+    const raw = Buffer.from(JSON.stringify(value))
+    contents.set(document, raw)
+    manifest.integrity[manifest.source.timelineFilename] = {
+      size: raw.length,
+      sha256: createHash('sha256').update(raw).digest('hex')
+    }
+    contents.set('manifest.json', Buffer.from(JSON.stringify(manifest)))
+    const malicious = join(tmp, 'foreign-reference.wakushare'),
+      zip = new ZipWriter(malicious)
+    for (const [name, data] of contents) await zip.add({ kind: 'buffer', zipPath: name, data })
+    await zip.finish()
+    await expect(
+      importCapshare({ filePath: malicious, env: winEnv(), backupDir: join(tmp, 'backups') })
+    ).rejects.toThrow(/external resource/)
   })
 })

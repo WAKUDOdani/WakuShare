@@ -48,7 +48,15 @@ export interface ExplorerImportProgress {
   total: number
   imported: number
   skipped: number
-  phase: 'preparing' | 'folders' | 'importing' | 'placing' | 'checking' | 'ready' | 'waiting' | 'stopped'
+  phase:
+    | 'preparing'
+    | 'folders'
+    | 'importing'
+    | 'placing'
+    | 'checking'
+    | 'ready'
+    | 'waiting'
+    | 'stopped'
 }
 export interface ExplorerSnapshot {
   sequence: number

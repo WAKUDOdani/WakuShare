@@ -21,11 +21,18 @@ import {
 } from '../src/main/core/presets/library'
 import {
   exportPresets,
-  importPresets,
+  importPresets as importPresetsCore,
   inspectPresetPackage,
   reviewPresetImport
 } from '../src/main/core/presets/package'
 import { readZipEntries, ZipWriter } from '../src/main/core/zip'
+
+// These roundtrips emulate explicit approval of the known effect fixture.
+const importPresets: typeof importPresetsCore = (path, selection, root, env, backup, options) =>
+  importPresetsCore(path, selection, root, env, backup, {
+    approveActiveContent: async () => true,
+    ...options
+  })
 
 let tmp: string, root: string, env: CapCutEnv
 const write = (path: string, value: unknown): void => {
@@ -544,6 +551,41 @@ describe('composition preset transfer', () => {
     expect(nativeGroups(json(join(root, STORE_PATH))).records).toHaveLength(5)
     expect(existsSync(join(root, 'Combination/Presets/One 2'))).toBe(false)
     expect(json(join(root, STORE_PATH))['concurrent']).toBe(true)
+  })
+
+  it('relocates catalog resource references with the same rules as preset documents', async () => {
+    const catalog = json(join(root, STORE_PATH))
+    const record = nativeGroups(catalog).records.find((record) => record.id === 'p1')!
+    record.cover_path = slash(join(root, 'Combination/Presets/One/One.jpeg'))
+    write(join(root, STORE_PATH), catalog)
+    const archive = join(tmp, 'catalog-resources.wakupresets'),
+      target = join(tmp, 'target')
+    await exportPresets(root, ['p1'], archive, env)
+    await importPresets(archive, ['p1'], target, env, join(tmp, 'backups'))
+    const restored = await readLibrary(target)
+    const saved = [...restored.records.values()].find((record) => record.type === 1)!
+    expect(String(saved.cover_path)).toContain(slash(target))
+    expect(existsSync(String(saved.cover_path))).toBe(true)
+  })
+
+  it('requires explicit trust for effects and publishes nothing after refusal', async () => {
+    const archive = join(tmp, 'trust.wakupresets')
+    await exportPresets(root, ['p1'], archive, env)
+    const target = join(tmp, 'untrusted-target')
+    await expect(
+      importPresetsCore(archive, ['p1'], target, env, join(tmp, 'backups'))
+    ).rejects.toThrow(/explicit trust/)
+    expect(existsSync(join(target, STORE_PATH))).toBe(false)
+    expect(readdirSync(target)).toEqual([])
+  })
+
+  it('refuses to export an unrelated local secret introduced through a document', async () => {
+    const source = join(root, 'Combination/Presets/One/preset_draft/draft_content.json')
+    write(source, { ...json(source), foreign_path: slash(join(tmp, 'private/token.txt')) })
+    write(join(tmp, 'private/token.txt'), 'INERT-NOT-A-REAL-SECRET')
+    const archive = join(tmp, 'must-not-exist.wakupresets')
+    await expect(exportPresets(root, ['p1'], archive, env)).rejects.toThrow(/external reference/)
+    expect(existsSync(archive)).toBe(false)
   })
 
   it('validates hashes before registering any presets', async () => {

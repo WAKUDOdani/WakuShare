@@ -1,4 +1,5 @@
-import { app, ipcMain, shell, type BrowserWindow } from 'electron'
+import { trustedHandle } from './ipc-security'
+import { app, shell, type BrowserWindow } from 'electron'
 import log from 'electron-log/main'
 import electronUpdater from 'electron-updater'
 import { IPC } from '../shared/channels'
@@ -17,6 +18,7 @@ export interface UpdaterController {
 
 /** Windows installed builds use only WakuShare's public GitHub Releases. */
 export function setupUpdater(ctx: UpdaterContext): UpdaterController {
+  const handle = trustedHandle(ctx.getMainWindow)
   let status: UpdateStatus = { state: 'idle' }
   const portable =
     app.isPackaged &&
@@ -105,11 +107,11 @@ export function setupUpdater(ctx: UpdaterContext): UpdaterController {
     updater.on('update-downloaded', (info) => send({ state: 'downloaded', version: info.version }))
     updater.on('error', errorStatus)
   }
-  ipcMain.handle(IPC.getAppVersion, () => app.getVersion())
-  ipcMain.handle(IPC.isPortable, () => portable)
-  ipcMain.handle(IPC.updateGetStatus, () => status)
-  ipcMain.handle(IPC.updateCheck, check)
-  ipcMain.handle(IPC.updateInstall, () => {
+  handle(IPC.getAppVersion, () => app.getVersion())
+  handle(IPC.isPortable, () => portable)
+  handle(IPC.updateGetStatus, () => status)
+  handle(IPC.updateCheck, check)
+  handle(IPC.updateInstall, () => {
     if (!updater || status.state !== 'downloaded' || installing) return
     if (ctx.isBusy()) {
       const win = ctx.getMainWindow()

@@ -21,6 +21,13 @@ extraResources:
     to: THIRD_PARTY_NOTICES.md
 asarUnpack:
   - resources/**
+# Production never needs to behave as a generic Node interpreter or inspector.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
 afterPack: build/windows-after-pack.cjs
 fileAssociations:
   - ext: wakushare

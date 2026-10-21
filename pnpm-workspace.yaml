@@ -1,5 +1,26 @@
 allowBuilds:
   electron-winstaller: false
+overrides:
+  js-yaml: ^4.3.2
+  undici: ^7.29.1
+  esbuild: ^0.28.1
+  form-data: ^4.0.6
+  brace-expansion@1: ^1.1.21
+  brace-expansion@2: ^2.1.7
+  brace-expansion@5: ^5.0.12
+  tar: ^7.5.21
+  builder-util-runtime: ^9.7.0
+  postcss: ^8.5.23
+  nanoid@3: ^3.3.18
+  browserslist: ^4.28.7
+  '@xmldom/xmldom@0.8': ^0.8.15
+  '@xmldom/xmldom@0.9': ^0.9.12
+  baseline-browser-mapping: ^2.11.0
+  http-cache-semantics: ^4.3.0
+  source-map-js: ^1.2.2
+# Explicitly pinned security update, verified using Electron's bundled release checksums.
+minimumReleaseAgeExclude:
+  - electron@42.11.18
 # Electron + electron-builder work best with a flat node_modules layout —
 # avoids symlink edge cases when production deps are collected into the asar.
 nodeLinker: hoisted

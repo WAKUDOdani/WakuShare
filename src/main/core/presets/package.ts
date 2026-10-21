@@ -1,3 +1,12 @@
+import {
+  assertExportResource,
+  assertRelativeResource,
+  assertResourceScheme,
+  isResourceField,
+  isExternalResource
+} from '../reference-policy'
+import type { ApproveActiveContent } from '../payload-policy'
+import { validateArchivePath, archivePathKey, ArchiveDestination } from '../archive-safety'
 import { createHash, randomUUID } from 'node:crypto'
 import { constants, existsSync } from 'node:fs'
 import {
@@ -54,7 +63,7 @@ const manifestSchema = z.object({
       entry: z.string(),
       kind: z.enum(['preset', 'asset', 'effect']),
       owners: z.array(z.string()),
-      size: z.number().int().nonnegative(),
+      size: z.number().int().nonnegative().safe(),
       sha256: z.string().regex(/^[a-f0-9]{64}$/)
     })
   ),
@@ -78,6 +87,7 @@ interface FilePlan {
   stamp: string
 }
 interface Options {
+  approveActiveContent?: ApproveActiveContent
   signal?: AbortSignal
   onProgress?: (processed: number, total: number, phase: string) => void
   /** Replacements explicitly selected by the user; never inferred from a filename. */
@@ -102,20 +112,14 @@ function mediaName(original: string, names: Set<string>): string {
   return name
 }
 const key = (path: string): string => jsonPath(resolve(path)).toLowerCase()
-const safe = (path: string): boolean =>
-  !!path &&
-  !path.includes('\\') &&
-  !path.includes(':') &&
-  !path.startsWith('/') &&
-  path
-    .split('/')
-    .every(
-      (part) =>
-        !!part &&
-        part !== '.' &&
-        part !== '..' &&
-        ![...part].some((char) => char.charCodeAt(0) < 32)
-    )
+const safe = (path: string): boolean => {
+  try {
+    validateArchivePath(path)
+    return true
+  } catch {
+    return false
+  }
+}
 const stamp = async (path: string): Promise<string> => {
   const s = await stat(path)
   return `${s.size}/${s.mtimeMs}`
@@ -163,8 +167,11 @@ function parseDocument(path: string, raw: Buffer): unknown | null {
 
 function validateManifest(manifest: Manifest): void {
   validateNodes(manifest.nodes)
-  const ids = new Set(manifest.nodes.map((node) => node.id)),
-    entries = new Set<string>()
+  const ids = new Map(manifest.nodes.map((node) => [node.id, node])),
+    entries = new Set<string>(),
+    declared = new Map<string, Manifest['files'][number]>(),
+    resourceTargets = new Map<string, Set<string>>()
+  let indexedTargets = 0
   for (const node of manifest.nodes) {
     if (!manifest.records[node.id] || manifest.records[node.id]['id'] !== node.id)
       throw new CapShareError('ARCHIVE_INVALID', 'Preset catalog record mismatch')
@@ -180,7 +187,7 @@ function validateManifest(manifest: Manifest): void {
   for (const file of manifest.files) {
     if (
       !safe(file.entry) ||
-      entries.has(file.entry.toLowerCase()) ||
+      entries.has(archivePathKey(file.entry)) ||
       !file.owners.length ||
       file.owners.some((id) => !ids.has(id))
     )
@@ -191,7 +198,7 @@ function validateManifest(manifest: Manifest): void {
       const owner = file.entry.split('/')[1]
       if (
         !file.entry.split('/')[2] ||
-        manifest.nodes.find((node) => node.id === owner)?.kind !== 'preset' ||
+        ids.get(owner)?.kind !== 'preset' ||
         file.owners.length !== 1 ||
         file.owners[0] !== owner
       )
@@ -203,15 +210,28 @@ function validateManifest(manifest: Manifest): void {
       !(file.kind === 'asset' && file.entry.startsWith('Исходники/'))
     )
       throw new CapShareError('ARCHIVE_INVALID', 'Invalid preset dependency')
-    entries.add(file.entry.toLowerCase())
+    entries.add(archivePathKey(file.entry))
+    declared.set(file.entry, file)
+    for (const owner of file.owners) {
+      const indexKey = owner + ':' + file.kind
+      const paths = resourceTargets.get(indexKey) ?? new Set<string>()
+      const parts = file.entry.split('/')
+      for (let i = 1; i <= parts.length; i++) {
+        const prefix = parts.slice(0, i).join('/')
+        if (!paths.has(prefix)) {
+          if (++indexedTargets > 1_000_000)
+            throw new CapShareError('ARCHIVE_INVALID', 'Preset manifest is too complex')
+          paths.add(prefix)
+        }
+      }
+      resourceTargets.set(indexKey, paths)
+    }
   }
   for (const node of manifest.nodes.filter((node) => node.kind === 'preset')) {
     if (
-      !manifest.files.some(
-        (file) =>
-          file.entry === `payload/${node.id}/${manifest.storage[node.id].metadata}` &&
-          file.owners.includes(node.id)
-      )
+      !declared
+        .get(`payload/${node.id}/${manifest.storage[node.id].metadata}`)
+        ?.owners.includes(node.id)
     )
       throw new CapShareError('ARCHIVE_INVALID', 'Preset metadata is missing')
   }
@@ -219,12 +239,7 @@ function validateManifest(manifest: Manifest): void {
     if (
       !ids.has(ref.owner) ||
       !safe(ref.target) ||
-      !manifest.files.some(
-        (file) =>
-          file.owners.includes(ref.owner) &&
-          file.kind === ref.kind &&
-          (file.entry === ref.target || file.entry.startsWith(ref.target + '/'))
-      )
+      !resourceTargets.get(ref.owner + ':' + ref.kind)?.has(ref.target)
     )
       throw new CapShareError('ARCHIVE_INVALID', 'Invalid preset resource reference')
   }
@@ -233,7 +248,9 @@ function validateManifest(manifest: Manifest): void {
 export async function inspectPresetPackage(
   path: string
 ): Promise<{ manifest: Manifest; view: PresetLibrary }> {
-  const raw = (await readZipEntries(path, ['manifest.json'])).get('manifest.json')
+  const raw = (
+    await readZipEntries(path, ['manifest.json'], { maxEntryBytes: 20 * 1024 ** 2 })
+  ).get('manifest.json')
   if (!raw || raw.length > 20 * 1024 * 1024)
     throw new CapShareError('ARCHIVE_INVALID', 'Not a WakuShare preset package')
   const manifest = manifestSchema.parse(JSON.parse(raw.toString('utf8')))
@@ -283,10 +300,16 @@ async function buildPresetPlan(
     if (queuedDocuments.has(documentKey) || plan.kind === 'effect') return
     queuedDocuments.add(documentKey)
     if (!isDocument(plan.entry)) return
+    if ((await stat(plan.disk)).size > 100 * 1024 ** 2)
+      throw new CapShareError('DRAFT_UNREADABLE', 'Preset document is too large')
     plan.snapshot ??= await readFile(plan.disk)
+    snapshotBytes += plan.snapshot.length
+    if (snapshotBytes > 512 * 1024 ** 2)
+      throw new CapShareError('DRAFT_UNREADABLE', 'Preset documents are too large')
     const value = parseDocument(plan.entry, plan.snapshot)
     if (value !== null) documents.push({ owner, path: plan.disk, value, contextRoot })
   }
+  let snapshotBytes = 0
   const directoryStamps = new Map<string, string>()
   const assetRoots = new Map<
     string,
@@ -317,13 +340,20 @@ async function buildPresetPlan(
       await enqueueDocument(plan, node.id, join(storage.directory, 'preset_draft'))
     }
   }
+  for (const node of nodes)
+    documents.push({
+      owner: node.id,
+      path: 'manifest.json',
+      value: manifest.records[node.id],
+      contextRoot: library.storage.get(node.id)?.directory ?? root
+    })
   for (const document of documents) {
     const found: { value: string; pointer: string }[] = []
     walkJsonStrings(document.value, (value, pointer) => {
       found.push({ value, pointer })
       return undefined
     })
-    const ownerFolder = library.storage.get(document.owner)!.directory
+    const ownerFolder = library.storage.get(document.owner)?.directory ?? root
     for (const ref of found) {
       checkCancel(options.signal)
       if (!ref.value || ref.pointer.includes('draft_materials_copied_info')) continue
@@ -337,7 +367,16 @@ async function buildPresetPlan(
         !presetPlaceholder
       )
         continue
+      if (cls.cls === 'unc') assertExportResource(ref.value)
+      if (cls.cls === 'absolute' && !isExternalResource(ref.value, ref.pointer, true)) continue
+      if (cls.cls === 'absolute') assertExportResource(ref.value, true)
+      if (cls.cls === 'effect-cache' && cls.cacheSuffix) assertRelativeResource(cls.cacheSuffix)
       let disk = ref.value
+      if (presetPlaceholder) assertRelativeResource(ref.value.slice(presetPlaceholder[0].length))
+      if (cls.cls === 'placeholder')
+        assertRelativeResource(
+          ref.value.slice(DRAFT_PATH_PLACEHOLDER.length).replace(/^[/\\]+/, '')
+        )
       if (presetPlaceholder)
         disk = join(root, 'Combination', ref.value.slice(presetPlaceholder[0].length))
       if (cls.cls === 'placeholder')
@@ -536,7 +575,8 @@ export async function reviewPresetImport(
           fingerprintDocument(file.entry) &&
           file.owners.some((id) => owners.has(id))
       )
-      .map((file) => file.entry)
+      .map((file) => file.entry),
+    { maxEntryBytes: 100 * 1024 ** 2, maxTotalBytes: 512 * 1024 ** 2 }
   )
   for (const [entry, raw] of contents)
     if (sha(raw) !== manifest.files.find((file) => file.entry === entry)!.sha256)
@@ -708,6 +748,12 @@ export async function importPresets(
   const selected = new Set(nodes.map((node) => node.id))
   const files = manifest.files.filter((file) => file.owners.some((id) => selected.has(id)))
   const allFiles = manifest.files.filter((file) => file.owners.some((id) => allSelected.has(id)))
+  const docs = allFiles.filter((file) => file.kind !== 'effect' && isDocument(file.entry))
+  if (
+    docs.some((file) => file.size > 100 * 1024 ** 2) ||
+    docs.reduce((n, file) => n + file.size, 0) > 512 * 1024 ** 2
+  )
+    throw new CapShareError('ARCHIVE_INVALID', 'Preset documents are too large')
   const library = await readLibrary(root)
   const placement = placeFolders(
     nodes.filter((node) => decisions[node.id]?.action !== 'replace'),
@@ -809,6 +855,12 @@ export async function importPresets(
   let committed = false,
     backup: string | undefined
   await mkdir(root, { recursive: true })
+  const destinationGuard = await ArchiveDestination.create(root)
+  const cacheGuard = await ArchiveDestination.create(env.cacheDir)
+  const safeDestination = (target: string): Promise<string> =>
+    key(target).startsWith(key(root) + '/')
+      ? destinationGuard.target(jsonPath(relative(root, target)))
+      : cacheGuard.target(jsonPath(relative(env.cacheDir, target)))
   await mkdir(staging, { recursive: false })
   try {
     const entries = new Map(allFiles.map((file) => [file.entry, file]))
@@ -817,6 +869,8 @@ export async function importPresets(
     let processed = 0
     await extractZip(path, staging, {
       signal: options.signal,
+      approveActiveContent: options.approveActiveContent,
+      activeResource: (entry) => entries.get(entry)?.kind === 'effect',
       mapEntry: (entry) => (entries.has(entry) ? entry : null),
       expected: (entry) => entries.get(entry),
       verifyOnly: (entry) => !restoredEntries.has(entry),
@@ -844,6 +898,42 @@ export async function importPresets(
         replaced: 0,
         mergedFolders: 0,
         warnings: ['All selected duplicates were skipped. The library was not changed.']
+      }
+    }
+    const rewriteFor = (owner: string) => {
+      const references = new Map(
+        manifest.references.filter((ref) => ref.owner === owner).map((ref) => [ref.from, ref])
+      )
+      return (current, pointer) => {
+        if (pointer.includes('draft_materials_copied_info')) return undefined
+        assertResourceScheme(current, pointer)
+        if (
+          classifyString(current).cls === 'relative' &&
+          isResourceField(pointer) &&
+          /[/\\]/.test(current)
+        )
+          assertRelativeResource(current)
+        if (idMap.has(current)) return idMap.get(current)
+        const ref = references.get(current)
+        const legacy = !ref ? legacyPresetTarget(manifest, owner, current) : null
+        if (!ref && !legacy && current.startsWith('##_presetpath_placeholder_'))
+          throw new CapShareError(
+            'ARCHIVE_INVALID',
+            'An older package contains an unresolved preset resource. Export it again with the current version.'
+          )
+        const cls = classifyString(current)
+        if (
+          !ref &&
+          !legacy &&
+          isExternalResource(current, pointer, true) &&
+          ['absolute', 'unc', 'effect-cache'].includes(cls.cls)
+        )
+          throw new CapShareError('ARCHIVE_INVALID', 'Unresolved external preset resource')
+        return ref
+          ? jsonPath(targetFor(ref.target, ref.kind))
+          : legacy
+            ? jsonPath(targetFor(legacy, 'preset'))
+            : undefined
       }
     }
     const transformed = new Map<string, Buffer>()
@@ -887,21 +977,7 @@ export async function importPresets(
           'ARCHIVE_INVALID',
           'An older package contains an unresolved preset resource. Export it again with the current version.'
         )
-      walkJsonStrings(value, (current) => {
-        if (idMap.has(current)) return idMap.get(current)
-        const ref = refs.find((ref) => ref.from === current)
-        const legacy = !ref ? legacyPresetTarget(manifest, owner, current) : null
-        if (!ref && !legacy && current.startsWith('##_presetpath_placeholder_'))
-          throw new CapShareError(
-            'ARCHIVE_INVALID',
-            'An older package contains an unresolved preset resource. Export it again with the current version.'
-          )
-        return ref
-          ? jsonPath(targetFor(ref.target, ref.kind))
-          : legacy
-            ? jsonPath(targetFor(legacy, 'preset'))
-            : undefined
-      })
+      walkJsonStrings(value, rewriteFor(owner))
       if (
         file.kind === 'preset' &&
         file.entry === `payload/${owner}/${manifest.storage[owner].metadata}`
@@ -914,7 +990,7 @@ export async function importPresets(
     // Reserve fresh destinations. Existing folders, resources and files are never overwritten.
     for (const [id, name] of folders) {
       const directory = replacementDirectories.get(id) ?? join(presetParent, name)
-      await mkdir(dirname(directory), { recursive: true })
+      await safeDestination(directory)
       await mkdir(directory)
       owned.push(directory)
     }
@@ -923,14 +999,14 @@ export async function importPresets(
       ['effect', effectRoot]
     ] as const)
       if (files.some((file) => file.kind === kind)) {
-        await mkdir(dirname(directory), { recursive: true })
+        await safeDestination(directory)
         await mkdir(directory)
         owned.push(directory)
       }
     for (const file of files) {
       checkCancel(options.signal)
       const destination = writeTargetFor(file.entry, file.kind)
-      await mkdir(dirname(destination), { recursive: true })
+      await safeDestination(destination)
       const changed = transformed.get(file.entry)
       if (changed) await writeFile(destination, changed, { flag: 'wx' })
       else await copyFile(join(staging, file.entry), destination, constants.COPYFILE_EXCL)
@@ -962,8 +1038,10 @@ export async function importPresets(
         placement.folders.some((folder) => folder.sourceId === node.id && folder.action === 'merge')
       )
         continue
+      const record = structuredClone(manifest.records[node.id])
+      walkJsonStrings(record, rewriteFor(node.id))
       records.push({
-        ...manifest.records[node.id],
+        ...record,
         id: idMap.get(node.id),
         name: namesMap.get(node.id)
       })
@@ -1034,7 +1112,7 @@ export async function importPresets(
     })
     if (library.raw ? !finalCatalog?.equals(library.raw) : finalCatalog !== null)
       throw new CapShareError('IMPORT_FAILED', 'Preset catalog changed before commit')
-    await mkdir(dirname(join(root, STORE_PATH)), { recursive: true })
+    await destinationGuard.target(STORE_PATH)
     await atomicWriteFile(join(root, STORE_PATH), JSON.stringify(library.catalog))
     committed = true
   } catch (error) {

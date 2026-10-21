@@ -13,13 +13,12 @@ if (process.env.ELECTRON_SKIP_BINARY_DOWNLOAD === '1') {
 }
 
 const electronDir = path.join(__dirname, '..', 'node_modules', 'electron')
-const pathFile = path.join(electronDir, 'path.txt')
 
 if (!existsSync(electronDir)) {
   // Dependencies not installed yet (e.g. lint-only checkout) — nothing to do.
   process.exit(0)
 }
 
-if (!existsSync(pathFile)) {
-  execFileSync(process.execPath, [path.join(electronDir, 'install.js')], { stdio: 'inherit' })
-}
+// The installer checks the actual dist/version as well as path.txt. A stale
+// cached path.txt must not silently retain an older, vulnerable Electron.
+execFileSync(process.execPath, [path.join(electronDir, 'install.js')], { stdio: 'inherit' })

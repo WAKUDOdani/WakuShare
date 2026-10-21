@@ -1,5 +1,6 @@
+import { trustedHandle } from './ipc-security'
 import { translateText } from '../shared/i18n'
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron'
+import { app, BrowserWindow, dialog, nativeImage, shell } from 'electron'
 import { join } from 'node:path'
 import log from 'electron-log/main'
 import { z } from 'zod'
@@ -172,11 +173,35 @@ const settingsUpdateSchema = z.object({
  * forwards progress.
  */
 export function registerIpcHandlers(ctx: IpcContext): void {
-  ipcMain.handle(IPC.rendererReady, () => {
+  const handle = trustedHandle(ctx.getMainWindow)
+  const contentApproval = () => {
+    let approved = false
+    return async (entries: readonly string[]): Promise<boolean> => {
+      if (approved) return true
+      const response = await dialog.showMessageBox(ctx.getMainWindow()!, {
+        type: 'warning',
+        title: mainT('Do you trust this package?'),
+        message: mainT('This package contains effect resources or active content.'),
+        detail:
+          mainT(
+            'CapCut may execute effect code. Only import this package if you trust its author. Integrity checks do not prove that code is safe.'
+          ) +
+          '\n\n' +
+          entries.slice(0, 6).join('\n'),
+        buttons: [mainT('Cancel'), mainT('Trust and import')],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true
+      })
+      approved = response.response === 1
+      return approved
+    }
+  }
+  handle(IPC.rendererReady, () => {
     return ctx.consumePendingOpenFile()
   })
 
-  ipcMain.handle(IPC.listProjects, async (): Promise<IpcResult<ProjectsResponse>> => {
+  handle(IPC.listProjects, async (): Promise<IpcResult<ProjectsResponse>> => {
     try {
       const env = currentEnv()
       if (!env) {
@@ -189,7 +214,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle(IPC.deleteProject, async (_event, raw: unknown): Promise<IpcResult<void>> => {
+  handle(IPC.deleteProject, async (_event, raw: unknown): Promise<IpcResult<void>> => {
     try {
       const request = deleteRequestSchema.parse(raw)
       const env = requireEnv()
@@ -205,7 +230,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle(IPC.pickProjectCover, async (): Promise<IpcResult<string | null>> => {
+  handle(IPC.pickProjectCover, async (): Promise<IpcResult<string | null>> => {
     try {
       const win = ctx.getMainWindow()
       const result = await dialog.showOpenDialog(win!, {
@@ -237,7 +262,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle(
+  handle(
     IPC.updateProject,
     async (_event, raw: unknown): Promise<IpcResult<UpdateProjectResult>> => {
       try {
@@ -260,7 +285,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   )
 
-  ipcMain.handle(
+  handle(
     IPC.pickExportDestination,
     async (_event, defaultName: unknown): Promise<IpcResult<string | null>> => {
       try {
@@ -282,7 +307,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   )
 
-  ipcMain.handle(IPC.runExport, async (_event, raw: unknown): Promise<IpcResult<ExportResult>> => {
+  handle(IPC.runExport, async (_event, raw: unknown): Promise<IpcResult<ExportResult>> => {
     const controller = new AbortController()
     let taskId = ''
     try {
@@ -308,7 +333,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle(IPC.pickImportFile, async (): Promise<IpcResult<string | null>> => {
+  handle(IPC.pickImportFile, async (): Promise<IpcResult<string | null>> => {
     try {
       const win = ctx.getMainWindow()
       const result = await dialog.showOpenDialog(win!, {
@@ -324,7 +349,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle(
+  handle(
     IPC.inspectImport,
     async (_event, filePath: unknown): Promise<IpcResult<ImportPreview>> => {
       try {
@@ -336,7 +361,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   )
 
-  ipcMain.handle(IPC.runImport, async (_event, raw: unknown): Promise<IpcResult<ImportResult>> => {
+  handle(IPC.runImport, async (_event, raw: unknown): Promise<IpcResult<ImportResult>> => {
     const controller = new AbortController()
     let taskId = ''
     try {
@@ -347,6 +372,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
 
       const result = await importCapshare({
         filePath: request.filePath,
+        approveActiveContent: contentApproval(),
         env,
         resolution: request.resolution,
         backupDir: join(app.getPath('userData'), 'draft-backups'),
@@ -361,7 +387,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle(IPC.cancelTask, (_event, taskId: unknown): IpcResult<boolean> => {
+  handle(IPC.cancelTask, (_event, taskId: unknown): IpcResult<boolean> => {
     try {
       const id = taskIdSchema.parse(taskId)
       const controller = activeTasks.get(id)
@@ -372,21 +398,17 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle(
-    IPC.listPresets,
-    async (_event, root: unknown): Promise<IpcResult<PresetLibrary>> => {
-      try {
-        const env = requireEnv()
-        const path =
-          root === undefined ? await detectPresetRoot(env) : z.string().min(1).parse(root)
-        return ok((await readLibrary(path)).view)
-      } catch (error) {
-        return fail(error)
-      }
+  handle(IPC.listPresets, async (_event, root: unknown): Promise<IpcResult<PresetLibrary>> => {
+    try {
+      const env = requireEnv()
+      const path = root === undefined ? await detectPresetRoot(env) : z.string().min(1).parse(root)
+      return ok((await readLibrary(path)).view)
+    } catch (error) {
+      return fail(error)
     }
-  )
+  })
 
-  ipcMain.handle(
+  handle(
     IPC.inspectPresetPackage,
     async (_event, raw: unknown): Promise<IpcResult<PresetLibrary>> => {
       try {
@@ -397,7 +419,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   )
 
-  ipcMain.handle(IPC.pickPresetPackage, async (): Promise<IpcResult<string | null>> => {
+  handle(IPC.pickPresetPackage, async (): Promise<IpcResult<string | null>> => {
     try {
       const result = await dialog.showOpenDialog(ctx.getMainWindow()!, {
         title: mainT('Open preset package'),
@@ -410,7 +432,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle(IPC.pickPresetSource, async (): Promise<IpcResult<string | null>> => {
+  handle(IPC.pickPresetSource, async (): Promise<IpcResult<string | null>> => {
     try {
       const result = await dialog.showOpenDialog(ctx.getMainWindow()!, {
         title: mainT('Locate the missing source file'),
@@ -422,7 +444,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle(IPC.pickPresetDestination, async (): Promise<IpcResult<string | null>> => {
+  handle(IPC.pickPresetDestination, async (): Promise<IpcResult<string | null>> => {
     try {
       const result = await dialog.showSaveDialog(ctx.getMainWindow()!, {
         title: mainT('Export preset package'),
@@ -439,7 +461,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
   })
 
   for (const operation of ['export', 'import', 'review'] as const) {
-    ipcMain.handle(
+    handle(
       operation === 'export'
         ? IPC.exportPresets
         : operation === 'import'
@@ -459,6 +481,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
           activeTasks.set(taskId, controller)
           const env = requireEnv()
           const options = {
+            approveActiveContent: contentApproval(),
             signal: controller.signal,
             onProgress: makeProgressForwarder(ctx, taskId),
             sourceOverrides: request.sourceOverrides,
@@ -507,7 +530,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     )
   }
 
-  ipcMain.handle(IPC.getSettings, (): IpcResult<AppSettings> => {
+  handle(IPC.getSettings, (): IpcResult<AppSettings> => {
     try {
       return ok(getSettings())
     } catch (error) {
@@ -515,7 +538,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle(IPC.setSettings, async (_event, raw: unknown): Promise<IpcResult<AppSettings>> => {
+  handle(IPC.setSettings, async (_event, raw: unknown): Promise<IpcResult<AppSettings>> => {
     try {
       const update = settingsUpdateSchema.parse(raw)
       const previousLanguage = getSettings().language
@@ -527,7 +550,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle(IPC.revealPath, (_event, rawPath: unknown): IpcResult<void> => {
+  handle(IPC.revealPath, (_event, rawPath: unknown): IpcResult<void> => {
     try {
       const path = z.string().min(1).parse(rawPath)
       shell.showItemInFolder(path)
@@ -537,7 +560,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle(IPC.launchCapCut, async (): Promise<IpcResult<boolean>> => {
+  handle(IPC.launchCapCut, async (): Promise<IpcResult<boolean>> => {
     try {
       if (hasActiveFileTasks())
         throw new CapShareError(
@@ -550,7 +573,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle(IPC.isCapCutRunning, async (): Promise<IpcResult<boolean>> => {
+  handle(IPC.isCapCutRunning, async (): Promise<IpcResult<boolean>> => {
     try {
       return ok(await isCapCutRunning(true))
     } catch (error) {
@@ -558,19 +581,16 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle(
-    IPC.pickFolder,
-    async (_event, title: unknown): Promise<IpcResult<string | null>> => {
-      try {
-        const win = ctx.getMainWindow()
-        const result = await dialog.showOpenDialog(win!, {
-          title: mainT(typeof title === 'string' ? title : 'Choose folder'),
-          properties: ['openDirectory']
-        })
-        return ok(result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0])
-      } catch (error) {
-        return fail(error)
-      }
+  handle(IPC.pickFolder, async (_event, title: unknown): Promise<IpcResult<string | null>> => {
+    try {
+      const win = ctx.getMainWindow()
+      const result = await dialog.showOpenDialog(win!, {
+        title: mainT(typeof title === 'string' ? title : 'Choose folder'),
+        properties: ['openDirectory']
+      })
+      return ok(result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0])
+    } catch (error) {
+      return fail(error)
     }
-  )
+  })
 }

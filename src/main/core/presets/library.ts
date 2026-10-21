@@ -59,7 +59,7 @@ export function validateNodes(nodes: PresetNode[]): void {
     let parent = node.parentId
     while (parent) {
       const ancestor = ids.get(parent)
-      if (!ancestor || ancestor.kind !== 'folder' || seen.has(parent))
+      if (!ancestor || ancestor.kind !== 'folder' || seen.has(parent) || seen.size > 128)
         throw new CapShareError('ARCHIVE_INVALID', 'Invalid preset folder hierarchy')
       seen.add(parent)
       parent = ancestor.parentId
@@ -72,11 +72,18 @@ export function selectNodes(nodes: PresetNode[], selection: string[]): PresetNod
   validateNodes(nodes)
   const ids = new Map(nodes.map((node) => [node.id, node]))
   const selected = new Set<string>()
+  const children = new Map<string, string[]>()
+  for (const node of nodes)
+    if (node.parentId) {
+      const list = children.get(node.parentId) ?? []
+      list.push(node.id)
+      children.set(node.parentId, list)
+    }
   const descendants = (id: string): void => {
     if (!ids.has(id)) throw new CapShareError('ARCHIVE_INVALID', 'Selected preset no longer exists')
     if (selected.has(id)) return
     selected.add(id)
-    for (const child of nodes.filter((node) => node.parentId === id)) descendants(child.id)
+    for (const child of children.get(id) ?? []) descendants(child)
   }
   selection.forEach(descendants)
   for (const id of [...selected]) {

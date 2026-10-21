@@ -28,12 +28,18 @@ function object(value: unknown): Record<string, unknown> {
 export async function readProjectDocuments(folder: string): Promise<Map<string, ProjectDocument>> {
   const modern = existsSync(join(folder, 'Timelines', 'project.json'))
   const documents = new Map<string, ProjectDocument>()
+  let documentBytes = 0
   for await (const file of walkFiles(folder)) {
     const name = file.relPath.split('/').pop()!
     const template = /^template(-\d+)?\.tmp$/i.test(name)
     if (!file.relPath.endsWith('.json') && !(modern && template)) continue
     if (VOLATILE_FILE_PATTERNS.some((re) => re.test(name)) && !template) continue
-    if (file.size > 100 * 1024 * 1024) {
+    documentBytes += file.size
+    if (
+      file.size > 100 * 1024 * 1024 ||
+      documentBytes > 512 * 1024 ** 2 ||
+      documents.size > 10000
+    ) {
       throw new CapShareError('DRAFT_UNREADABLE', `Project document is too large: ${file.relPath}`)
     }
     const raw = await readFile(file.absPath)

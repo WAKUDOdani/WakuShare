@@ -357,5 +357,9 @@
   "Choose a .wakushare or .capshare file.": "Выбери файл .wakushare или .capshare.",
   "WakuShare Project": "Проект WakuShare",
   "WakuShare / CapShare Project": "Проект WakuShare / CapShare",
-  "Open project package": "Открыть пакет проекта"
+  "Open project package": "Открыть пакет проекта",
+  "Do you trust this package?": "Доверяете этому пакету?",
+  "This package contains effect resources or active content.": "В пакете есть ресурсы эффектов или активное содержимое.",
+  "CapCut may execute effect code. Only import this package if you trust its author. Integrity checks do not prove that code is safe.": "CapCut может выполнять код эффектов. Импортируйте такой пакет только от автора, которому доверяете. Проверка целостности не подтверждает безопасность кода.",
+  "Trust and import": "Доверяю, импортировать"
 }

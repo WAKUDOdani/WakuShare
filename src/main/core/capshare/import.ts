@@ -1,6 +1,14 @@
+import { ArchiveDestination } from '../archive-safety'
+import {
+  assertRelativeResource,
+  assertResourceScheme,
+  isResourceField,
+  isExternalResource
+} from '../reference-policy'
+import type { ApproveActiveContent } from '../payload-policy'
 import { randomUUID } from 'node:crypto'
-import { existsSync } from 'node:fs'
-import { readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { constants, existsSync } from 'node:fs'
+import { copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ImportPreview, ImportResult } from '../../../shared/types'
 import {
@@ -32,7 +40,6 @@ import { extractZip, readZipEntries } from '../zip'
 import {
   COVER_ENTRY_NAME,
   DRAFT_ENTRY_PREFIX,
-  EFFECT_ASSET_PREFIX,
   MANIFEST_ENTRY_NAME,
   parseManifest,
   type CapShareManifest
@@ -102,7 +109,10 @@ async function inspectCapshareWithManifest(
 ): Promise<{ preview: ImportPreview; manifest: CapShareManifest }> {
   let entries: Map<string, Buffer>
   try {
-    entries = await readZipEntries(filePath, [MANIFEST_ENTRY_NAME, COVER_ENTRY_NAME])
+    entries = await readZipEntries(filePath, [MANIFEST_ENTRY_NAME, COVER_ENTRY_NAME], {
+      maxEntryBytes: (name) => (name === MANIFEST_ENTRY_NAME ? 20 : 8) * 1024 ** 2,
+      maxTotalBytes: 28 * 1024 ** 2
+    })
   } catch (error) {
     throw new CapShareError(
       'ARCHIVE_INVALID',
@@ -175,6 +185,7 @@ export interface ImportCapshareOptions {
   env: CapCutEnv
   resolution?: 'copy' | 'replace'
   /** Directory OUTSIDE the draft root for replaced-draft backups. */
+  approveActiveContent?: ApproveActiveContent
   backupDir: string
   onProgress?: (processedBytes: number, totalBytes: number, phase: string) => void
   signal?: AbortSignal
@@ -273,6 +284,9 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
   const warnings: string[] = []
 
   const { preview, manifest } = await inspectCapshareWithManifest(filePath, env)
+  const legacyWithoutIntegrity = Object.keys(manifest.integrity).length === 0
+  const looseEntries = new Map(manifest.looseMedia.map((entry) => [entry.archivePath, entry]))
+  const effectEntries = new Map(manifest.effectAssets.map((entry) => [entry.archivePath, entry]))
 
   let finalName = manifest.source.draftName
   let draftId = manifest.source.draftId
@@ -310,10 +324,12 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
 
   const names: StagedNames = { finalName, folderBase, draftId, timelineId }
 
-  const stagingDir = join(env.draftRoot, `.capshare-staging-${Date.now()}`)
+  const stagingDir = join(env.draftRoot, `.wakushare-staging-${randomUUID()}`)
+  const effectStage = join(env.draftRoot, `.wakushare-cache-${randomUUID()}`)
 
   const { looseTargets, internalTargets, archiveTargets } = createMediaPlan(manifest)
-  await ensureDir(stagingDir)
+  await ensureDir(env.draftRoot)
+  await mkdir(stagingDir)
 
   let movedExistingTo: string | null = null
   let registryBackup: string | null = null
@@ -328,11 +344,13 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
 
     await extractZip(filePath, stagingDir, {
       signal,
+      approveActiveContent: options.approveActiveContent,
       onBytes,
-      expected: (name) =>
+      expected: (name, entrySize) =>
         name.startsWith(DRAFT_ENTRY_PREFIX)
-          ? manifest.integrity[name.slice(DRAFT_ENTRY_PREFIX.length)]
-          : manifest.looseMedia.find((item) => item.archivePath === name),
+          ? (manifest.integrity[name.slice(DRAFT_ENTRY_PREFIX.length)] ??
+            (legacyWithoutIntegrity ? { size: entrySize } : undefined))
+          : looseEntries.get(name),
       mapEntry: (entryName) => {
         if (entryName.startsWith(DRAFT_ENTRY_PREFIX)) {
           const rel = entryName.slice(DRAFT_ENTRY_PREFIX.length)
@@ -385,16 +403,20 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
 
     const rewriteValue =
       (style: 'placeholder' | 'relative') =>
-      (value: string): string | undefined => {
+      (value: string, pointer: string): string | undefined => {
+        if (pointer.includes('draft_materials_copied_info')) return undefined
+        assertResourceScheme(value, pointer)
         const internal = relocatedInternalPath(value, internalTargets)
         if (internal)
           return style === 'placeholder' ? `${DRAFT_PATH_PLACEHOLDER}/${internal}` : `./${internal}`
         const result = classifyString(value, { draftFolderJson: sourceFolderJson })
         if (result.cls === 'effect-cache' && result.cacheSuffix) {
+          assertRelativeResource(result.cacheSuffix)
           return `${env.canonicalCacheDirJson}/${result.cacheSuffix}`
         }
         if (result.cls === 'draft-internal' && result.draftRelative) {
           const relative = internalTargets.get(result.draftRelative) ?? result.draftRelative
+          assertRelativeResource(relative)
           return style === 'placeholder' ? `${DRAFT_PATH_PLACEHOLDER}/${relative}` : `./${relative}`
         }
         if (result.cls === 'absolute' || result.cls === 'unc') {
@@ -405,6 +427,19 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
               : `./${looseRel}`
           }
         }
+        if (result.cls === 'placeholder') {
+          assertRelativeResource(
+            result.normalized.slice(DRAFT_PATH_PLACEHOLDER.length).replace(/^\//, '')
+          )
+        }
+        if (
+          (result.cls === 'absolute' || result.cls === 'unc') &&
+          isExternalResource(value, pointer) &&
+          !/\/(?:draft_fold_path|draft_root_path)$/.test(pointer)
+        )
+          throw new CapShareError('ARCHIVE_INVALID', 'Unresolved external resource in package')
+        if (result.cls === 'relative' && isResourceField(pointer) && /[/\\]/.test(value))
+          assertRelativeResource(value)
         return undefined
       }
 
@@ -472,16 +507,26 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
     }
 
     if (manifest.effectAssets.length > 0) {
-      await extractZip(filePath, env.cacheDir, {
+      await extractZip(filePath, effectStage, {
         signal,
+        approveActiveContent: options.approveActiveContent,
+        activeResource: () => true,
         onBytes,
-        expected: (name) => manifest.effectAssets.find((item) => item.archivePath === name),
+        expected: (name) => effectEntries.get(name),
         mapEntry: (entryName) => {
-          if (!entryName.startsWith(EFFECT_ASSET_PREFIX)) return null
-          const suffix = entryName.slice(EFFECT_ASSET_PREFIX.length)
-          return existsSync(join(env.cacheDir, ...suffix.split('/'))) ? null : suffix
+          const asset = effectEntries.get(entryName)
+          if (!asset) return null
+          const suffix = asset.cacheSuffix
+          return suffix
         }
       })
+      const cacheDestination = await ArchiveDestination.create(env.cacheDir)
+      for (const asset of manifest.effectAssets) {
+        const target = await cacheDestination.target(asset.cacheSuffix)
+        if (!existsSync(target)) {
+          await copyFile(join(effectStage, asset.cacheSuffix), target, constants.COPYFILE_EXCL)
+        }
+      }
       for (const asset of manifest.effectAssets) {
         const path = join(env.cacheDir, ...asset.cacheSuffix.split('/'))
         if (
@@ -496,6 +541,8 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
         }
       }
     }
+
+    await rm(effectStage, { recursive: true, force: true })
 
     if (preview.collision && options.resolution === 'replace') {
       await ensureDir(options.backupDir)
@@ -536,6 +583,7 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
       )
     }
   } catch (error) {
+    await rm(effectStage, { recursive: true, force: true })
     await rm(stagingDir, { recursive: true, force: true })
     if (movedExistingTo && preview.collision) {
       await rename(movedExistingTo, preview.collision.existingFolderPath).catch(() => {})

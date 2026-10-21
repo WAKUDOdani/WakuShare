@@ -114,61 +114,71 @@ export function walkJsonStrings(
   root: unknown,
   visit: (value: string, pointer: string) => string | undefined
 ): boolean {
-  let changed = false
+  let visited = 0
+  let embeddedBytes = 0
 
-  const handleString = (value: string, pointer: string): string | undefined => {
+  const handleString = (value: string, pointer: string, depth: number): string | undefined => {
     const direct = visit(value, pointer)
     if (direct !== undefined) return direct
 
     // Embedded JSON payloads (CapCut stores JSON-in-strings in several fields).
     const trimmed = value.trimStart()
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      embeddedBytes += Buffer.byteLength(value)
+      if (embeddedBytes > 512 * 1024 ** 2) throw new Error('Project JSON complexity limit exceeded')
+      let inner: unknown
       try {
-        const inner = JSON.parse(value) as unknown
-        if (inner !== null && typeof inner === 'object') {
-          const innerChanged = walkInner(inner, `${pointer}~json`)
-          if (innerChanged) return JSON.stringify(inner)
-        }
-      } catch {}
+        inner = JSON.parse(value)
+      } catch {
+        return undefined
+      }
+      // Visitor failures are security/consistency errors, never malformed JSON.
+      if (inner !== null && typeof inner === 'object') {
+        const innerChanged = walkInner(inner, `${pointer}~json`, depth + 1)
+        if (innerChanged) return JSON.stringify(inner)
+      }
     }
     return undefined
   }
 
-  const walkInner = (node: unknown, pointer: string): boolean => {
+  const walkInner = (node: unknown, pointer: string, depth: number): boolean => {
+    if (depth > 128 || ++visited > 2_000_000)
+      throw new Error('Project JSON complexity limit exceeded')
     let localChanged = false
     if (Array.isArray(node)) {
       for (let i = 0; i < node.length; i++) {
+        if (++visited > 2_000_000) throw new Error('Project JSON complexity limit exceeded')
         const child = node[i]
         if (typeof child === 'string') {
-          const next = handleString(child, `${pointer}/${i}`)
+          const next = handleString(child, `${pointer}/${i}`, depth)
           if (next !== undefined) {
             node[i] = next
             localChanged = true
           }
         } else if (child !== null && typeof child === 'object') {
-          localChanged = walkInner(child, `${pointer}/${i}`) || localChanged
+          localChanged = walkInner(child, `${pointer}/${i}`, depth + 1) || localChanged
         }
       }
     } else if (node !== null && typeof node === 'object') {
       const record = node as Record<string, unknown>
       for (const key of Object.keys(record)) {
+        if (++visited > 2_000_000) throw new Error('Project JSON complexity limit exceeded')
         const child = record[key]
         if (typeof child === 'string') {
-          const next = handleString(child, `${pointer}/${key}`)
+          const next = handleString(child, `${pointer}/${key}`, depth)
           if (next !== undefined) {
             record[key] = next
             localChanged = true
           }
         } else if (child !== null && typeof child === 'object') {
-          localChanged = walkInner(child, `${pointer}/${key}`) || localChanged
+          localChanged = walkInner(child, `${pointer}/${key}`, depth + 1) || localChanged
         }
       }
     }
     return localChanged
   }
 
-  changed = walkInner(root, '')
-  return changed
+  return walkInner(root, '', 0)
 }
 
 /** Read-only scan: collects every string with a non-trivial classification. */

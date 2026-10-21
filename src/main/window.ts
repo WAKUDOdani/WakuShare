@@ -1,3 +1,4 @@
+import { safeExternalUrl } from './ipc-security'
 import { app, BrowserWindow, shell, nativeTheme } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
@@ -110,9 +111,13 @@ export function createMainWindow(): BrowserWindow {
   }
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    if (safeExternalUrl(details.url)) void shell.openExternal(details.url).catch(() => {})
     return { action: 'deny' }
   })
+
+  mainWindow.webContents.on('will-navigate', (event) => event.preventDefault())
+  mainWindow.webContents.on('will-frame-navigate', (event) => event.preventDefault())
+  mainWindow.webContents.on('will-attach-webview', (event) => event.preventDefault())
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])

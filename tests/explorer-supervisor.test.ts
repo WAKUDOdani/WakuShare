@@ -94,7 +94,11 @@ let root: string,
   store: ExplorerConfigurationStore,
   owner: ExplorerSupervisor,
   worker: FakeWorker,
-  factory: ReturnType<typeof vi.fn>
+  factory: ReturnType<
+    typeof vi.fn<
+      (callbacks: Pick<WorkerLaunchOptions, 'onState' | 'onFailure'>) => Promise<FakeWorker>
+    >
+  >
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'wakushare-supervisor-'))
   source = join(root, 'source')

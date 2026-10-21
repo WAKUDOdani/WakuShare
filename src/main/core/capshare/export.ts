@@ -1,3 +1,8 @@
+import {
+  assertExportResource,
+  assertRelativeResource,
+  isExternalResource
+} from '../reference-policy'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { readFile, rename, rm, stat } from 'node:fs/promises'
@@ -129,9 +134,14 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
     // Provenance-only fields: where media was imported FROM originally. The
     // copies already live in Resources/local — bundling these would duplicate
     // gigabytes and rewrite fields CapCut treats as informational.
-    if (item.pointer.includes('draft_materials_copied_info')) continue
+    if (
+      item.pointer.includes('draft_materials_copied_info') ||
+      /\/(?:draft_fold_path|draft_root_path)$/.test(item.pointer)
+    )
+      continue
 
     if (item.cls === 'effect-cache' && item.cacheSuffix) {
+      assertRelativeResource(item.cacheSuffix)
       if (effectRootsSeen.has(item.cacheSuffix)) continue
       effectRootsSeen.add(item.cacheSuffix)
       // Resolve via this machine's cache dir first (spelling-independent),
@@ -166,6 +176,8 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
       continue
     }
     if (item.cls === 'absolute' || item.cls === 'unc') {
+      if (!isExternalResource(item.normalized, item.pointer)) continue
+      assertExportResource(item.normalized)
       const key = item.normalized.toLowerCase()
       if (loosePlans.has(key)) continue
       const override = overrides.get(key)
@@ -176,6 +188,7 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
         )
       }
       const sourcePath = override ?? item.normalized
+      assertExportResource(sourcePath)
       // Only fs-verified files are bundled — classifier hits alone never act.
       if (existsSync(sourcePath)) {
         const info = await stat(sourcePath)

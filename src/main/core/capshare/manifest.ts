@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { archivePathKey, validateArchivePath } from '../archive-safety'
 
 /**
  * The .capshare manifest — format contract between exporter and importer.
@@ -46,8 +47,8 @@ export const manifestSchema = z.object({
   }),
   contents: z.object({
     includesCaches: z.boolean(),
-    fileCount: z.number().int(),
-    totalBytes: z.number()
+    fileCount: z.number().int().nonnegative().safe(),
+    totalBytes: z.number().int().nonnegative().safe()
   }),
   /** Media that lived outside the draft folder on the source machine. */
   looseMedia: z.array(
@@ -57,8 +58,8 @@ export const manifestSchema = z.object({
       /** The exact string as it appeared in the draft JSON (forward slashes). */
       originalPath: z.string(),
       fileName: z.string(),
-      size: z.number(),
-      sha256: z.string()
+      size: z.number().int().nonnegative().safe(),
+      sha256: z.string().regex(/^[a-f0-9]{64}$/i)
     })
   ),
   /** Effect-cache files bundled for offline-exact import. */
@@ -67,12 +68,21 @@ export const manifestSchema = z.object({
       archivePath: z.string(),
       /** Path under <User Data>/Cache/, e.g. "effect/123/ab". */
       cacheSuffix: z.string(),
-      size: z.number(),
-      sha256: z.string().optional()
+      size: z.number().int().nonnegative().safe(),
+      sha256: z
+        .string()
+        .regex(/^[a-f0-9]{64}$/i)
+        .optional()
     })
   ),
   /** sha256 + size per draft/ entry (relative path inside the draft). */
-  integrity: z.record(z.string(), z.object({ size: z.number(), sha256: z.string() })),
+  integrity: z.record(
+    z.string(),
+    z.object({
+      size: z.number().int().nonnegative().safe(),
+      sha256: z.string().regex(/^[a-f0-9]{64}$/i)
+    })
+  ),
   missingAtExport: z.array(z.string()),
   resolvedSources: z
     .array(
@@ -98,6 +108,28 @@ export function parseManifest(raw: string): CapShareManifest {
     throw new Error(
       `This .capshare file uses format v${result.data.formatVersion}; this build of CapShare supports up to v${CAPSHARE_FORMAT_VERSION}. Please update CapShare.`
     )
+  }
+  const entries = new Set<string>()
+  const declare = (path: string): void => {
+    validateArchivePath(path)
+    const key = archivePathKey(path)
+    if (entries.has(key)) throw new Error('Duplicate manifest payload')
+    entries.add(key)
+  }
+  for (const path of Object.keys(result.data.integrity)) {
+    validateArchivePath(path)
+    declare(DRAFT_ENTRY_PREFIX + path)
+  }
+  for (const file of result.data.looseMedia) {
+    if (!file.archivePath.startsWith(LOOSE_MEDIA_PREFIX))
+      throw new Error('Invalid loose-media namespace')
+    declare(file.archivePath)
+  }
+  for (const file of result.data.effectAssets) {
+    validateArchivePath(file.cacheSuffix)
+    if (file.archivePath !== EFFECT_ASSET_PREFIX + file.cacheSuffix)
+      throw new Error('Invalid effect-cache mapping')
+    declare(file.archivePath)
   }
   return result.data
 }

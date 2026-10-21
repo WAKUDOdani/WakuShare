@@ -1,3 +1,4 @@
+import { prepareSecurityRuntime } from './runtime-refresh.mjs'
 // Immutable build input. Never reads userData or loads a DLL into CapCut.
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
@@ -69,10 +70,11 @@ async function extract(archive, root) {
 
 export async function prepareRuntime() {
   const fixed = process.env.WAKUSHARE_RUNTIME_DIR
-  if (fixed) return verifyRuntime(resolve(fixed))
+  if (fixed) return prepareSecurityRuntime(await verifyRuntime(resolve(fixed)))
   const cache = join(project, '.runtime-cache', lock.sha256.slice(0, 16))
   const root = join(cache, 'runtime')
-  if (existsSync(join(root, 'runtime-files.json'))) return verifyRuntime(root)
+  if (existsSync(join(root, 'runtime-files.json')))
+    return prepareSecurityRuntime(await verifyRuntime(root))
   await mkdir(cache, { recursive: true })
   const archive = join(cache, lock.asset)
   if (!existsSync(archive)) {
@@ -129,5 +131,5 @@ export async function prepareRuntime() {
   } finally {
     await marker.close()
   }
-  return verifyRuntime(root)
+  return prepareSecurityRuntime(await verifyRuntime(root))
 }

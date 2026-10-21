@@ -1,3 +1,4 @@
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({ run: vi.fn() }))
 vi.mock('node:child_process', () => ({
@@ -17,10 +18,14 @@ describe('preset import process guard', () => {
   it('blocks when CapCut is running', async () => {
     mocks.run.mockResolvedValue({ stdout: '"CapCut.exe","1234","Console","1","10 000 K"' })
     await expect(requireClosedCapCut()).rejects.toThrow('Close CapCut')
-    expect(mocks.run).toHaveBeenCalledWith('tasklist.exe', expect.any(Array), {
-      windowsHide: true,
-      timeout: 5000
-    })
+    expect(mocks.run).toHaveBeenCalledWith(
+      join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tasklist.exe'),
+      expect.any(Array),
+      {
+        windowsHide: true,
+        timeout: 5000
+      }
+    )
   })
   it('permits a confirmed closed editor', async () => {
     mocks.run.mockResolvedValue({

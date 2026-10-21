@@ -174,7 +174,7 @@ describe('Explorer worker owner', () => {
     expect(mocks.spawn).toHaveBeenCalledWith(
       resolve('runtime/CapSync.Observer.exe'),
       ['event-worker', '--state', resolve('private/state.json')],
-      { shell: false, windowsHide: true, stdio: 'pipe' }
+      { cwd: resolve('runtime'), env: undefined, shell: false, windowsHide: true, stdio: 'pipe' }
     )
     await vi.advanceTimersByTimeAsync(6000)
     expect(child.requests).toHaveLength(0)

@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import { join, resolve, posix } from 'node:path'
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { createHash } from 'node:crypto'
+import { verifySecurityRuntime } from './runtime-refresh.mjs'
 const require = createRequire(import.meta.url)
 const asar = require('@electron/asar')
 const yaml = require('js-yaml')
@@ -17,6 +18,8 @@ const feed = yaml.load(readFileSync(join(unpacked, 'resources/app-update.yml'), 
 const exeResources = NtExecutableResource.from(
   NtExecutable.from(readFileSync(join(unpacked, 'WakuShare.exe')), { ignoreCert: true })
 )
+const { getCurrentFuseWire, FuseV1Options } = require('@electron/fuses')
+const fuseWire = await getCurrentFuseWire(join(unpacked, 'WakuShare.exe'))
 const expectedIcons = Data.IconFile.from(readFileSync('build/icon.ico')).icons.map((item) =>
   createHash('sha256').update(Buffer.from(item.data.bin)).digest('hex')
 )
@@ -52,6 +55,16 @@ for (const name of files.filter(
 }
 const result = {
   version: pkg.version,
+  hardenedRuntime: Boolean(await verifySecurityRuntime(join(unpacked, 'resources/explorer'))),
+  hardenedElectron:
+    [
+      FuseV1Options.RunAsNode,
+      FuseV1Options.EnableNodeOptionsEnvironmentVariable,
+      FuseV1Options.EnableNodeCliInspectArguments
+    ].every((id) => fuseWire[id] === 48) &&
+    [FuseV1Options.EnableEmbeddedAsarIntegrityValidation, FuseV1Options.OnlyLoadAppFromAsar].every(
+      (id) => fuseWire[id] === 49
+    ),
   brand: pkg.name === 'wakushare' && code.includes('WakuShare'),
   identity: code.includes('io.github.wakudodani.wakushare'),
   repository: pkg.repository.url === 'https://github.com/WAKUDOdani/WakuShare.git',

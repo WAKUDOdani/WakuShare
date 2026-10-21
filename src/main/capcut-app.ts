@@ -11,12 +11,12 @@ const execAsync = promisify(execFile)
 export async function isCapCutRunning(strict = false): Promise<boolean> {
   try {
     if (process.platform === 'darwin') {
-      const { stdout } = await execAsync('pgrep', ['-x', 'CapCut'], { timeout: 5000 })
+      const { stdout } = await execAsync('/usr/bin/pgrep', ['-x', 'CapCut'], { timeout: 5000 })
       return stdout.trim().length > 0
     }
     if (process.platform === 'win32') {
       const { stdout } = await execAsync(
-        'tasklist.exe',
+        join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tasklist.exe'),
         ['/FI', 'IMAGENAME eq CapCut.exe', '/FO', 'CSV', '/NH'],
         { windowsHide: true, timeout: 5000 }
       )

@@ -8,10 +8,14 @@ files also contain unused laboratory CLI functions; those are not product routes
 No fixture media, private observation state, session credentials or project
 snapshots are included.
 
-Normal application builds reuse the byte-identical runtime release asset pinned
-in `../runtime-lock.json`. They do not compile or load native code on the build
-machine. CPython, .NET and FFprobe notices and source locations accompany the
-runtime archive. Native CapCut/Qt libraries are not distributed.
+Normal application builds verify the base release pinned in `../runtime-lock.json`,
+then replace its Python and .NET distributions with the official security updates
+pinned in `../runtime-security-lock.json`. `../scripts/runtime-refresh.mjs` builds
+and verifies the resulting file index. The accepted worker, native DLLs and Python
+helpers remain byte-identical; neither native compilation nor a CapCut attachment
+occurs during this step. The index in this source directory describes the base
+release. CPython, .NET and FFprobe notices and source locations accompany the
+runtime. Native CapCut/Qt libraries are not distributed.
 
 Native source uses C++17/MSVC and Qt 6.2.2 headers/import libraries. The included
 CMakeLists names only the product targets and retains their original defines.

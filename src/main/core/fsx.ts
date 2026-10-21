@@ -81,7 +81,7 @@ export function hashString(value: string, algorithm: 'sha256' | 'md5' = 'sha256'
  */
 export async function atomicWriteFile(path: string, data: string | Buffer): Promise<void> {
   const tmpPath = join(dirname(path), `.${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`)
-  await writeFile(tmpPath, data)
+  await writeFile(tmpPath, data, { flag: 'wx' })
   try {
     await rename(tmpPath, path)
   } catch (error) {
@@ -108,7 +108,8 @@ export function sanitizeFolderName(name: string, os: 'mac' | 'windows'): string 
     .trim()
   if (os === 'windows') {
     safe = safe.replace(/[. ]+$/g, '')
-    if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(safe)) safe = `${safe}_`
+    if (/^(CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|COM[1-9¹²³]|LPT[1-9¹²³])(?:\.|$)/i.test(safe))
+      safe = `_${safe}`
   }
   safe = safe.slice(0, 80).trim()
   return safe.length > 0 ? safe : 'Imported Project'

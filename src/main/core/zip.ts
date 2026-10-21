@@ -1,12 +1,25 @@
+import {
+  assertDataFilename,
+  assertDataSignature,
+  approveResources,
+  requiresContentTrust,
+  type ApproveActiveContent
+} from './payload-policy'
 import { createHash } from 'node:crypto'
 import { createReadStream, createWriteStream } from 'node:fs'
-import { mkdir, stat } from 'node:fs/promises'
-import { dirname, join, normalize, sep } from 'node:path'
+import { stat, statfs } from 'node:fs/promises'
 import { PassThrough, Transform, Writable, type Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import yauzl from 'yauzl'
 import yazl from 'yazl'
 import { CapShareError } from './errors'
+import {
+  ARCHIVE_LIMITS,
+  ArchiveDestination,
+  archiveError,
+  archivePathKey,
+  validateArchivePath
+} from './archive-safety'
 
 export interface ZipWriterEntryFile {
   kind: 'file'
@@ -46,13 +59,15 @@ export class ZipWriter {
 
   constructor(destPath: string, onBytes?: (chunkLength: number) => void) {
     this.onBytes = onBytes
-    const out = createWriteStream(destPath)
+    this.zip.on('error', (error) => (this.zip.outputStream as Readable).destroy(error))
+    const out = createWriteStream(destPath, { flags: 'wx' })
     this.done = pipeline(this.zip.outputStream, out)
     void this.done.catch(() => {}) // The caller reports failure through finish/abort.
   }
 
   /** Adds one entry, resolving with its size + sha256 once fully consumed. */
   async add(entry: ZipWriterEntry, signal?: AbortSignal): Promise<AddedEntry> {
+    assertDataFilename(entry.zipPath)
     if (signal?.aborted || this.aborted) {
       this.aborted = true
       throw new CapShareError('CANCELLED', 'Operation cancelled')
@@ -60,6 +75,7 @@ export class ZipWriter {
 
     if (entry.kind === 'buffer' || entry.snapshot) {
       const data = entry.kind === 'buffer' ? entry.data : entry.snapshot!
+      assertDataSignature(data.subarray(0, 4))
       const sha256 = createHash('sha256').update(data).digest('hex')
       this.zip.addBuffer(data, entry.zipPath)
       if (!(entry.kind === 'buffer' && entry.uncounted)) this.onBytes?.(data.length)
@@ -69,13 +85,22 @@ export class ZipWriter {
     const before = await stat(entry.absPath)
     const hash = createHash('sha256')
     let size = 0
+    let prefix = Buffer.alloc(0)
     const onBytes = this.onBytes
     const counter = new Transform({
       transform(chunk: Buffer, _enc, cb) {
-        hash.update(chunk)
-        size += chunk.length
-        onBytes?.(chunk.length)
-        cb(null, chunk)
+        try {
+          if (prefix.length < 4) {
+            prefix = Buffer.concat([prefix, chunk.subarray(0, 4 - prefix.length)])
+            assertDataSignature(prefix)
+          }
+          hash.update(chunk)
+          size += chunk.length
+          onBytes?.(chunk.length)
+          cb(null, chunk)
+        } catch (error) {
+          cb(error as Error)
+        }
       }
     })
 
@@ -88,7 +113,20 @@ export class ZipWriter {
           entry.absPath
         )
     })
-    await pipeline(source, counter, tee, { signal })
+    const transfer = pipeline(source, counter, tee, { signal })
+    try {
+      await Promise.race([
+        transfer,
+        this.done.then(() => {
+          throw new Error('Archive output closed during transfer')
+        })
+      ])
+    } catch (error) {
+      source.destroy(error as Error)
+      tee.destroy(error as Error)
+      await transfer.catch(() => {})
+      throw error
+    }
     const after = await stat(entry.absPath)
     if (before.size !== size || before.size !== after.size || before.mtimeMs !== after.mtimeMs) {
       throw new CapShareError(
@@ -114,176 +152,237 @@ export class ZipWriter {
 
 function openZip(path: string): Promise<yauzl.ZipFile> {
   return new Promise((resolve, reject) => {
-    yauzl.open(path, { lazyEntries: true, autoClose: false }, (err, zip) => {
-      if (err || !zip) reject(err ?? new Error('Failed to open archive'))
-      else resolve(zip)
-    })
+    yauzl.open(
+      path,
+      { lazyEntries: true, autoClose: false, strictFileNames: true, validateEntrySizes: true },
+      (err, zip) => {
+        if (err || !zip) reject(err ?? archiveError('Cannot open archive'))
+        else resolve(zip)
+      }
+    )
   })
 }
 
-function entryToBuffer(zip: yauzl.ZipFile, entry: yauzl.Entry): Promise<Buffer> {
+/** Read bounded central-directory metadata before any payload is materialized. */
+function listEntries(zip: yauzl.ZipFile): Promise<yauzl.Entry[]> {
   return new Promise((resolve, reject) => {
-    zip.openReadStream(entry, (err, stream) => {
-      if (err || !stream) return reject(err ?? new Error('Failed to read entry'))
-      const chunks: Buffer[] = []
-      stream.on('data', (c: Buffer) => chunks.push(c))
-      stream.on('end', () => resolve(Buffer.concat(chunks)))
-      stream.on('error', reject)
+    const entries: yauzl.Entry[] = [],
+      names = new Set<string>()
+    let bytes = 0
+    zip.on('error', reject)
+    zip.on('end', () => resolve(entries))
+    zip.on('entry', (entry: yauzl.Entry) => {
+      try {
+        const directory = entry.fileName.endsWith('/')
+        const name = directory ? entry.fileName.slice(0, -1) : entry.fileName
+        validateArchivePath(name)
+        const key = archivePathKey(name)
+        if (names.has(key)) throw archiveError('Duplicate or ambiguous archive entry')
+        names.add(key)
+        const type = (entry.externalFileAttributes >>> 16) & 0xf000
+        if (
+          (type && type !== (directory ? 0x4000 : 0x8000)) ||
+          entry.externalFileAttributes & 0x400
+        )
+          throw archiveError('Links and special archive entries are not supported')
+        if (entry.generalPurposeBitFlag & 1)
+          throw archiveError('Encrypted entries are not supported')
+        if (
+          !Number.isSafeInteger(entry.uncompressedSize) ||
+          entry.uncompressedSize < 0 ||
+          entry.uncompressedSize > ARCHIVE_LIMITS.entryBytes
+        )
+          throw archiveError('Archive entry is too large')
+        bytes +=
+          Buffer.byteLength(entry.fileName) +
+          Buffer.byteLength(entry.fileComment) +
+          entry.extraFields.reduce((n, field) => n + field.data.length, 0)
+        if (names.size > ARCHIVE_LIMITS.entries || bytes > ARCHIVE_LIMITS.namesBytes)
+          throw archiveError('Archive directory is too large')
+        if (!directory) entries.push(entry)
+        zip.readEntry()
+      } catch (error) {
+        reject(error)
+      }
     })
+    zip.readEntry()
   })
 }
 
-/**
- * Reads selected entries of an archive into memory (small entries only —
- * manifest, cover). Resolves with a map of the found entries; stops early
- * once all requested names were seen.
- */
+function entryStream(zip: yauzl.ZipFile, entry: yauzl.Entry): Promise<Readable> {
+  return new Promise((resolve, reject) =>
+    zip.openReadStream(entry, (error, stream) => {
+      if (error || !stream) reject(error ?? archiveError('Cannot read archive entry'))
+      else resolve(stream)
+    })
+  )
+}
+
+export interface ZipReadLimits {
+  maxEntryBytes?: number | ((name: string) => number)
+  maxTotalBytes?: number
+}
+
+/** Bounded buffers are reserved for metadata; media continues to stream. */
 export async function readZipEntries(
   zipPath: string,
-  names: readonly string[]
+  names: readonly string[],
+  limits: ZipReadLimits = {}
 ): Promise<Map<string, Buffer>> {
+  const wanted = new Set(names),
+    found = new Map<string, Buffer>()
+  if (!wanted.size) return found
   const zip = await openZip(zipPath)
-  const wanted = new Set(names)
-  const found = new Map<string, Buffer>()
-
   try {
-    await new Promise<void>((resolve, reject) => {
-      zip.on('error', reject)
-      zip.on('entry', (entry: yauzl.Entry) => {
-        if (wanted.has(entry.fileName)) {
-          entryToBuffer(zip, entry)
-            .then((buf) => {
-              found.set(entry.fileName, buf)
-              if (found.size === wanted.size) resolve()
-              else zip.readEntry()
-            })
-            .catch(reject)
-        } else {
-          zip.readEntry()
+    const entries = (await listEntries(zip)).filter((entry) => wanted.has(entry.fileName))
+    let total = 0
+    for (const entry of entries) {
+      const limit =
+        typeof limits.maxEntryBytes === 'function'
+          ? limits.maxEntryBytes(entry.fileName)
+          : (limits.maxEntryBytes ?? ARCHIVE_LIMITS.metadataBytes)
+      if (
+        entry.uncompressedSize > limit ||
+        (total += entry.uncompressedSize) >
+          (limits.maxTotalBytes ?? ARCHIVE_LIMITS.metadataTotalBytes)
+      )
+        throw archiveError('Archive metadata is too large')
+      const stream = await entryStream(zip, entry),
+        chunks: Buffer[] = []
+      let size = 0
+      for await (const chunk of stream) {
+        size += chunk.length
+        if (size > entry.uncompressedSize || size > limit) {
+          stream.destroy()
+          throw archiveError('Archive metadata exceeded its declared size')
         }
-      })
-      zip.on('end', () => resolve())
-      zip.readEntry()
-    })
+        chunks.push(chunk)
+      }
+      if (size !== entry.uncompressedSize) throw archiveError('Archive metadata size mismatch')
+      found.set(entry.fileName, Buffer.concat(chunks, size))
+    }
   } finally {
     zip.close()
   }
   return found
 }
 
-/** Guards against zip-slip: entry names must stay inside the destination. */
-function safeJoin(destDir: string, entryName: string): string {
-  if (
-    entryName.split(/[\\/]/).includes('..') ||
-    /^[\\/]/.test(entryName) ||
-    /^[A-Za-z]:/.test(entryName)
-  ) {
-    throw new CapShareError('ARCHIVE_INVALID', `Unsafe entry path in archive: ${entryName}`)
-  }
-  const resolved = normalize(join(destDir, entryName))
-  if (!resolved.startsWith(normalize(destDir) + sep)) {
-    throw new CapShareError('ARCHIVE_INVALID', `Entry escapes destination: ${entryName}`)
-  }
-  return resolved
-}
-
 export interface ExtractOptions {
-  /** Map an entry name to a destination-relative path, or null to skip it. */
+  /** Map an entry to a destination-relative path, or null to skip it. */
   mapEntry: (entryName: string) => string | null
   onBytes?: (chunkLength: number) => void
   signal?: AbortSignal
-  expected?: (entryName: string) => { size: number; sha256?: string } | undefined
-  /** Verify a selected entry without writing its bytes (e.g. a skipped duplicate). */
+  /** When supplied, every selected entry MUST have a declaration. */
+  expected?: (entryName: string, entrySize: number) => { size: number; sha256?: string } | undefined
+  approveActiveContent?: ApproveActiveContent
+  /** Configured by the importer, never by the archive manifest. */
+  activeResource?: (entryName: string) => boolean
   verifyOnly?: (entryName: string) => boolean
 }
 
-/** Streams matching entries of the archive into destDir (zip-slip safe). */
+/** One streaming read per payload, exclusive creation, and no archive-provided links. */
 export async function extractZip(
   zipPath: string,
   destDir: string,
   options: ExtractOptions
 ): Promise<{ files: number }> {
   const zip = await openZip(zipPath)
-  let files = 0
-  const targets = new Set<string>()
-
   try {
-    await new Promise<void>((resolve, reject) => {
-      zip.on('error', reject)
-      zip.on('entry', (entry: yauzl.Entry) => {
-        if (options.signal?.aborted) {
-          return reject(new CapShareError('CANCELLED', 'Operation cancelled'))
+    const selected: {
+      entry: yauzl.Entry
+      mapped: string
+      expected: { size: number; sha256?: string } | undefined
+      verify: boolean
+    }[] = []
+    const targets = new Set<string>()
+    let total = 0
+    for (const entry of await listEntries(zip)) {
+      if (options.signal?.aborted) throw new CapShareError('CANCELLED', 'Operation cancelled')
+      const mapped = options.mapEntry(entry.fileName)
+      if (mapped === null) continue
+      assertDataFilename(entry.fileName)
+      assertDataFilename(mapped)
+      const key = archivePathKey(mapped)
+      if (targets.has(key)) throw archiveError('Duplicate archive destination')
+      targets.add(key)
+      const expected = options.expected?.(entry.fileName, entry.uncompressedSize)
+      if (options.expected && !expected) throw archiveError('Undeclared archive payload')
+      if (
+        expected &&
+        (!Number.isSafeInteger(expected.size) ||
+          expected.size !== entry.uncompressedSize ||
+          (expected.sha256 && !/^[a-f0-9]{64}$/i.test(expected.sha256)))
+      )
+        throw archiveError('Integrity check failed: archive payload declaration mismatch')
+      const verify = options.verifyOnly?.(entry.fileName) ?? false
+      if (!verify) total += entry.uncompressedSize
+      if (!Number.isSafeInteger(total)) throw archiveError('Archive is too large')
+      selected.push({ entry, mapped, expected, verify })
+    }
+    for (const target of targets) {
+      const parts = target.split('/')
+      for (let i = 1; i < parts.length; i++)
+        if (targets.has(parts.slice(0, i).join('/')))
+          throw archiveError('Archive file/directory collision')
+    }
+    await approveResources(
+      selected
+        .filter(
+          ({ entry }) =>
+            requiresContentTrust(entry.fileName) || options.activeResource?.(entry.fileName)
+        )
+        .map(({ entry }) => entry.fileName),
+      options.approveActiveContent
+    )
+    const destination = await ArchiveDestination.create(destDir)
+    const disk = await statfs(destination.root)
+    if (total > Math.max(0, disk.bavail * disk.bsize - 64 * 1024 ** 2))
+      throw archiveError('Not enough free space for this archive')
+    let files = 0
+    for (const { entry, mapped, expected, verify } of selected) {
+      if (options.signal?.aborted) throw new CapShareError('CANCELLED', 'Operation cancelled')
+      const target = verify ? null : await destination.target(mapped)
+      const stream = await entryStream(zip, entry)
+      const hash = expected?.sha256 ? createHash('sha256') : null
+      let size = 0
+      let prefix = Buffer.alloc(0)
+      const counter = new Transform({
+        transform(chunk: Buffer, _encoding, callback) {
+          size += chunk.length
+          if (size > entry.uncompressedSize) {
+            callback(archiveError('Payload exceeded its declared size'))
+            return
+          }
+          try {
+            if (prefix.length < 4) {
+              prefix = Buffer.concat([prefix, chunk.subarray(0, 4 - prefix.length)])
+              assertDataSignature(prefix)
+            }
+            hash?.update(chunk)
+            options.onBytes?.(chunk.length)
+            callback(null, chunk)
+          } catch (error) {
+            callback(error as Error)
+          }
         }
-        if (/\/$/.test(entry.fileName)) {
-          zip.readEntry()
-          return
-        }
-        const mapped = options.mapEntry(entry.fileName)
-        if (mapped === null) {
-          zip.readEntry()
-          return
-        }
-        const target = safeJoin(destDir, mapped)
-        const targetKey = process.platform === 'win32' ? target.toLowerCase() : target
-        if (targets.has(targetKey))
-          return reject(
-            new CapShareError('ARCHIVE_INVALID', `Duplicate archive destination: ${mapped}`)
-          )
-        targets.add(targetKey)
-        zip.openReadStream(entry, (err, stream) => {
-          if (err || !stream) return reject(err ?? new Error('Failed to read entry'))
-          const onBytes = options.onBytes
-          const expected = options.expected?.(entry.fileName)
-          const hash = createHash('sha256')
-          let size = 0
-          const counter = new Transform({
-            transform(chunk: Buffer, _enc, cb) {
-              if (options.signal?.aborted) {
-                cb(new CapShareError('CANCELLED', 'Operation cancelled'))
-                return
-              }
-              hash.update(chunk)
-              size += chunk.length
-              onBytes?.(chunk.length)
-              cb(null, chunk)
+      })
+      const sink = target
+        ? createWriteStream(target, { flags: 'wx' })
+        : new Writable({
+            write(_chunk, _encoding, callback) {
+              callback()
             }
           })
-          const consume = options.verifyOnly?.(entry.fileName)
-            ? pipeline(
-                stream,
-                counter,
-                new Writable({
-                  write(_chunk, _encoding, callback) {
-                    callback()
-                  }
-                })
-              )
-            : mkdir(dirname(target), { recursive: true }).then(() =>
-                pipeline(stream, counter, createWriteStream(target))
-              )
-          consume
-            .then(() => {
-              if (
-                expected &&
-                (size !== expected.size ||
-                  (expected.sha256 && hash.digest('hex') !== expected.sha256))
-              ) {
-                throw new CapShareError(
-                  'ARCHIVE_INVALID',
-                  `Integrity check failed: ${entry.fileName}`
-                )
-              }
-              files++
-              zip.readEntry()
-            })
-            .catch(reject)
-        })
-      })
-      zip.on('end', () => resolve())
-      zip.readEntry()
-    })
+      await pipeline(stream, counter, sink, { signal: options.signal })
+      if (
+        size !== entry.uncompressedSize ||
+        (hash && hash.digest('hex') !== expected!.sha256!.toLowerCase())
+      )
+        throw archiveError('Integrity check failed: archive payload mismatch')
+      files++
+    }
+    return { files }
   } finally {
     zip.close()
   }
-  return { files }
 }

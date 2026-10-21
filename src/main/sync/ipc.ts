@@ -1,3 +1,4 @@
+import { assertMainFrame } from '../ipc-security'
 import { app, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -65,8 +66,7 @@ export function registerExplorerIpc(
   supervisor: ExplorerSupervisor
 ): void {
   const guard = (event: IpcMainInvokeEvent): void => {
-    if (event.sender !== getWindow()?.webContents)
-      throw new ExplorerConfigurationError('EXPLORER_INVALID_REQUEST')
+    assertMainFrame(event, getWindow())
   }
   async function result<T>(
     event: IpcMainInvokeEvent,

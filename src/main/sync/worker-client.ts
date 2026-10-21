@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { isAbsolute } from 'node:path'
+import { dirname, isAbsolute } from 'node:path'
 import {
   envelopeSchema,
   eventSchema,
@@ -116,6 +116,7 @@ export class ExplorerWorkerClient {
     this.startupTimer = setTimeout(() => this.fail('WorkerStartTimeout'), this.timeout)
     try {
       const child = (this.child = spawn(this.options.executable, args, {
+        cwd: this.options.nativeRoot ?? dirname(this.options.executable),
         shell: false,
         windowsHide: true,
         env: this.options.environment,

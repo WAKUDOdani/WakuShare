@@ -1,3 +1,4 @@
+import { walkJsonStrings } from '../capcut/scanner'
 import { createHash } from 'node:crypto'
 import { basename, extname } from 'node:path'
 import type { Manifest } from './package'
@@ -26,8 +27,9 @@ export function legacyPresetTarget(
   const match = /^##_presetpath_placeholder_[0-9a-f-]+_##\/Presets\/(.+)$/i.exec(
     value.replace(/\\/g, '/')
   )
+  if (!match || !manifest.storage[owner]) return null
   const stem = basename(manifest.storage[owner].metadata, '.json')
-  if (!match || !match[1].startsWith(stem + '/')) return null
+  if (!match[1].startsWith(stem + '/')) return null
   const entry = `payload/${owner}/${match[1].slice(stem.length + 1)}`
   return manifest.files.some(
     (file) => file.entry === entry && file.kind === 'preset' && file.owners.includes(owner)
@@ -71,6 +73,7 @@ export function presetFingerprint(
     if (!raw)
       throw new CapShareError('ARCHIVE_INVALID', 'Missing document during duplicate comparison')
     const value = raw.length ? JSON.parse(raw.toString('utf8').replace(/^\uFEFF/, '')) : null
+    walkJsonStrings(value, () => undefined) // Bound depth/embedded JSON before recursive canonicalization.
     parsed.set(file.entry, value)
     if (value && typeof value === 'object' && typeof value['id'] === 'string')
       identifiers.add(value['id'].toLowerCase())

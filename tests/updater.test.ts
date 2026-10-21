@@ -34,6 +34,11 @@ vi.mock('electron-updater', async () => {
   }
   return { default: { NsisUpdater: FakeUpdater } }
 })
+const trustedWindow = { isDestroyed: () => false, webContents: { mainFrame: {}, send: vi.fn() } }
+const event = {
+  sender: trustedWindow.webContents,
+  senderFrame: trustedWindow.webContents.mainFrame
+}
 import { setupUpdater } from '../src/main/updater'
 
 beforeEach(() => {
@@ -59,21 +64,21 @@ afterEach(() => {
 describe('WakuShare updater', () => {
   it('never contacts the feed, opens a release or installs in a local preview', async () => {
     vi.stubGlobal('__WAKUSHARE_PREVIEW__', true)
-    setupUpdater({ getMainWindow: () => null, isBusy: () => false })
-    await mocks.handles.get(IPC.updateCheck)!()
-    await mocks.handles.get(IPC.updateInstall)!()
+    setupUpdater({ getMainWindow: () => trustedWindow as never, isBusy: () => false })
+    await mocks.handles.get(IPC.updateCheck)!(event)
+    await mocks.handles.get(IPC.updateInstall)!(event)
     expect(mocks.feeds).toEqual([])
     expect(mocks.check).not.toHaveBeenCalled()
     expect(mocks.openExternal).not.toHaveBeenCalled()
     expect(mocks.install).not.toHaveBeenCalled()
-    expect(mocks.handles.get(IPC.updateGetStatus)!()).toMatchObject({
+    expect(mocks.handles.get(IPC.updateGetStatus)!(event)).toMatchObject({
       state: 'manual',
       message: expect.stringContaining('preview')
     })
   })
   it('uses only its public release feed; never installs automatically on quit', async () => {
-    setupUpdater({ getMainWindow: () => null, isBusy: () => false })
-    expect(mocks.handles.get(IPC.isPortable)!()).toBe(false)
+    setupUpdater({ getMainWindow: () => trustedWindow as never, isBusy: () => false })
+    expect(mocks.handles.get(IPC.isPortable)!(event)).toBe(false)
     expect(mocks.feeds).toEqual([UPDATE_FEED])
     expect(mocks.instances[0]).toMatchObject({
       autoInstallOnAppQuit: false,
@@ -86,9 +91,9 @@ describe('WakuShare updater', () => {
   })
   it('does not contact a feed or open a browser in development', async () => {
     mocks.app.isPackaged = false
-    setupUpdater({ getMainWindow: () => null, isBusy: () => false })
-    expect(mocks.handles.get(IPC.isPortable)!()).toBe(false)
-    await mocks.handles.get(IPC.updateCheck)!()
+    setupUpdater({ getMainWindow: () => trustedWindow as never, isBusy: () => false })
+    expect(mocks.handles.get(IPC.isPortable)!(event)).toBe(false)
+    await mocks.handles.get(IPC.updateCheck)!(event)
     expect(mocks.feeds).toEqual([])
     expect(mocks.openExternal).not.toHaveBeenCalled()
   })
@@ -96,17 +101,17 @@ describe('WakuShare updater', () => {
     'opens only the latest WakuShare release after a user request in portable mode (%s)',
     async (flag) => {
       vi.stubEnv(flag, 'portable-location')
-      setupUpdater({ getMainWindow: () => null, isBusy: () => false })
-      expect(mocks.handles.get(IPC.isPortable)!()).toBe(true)
+      setupUpdater({ getMainWindow: () => trustedWindow as never, isBusy: () => false })
+      expect(mocks.handles.get(IPC.isPortable)!(event)).toBe(true)
       expect(mocks.feeds).toEqual([])
       expect(mocks.openExternal).not.toHaveBeenCalled()
-      expect(mocks.handles.get(IPC.updateGetStatus)!()).toMatchObject({ state: 'manual' })
-      await mocks.handles.get(IPC.updateCheck)!()
+      expect(mocks.handles.get(IPC.updateGetStatus)!(event)).toMatchObject({ state: 'manual' })
+      await mocks.handles.get(IPC.updateCheck)!(event)
       expect(mocks.openExternal).toHaveBeenCalledExactlyOnceWith(
         'https://github.com/WAKUDOdani/WakuShare/releases/latest'
       )
-      expect(mocks.handles.get(IPC.updateGetStatus)!()).toMatchObject({ state: 'manual' })
-      mocks.handles.get(IPC.updateInstall)!()
+      expect(mocks.handles.get(IPC.updateGetStatus)!(event)).toMatchObject({ state: 'manual' })
+      mocks.handles.get(IPC.updateInstall)!(event)
       expect(mocks.install).not.toHaveBeenCalled()
       expect(mocks.check).not.toHaveBeenCalled()
     }
@@ -114,9 +119,9 @@ describe('WakuShare updater', () => {
   it('reports a failed browser launch in portable mode', async () => {
     vi.stubEnv('PORTABLE_EXECUTABLE_FILE', 'WakuShare-portable.exe')
     mocks.openExternal.mockRejectedValue(new Error('Browser could not be opened'))
-    setupUpdater({ getMainWindow: () => null, isBusy: () => false })
-    await mocks.handles.get(IPC.updateCheck)!()
-    expect(mocks.handles.get(IPC.updateGetStatus)!()).toEqual({
+    setupUpdater({ getMainWindow: () => trustedWindow as never, isBusy: () => false })
+    await mocks.handles.get(IPC.updateCheck)!(event)
+    expect(mocks.handles.get(IPC.updateGetStatus)!(event)).toEqual({
       state: 'error',
       message: 'Browser could not be opened'
     })
@@ -124,26 +129,27 @@ describe('WakuShare updater', () => {
   it('requires a downloaded update and refuses restart while a file task runs', async () => {
     let busy = true
     const send = vi.fn()
-    const window = { isDestroyed: () => false, webContents: { send } }
+    const window = { ...trustedWindow, webContents: trustedWindow.webContents }
+    window.webContents.send = send
     setupUpdater({ getMainWindow: () => window as never, isBusy: () => busy })
-    mocks.handles.get(IPC.updateInstall)!()
+    mocks.handles.get(IPC.updateInstall)!(event)
     expect(mocks.install).not.toHaveBeenCalled()
     mocks.instances[0].emit('update-downloaded', { version: '1.0.1' })
-    mocks.handles.get(IPC.updateInstall)!()
+    mocks.handles.get(IPC.updateInstall)!(event)
     expect(mocks.install).not.toHaveBeenCalled()
     expect(send).toHaveBeenLastCalledWith(
       IPC.updateStatus,
       expect.objectContaining({ state: 'error' })
     )
     busy = false
-    mocks.handles.get(IPC.updateInstall)!()
+    mocks.handles.get(IPC.updateInstall)!(event)
     expect(mocks.install).toHaveBeenCalledExactlyOnceWith(false, true)
   })
   it('reports an empty release feed without failing application startup', async () => {
     mocks.check.mockRejectedValue(new Error('404 ERR_UPDATER_NO_PUBLISHED_VERSIONS'))
-    setupUpdater({ getMainWindow: () => null, isBusy: () => false })
-    await mocks.handles.get(IPC.updateCheck)!()
-    expect(mocks.handles.get(IPC.updateGetStatus)!()).toMatchObject({
+    setupUpdater({ getMainWindow: () => trustedWindow as never, isBusy: () => false })
+    await mocks.handles.get(IPC.updateCheck)!(event)
+    expect(mocks.handles.get(IPC.updateGetStatus)!(event)).toMatchObject({
       state: 'error',
       message: 'No published WakuShare update is available yet. Try again later.'
     })
@@ -156,10 +162,14 @@ describe('WakuShare updater', () => {
           finish = yes
         })
     )
-    setupUpdater({ getMainWindow: () => null, isBusy: () => false, beforeInstall })
+    setupUpdater({
+      getMainWindow: () => trustedWindow as never,
+      isBusy: () => false,
+      beforeInstall
+    })
     mocks.instances[0].emit('update-downloaded', { version: '1.0.1' })
-    const pending = mocks.handles.get(IPC.updateInstall)!()
-    mocks.handles.get(IPC.updateInstall)!()
+    const pending = mocks.handles.get(IPC.updateInstall)!(event)
+    mocks.handles.get(IPC.updateInstall)!(event)
     expect(beforeInstall).toHaveBeenCalledOnce()
     expect(mocks.install).not.toHaveBeenCalled()
     finish()
@@ -172,9 +182,9 @@ describe('WakuShare updater', () => {
         'Cannot parse releases feed: Error: Unable to find latest version on GitHub (https://github.com/WAKUDOdani/WakuShare/releases/latest), XML: <feed>...</feed>'
       )
     )
-    setupUpdater({ getMainWindow: () => null, isBusy: () => false })
-    await mocks.handles.get(IPC.updateCheck)!()
-    expect(mocks.handles.get(IPC.updateGetStatus)!()).toEqual({
+    setupUpdater({ getMainWindow: () => trustedWindow as never, isBusy: () => false })
+    await mocks.handles.get(IPC.updateCheck)!(event)
+    expect(mocks.handles.get(IPC.updateGetStatus)!(event)).toEqual({
       state: 'error',
       message: 'No published WakuShare update is available yet. Try again later.'
     })

@@ -1,0 +1,15 @@
+{
+  "indexSha256": "c79017a618e4f905944ae5fbe4d4e251741c72f3a16b5322d54f86dbb8374267",
+  "python": {
+    "version": "3.14.8",
+    "url": "https://www.python.org/ftp/python/3.14.8/python-3.14.8-embed-amd64.zip",
+    "sha256": "a93abe456ab01bd96d7a085b3cdb6566b3063f4241360d114142fbdb07f0a310",
+    "bytes": 12601679
+  },
+  "dotnet": {
+    "version": "10.0.13",
+    "url": "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.13/dotnet-runtime-10.0.13-win-x64.zip",
+    "sha512": "2b98792ce86adc50899764ad2e4d21bd25cfda5432eeb0b4dfe7944f3ea049f9e0570a8f4aee92314d97cdb5f8b7be1363d501fc5012e680371e607af648ef40",
+    "bytes": 36970749
+  }
+}
