@@ -580,6 +580,130 @@
   outline-offset: 2px;
 }
 
+/* Sidebar selection and hover are separate: calm selection, soft light on intent. */
+.sidebar-nav-item {
+  isolation: isolate;
+  min-height: 36px;
+  outline: none;
+  transition:
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+.sidebar-nav-item::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse at 18% 50%,
+    color-mix(in srgb, var(--foreground) 8%, transparent),
+    color-mix(in srgb, var(--foreground) 2%, transparent) 65%,
+    transparent
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+.sidebar-nav-item:not(:disabled):is(:hover, [data-hovered='true'], :focus-visible) {
+  color: var(--foreground);
+}
+.sidebar-nav-item:not(:disabled):is(:hover, [data-hovered='true'], :focus-visible)::before {
+  opacity: 1;
+}
+.sidebar-nav-item__selection {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent);
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--foreground) 4%, transparent);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 4%);
+  pointer-events: none;
+}
+.sidebar-nav-item:not(:disabled):is(:active, [data-pressed='true']) {
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 12%);
+}
+.sidebar-nav-item:focus-visible {
+  outline: 2px solid var(--action-outline);
+  outline-offset: 2px;
+}
+.sidebar-nav-item:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+@keyframes sidebar-clapper {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  40% {
+    transform: rotate(-10deg);
+  }
+  70% {
+    transform: rotate(3deg);
+  }
+}
+@keyframes sidebar-download {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  45% {
+    transform: translateY(2px);
+  }
+}
+@keyframes sidebar-folder {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  45% {
+    transform: rotate(-6deg);
+  }
+}
+@keyframes sidebar-settings {
+  0% {
+    transform: rotate(0);
+  }
+  100% {
+    transform: rotate(90deg);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar-nav-item {
+    transition:
+      color 180ms ease,
+      box-shadow 180ms ease,
+      transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .sidebar-nav-item:not(:disabled):is(:active, [data-pressed='true']) {
+    transform: translateY(1px) scale(0.985);
+    transition-duration: 80ms;
+  }
+  .sidebar-nav-item__icon {
+    transform-origin: center;
+    transform-box: fill-box;
+  }
+  .sidebar-nav-item[data-hovered='true']:not(:disabled) .sidebar-nav-item__icon {
+    animation: sidebar-clapper 650ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .sidebar-nav-item[data-view='import'][data-hovered='true']:not(:disabled)
+    .sidebar-nav-item__icon {
+    animation-name: sidebar-download;
+    animation-duration: 500ms;
+  }
+  .sidebar-nav-item[data-view='explorer'][data-hovered='true']:not(:disabled)
+    .sidebar-nav-item__icon {
+    animation-name: sidebar-folder;
+  }
+  .sidebar-nav-item[data-view='settings'][data-hovered='true']:not(:disabled)
+    .sidebar-nav-item__icon {
+    animation-name: sidebar-settings;
+    animation-duration: 700ms;
+  }
+}
+
 /* Quiet at rest; pointer light and one reflection bring the glass to life on intent. */
 .sidebar-telegram {
   position: relative;

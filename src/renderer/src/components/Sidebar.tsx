@@ -1,14 +1,11 @@
 import { t, useLanguage } from '@/lib/i18n'
 import type { JSX } from 'react'
 import { useState } from 'react'
-import { motion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { isMacLike } from '@/lib/format'
-import { Clapperboard } from '@/components/animate-ui/icons/clapperboard'
-import { CloudDownload } from '@/components/animate-ui/icons/cloud-download'
-import { Settings } from '@/components/animate-ui/icons/settings'
-import { ArrowUpRight, FolderOpen, Send } from 'lucide-react'
-import type { ComponentProps } from 'react'
+import { ArrowUpRight, Clapperboard, CloudDownload, FolderOpen, Send, Settings } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import logo from '@/assets/logo.png'
 import { isLocalPreview } from '@shared/build'
 import { BRAND } from '@shared/branding'
@@ -16,18 +13,11 @@ import { BrandWordmark } from './BrandWordmark'
 
 export type View = 'projects' | 'import' | 'presets' | 'explorer' | 'settings'
 
-type AnimatedIcon = typeof Clapperboard
-function ExplorerIcon({ size = 16, className }: ComponentProps<AnimatedIcon>): JSX.Element {
-  return (
-    <FolderOpen size={size} className={typeof className === 'string' ? className : undefined} />
-  )
-}
-
-const NAV: { view: View; label: string; icon: AnimatedIcon }[] = [
+const NAV: { view: View; label: string; icon: LucideIcon }[] = [
   { view: 'projects', label: 'Projects', icon: Clapperboard },
   { view: 'import', label: 'Import', icon: CloudDownload },
   { view: 'presets', label: 'Presets', icon: Clapperboard },
-  { view: 'explorer', label: 'Explorer', icon: ExplorerIcon },
+  { view: 'explorer', label: 'Explorer', icon: FolderOpen },
   { view: 'settings', label: 'Settings', icon: Settings }
 ]
 
@@ -46,9 +36,9 @@ interface NavItemProps {
   disabled?: boolean
 }
 
-/** Single nav button; animates its icon on hover and while active. */
+/** Selection stays still; every fresh hover or keyboard focus animates the icon. */
 function NavItem({
-  item: { label, icon: Icon },
+  item: { view: targetView, label, icon: Icon },
   active,
   onSelect,
   disabled
@@ -56,31 +46,40 @@ function NavItem({
   useLanguage()
 
   const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const reducedMotion = useReducedMotion()
+  const interacting = !disabled && (hovered || focused)
 
   return (
     <motion.button
       disabled={disabled}
+      type="button"
+      aria-current={active ? 'page' : undefined}
+      data-view={targetView}
+      data-hovered={interacting || undefined}
+      data-focus-visible={focused || undefined}
       onClick={onSelect}
-      onHoverStart={() => setHovered(true)}
-      onHoverEnd={() => setHovered(false)}
-      whileHover={{ scale: 1.015 }}
-      whileTap={{ scale: 0.97 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+      onPointerEnter={(event) => {
+        if (event.pointerType !== 'touch') setHovered(true)
+      }}
+      onPointerLeave={() => setHovered(false)}
+      onFocus={(event) => setFocused(event.currentTarget.matches(':focus-visible'))}
+      onBlur={() => setFocused(false)}
       className={cn(
-        'relative flex items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-medium',
-        active
-          ? 'text-foreground'
-          : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+        'sidebar-nav-item relative flex items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-medium',
+        active ? 'text-foreground' : 'text-muted-foreground'
       )}
     >
       {active && (
         <motion.span
           layoutId="sidebar-active-pill"
-          className="glass-subtle absolute inset-0 rounded-xl shadow-sm"
-          transition={{ type: 'spring', stiffness: 480, damping: 36 }}
+          className="sidebar-nav-item__selection"
+          transition={
+            reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 480, damping: 36 }
+          }
         />
       )}
-      <Icon className="relative z-10" size={16} animate={hovered || active} />
+      <Icon className="sidebar-nav-item__icon relative z-10" size={16} aria-hidden="true" />
       <span className="relative z-10">{t(label)}</span>
     </motion.button>
   )
