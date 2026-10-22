@@ -37,7 +37,9 @@ describe('language settings', () => {
       theme: 'dark'
     })
   })
-  it('loads legacy settings without losing existing preferences', async () => {
+  it('starts in Russian, fills legacy settings, and preserves a saved language choice', async () => {
+    expect((await import('../src/main/settings')).getSettings().language).toBe('ru')
+    vi.resetModules()
     writeFileSync(
       join(mocks.root, 'settings.json'),
       JSON.stringify({
@@ -48,7 +50,7 @@ describe('language settings', () => {
     )
     const settings = await import('../src/main/settings')
     expect(settings.getSettings()).toMatchObject({
-      language: 'en',
+      language: 'ru',
       theme: 'dark',
       defaultExportDir: 'D:/Exports',
       includeCachesByDefault: false,
@@ -66,6 +68,13 @@ describe('language settings', () => {
     })
     await reloaded.setSettings({ language: 'en' })
     expect(JSON.parse(readFileSync(join(mocks.root, 'settings.json'), 'utf8')).language).toBe('en')
+    vi.resetModules()
+    expect((await import('../src/main/settings')).getSettings()).toMatchObject({
+      language: 'en',
+      theme: 'dark',
+      defaultExportDir: 'D:/Exports',
+      includeCachesByDefault: false
+    })
   })
 
   it('does not claim a language was saved if the write failed', async () => {

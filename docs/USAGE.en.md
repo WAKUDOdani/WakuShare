@@ -4,7 +4,7 @@
 
 [← Home](../README.en.md) · [Download](https://github.com/WAKUDOdani/WakuShare/releases/latest)
 
-WakuShare runs on Windows x64. The tested editor version is CapCut International 9.6.0.4097. Change the app language in **Settings → Appearance → Interface language**.
+WakuShare runs on Windows x64. The tested editor version is CapCut International 9.6.0.4097. Both the installed and Portable editions start in Russian on first launch. Change the app language in **Settings → Appearance → Interface language**; your saved choice is preserved across launches and updates.
 
 ## Move a project
 

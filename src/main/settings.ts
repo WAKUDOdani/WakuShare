@@ -7,7 +7,7 @@ import type { AppSettings } from '../shared/types'
 import { atomicWriteFile } from './core/fsx'
 
 const settingsSchema = z.object({
-  language: z.enum(['en', 'ru']).default('en'),
+  language: z.enum(['en', 'ru']).default('ru'),
   draftRootOverride: z.string().nullable().default(null),
   defaultExportDir: z.string().nullable().default(null),
   includeCachesByDefault: z.boolean().default(true),
@@ -17,7 +17,7 @@ const settingsSchema = z.object({
 })
 
 const DEFAULTS: AppSettings = {
-  language: 'en',
+  language: 'ru',
   draftRootOverride: null,
   defaultExportDir: null,
   includeCachesByDefault: true,

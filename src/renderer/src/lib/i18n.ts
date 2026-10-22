@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { translateText, type Language } from '@shared/i18n'
 
-let language: Language = 'en'
+let language: Language = 'ru'
 const listeners = new Set<() => void>()
 export const getLanguage = (): Language => language
 export const t = (text: string, values?: unknown[]): string => {
