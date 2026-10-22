@@ -12,8 +12,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.5/WakuShare-1.3.5-setup-x64.exe"><img src="docs/assets/download-windows.svg" width="232" height="44" alt="Скачать установщик WakuShare 1.3.5 для Windows x64"></a>
-  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.5/WakuShare-1.3.5-portable-x64.exe"><img src="docs/assets/download-portable.svg" width="190" height="44" alt="Скачать WakuShare 1.3.5 Portable без установки"></a>
+  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.6/WakuShare-1.3.6-setup-x64.exe"><img src="docs/assets/download-windows.svg" width="232" height="44" alt="Скачать установщик WakuShare 1.3.6 для Windows x64"></a>
+  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.6/WakuShare-1.3.6-portable-x64.exe"><img src="docs/assets/download-portable.svg" width="190" height="44" alt="Скачать WakuShare 1.3.6 Portable без установки"></a>
 </p>
 
 <p align="center">
@@ -60,8 +60,8 @@
 
 | Вариант                                                                                                                 | Для кого                               | Обновления                                                                   |
 | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------- |
-| [**Установщик 1.3.5**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.5/WakuShare-1.3.5-setup-x64.exe)  | Обычная установка приложения в Windows | Приложение проверяет обновления; установку скачанного выпуска запускаешь сам |
-| [**Portable 1.3.5**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.5/WakuShare-1.3.5-portable-x64.exe) | Запуск без установки                   | Скачать новую Portable-версию и заменить старый EXE                          |
+| [**Установщик 1.3.6**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.6/WakuShare-1.3.6-setup-x64.exe)  | Обычная установка приложения в Windows | Приложение проверяет обновления; установку скачанного выпуска запускаешь сам |
+| [**Portable 1.3.6**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.6/WakuShare-1.3.6-portable-x64.exe) | Запуск без установки                   | Скачать новую Portable-версию и заменить старый EXE                          |
 
 [Все выпуски и контрольные суммы](https://github.com/WAKUDOdani/WakuShare/releases). Для работы нужен один EXE. `latest.yml`, `.blockmap` и runtime-архив скачивать вручную не требуется. `Source code` содержит исходники, а не готовое приложение.
 
