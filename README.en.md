@@ -31,8 +31,8 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/explorer-en.png" width="1080" alt="WakuShare Explorer: a connected folder, sync scope controls, and a completed import">
-  <br><sub>The actual WakuShare 1.3.4 interface. Screenshots use demo data.</sub>
+  <a href="docs/assets/explorer-1.3.5-en.png"><img src="docs/assets/explorer-1.3.5-en.png" width="1080" alt="WakuShare Explorer: a connected folder, sync scope controls, and a completed import"></a>
+  <br><sub>The actual WakuShare 1.3.5 interface. Screenshots use demo data. Click an image to open it at full resolution.</sub>
 </p>
 
 ## Features
@@ -48,7 +48,7 @@ Bulk import sends new files as a single list, and the progress bar shows confirm
 <details>
 <summary><strong>Take a look at Presets</strong></summary>
 
-<img src="docs/assets/presets-en.png" width="1080" alt="WakuShare Presets: folder selection and export controls">
+<a href="docs/assets/presets-1.3.5-en.png"><img src="docs/assets/presets-1.3.5-en.png" width="1080" alt="WakuShare Presets: folder selection and export controls"></a>
 
 Open a shared package, choose what you need, and import it into your library. Source files and available font files travel with the presets.
 
