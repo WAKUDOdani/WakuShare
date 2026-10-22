@@ -12,8 +12,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.4/WakuShare-1.3.4-setup-x64.exe"><img src="docs/assets/download-windows-en.svg" width="232" height="44" alt="Download the WakuShare 1.3.4 installer for Windows x64"></a>
-  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.4/WakuShare-1.3.4-portable-x64.exe"><img src="docs/assets/download-portable.svg" width="190" height="44" alt="Download WakuShare 1.3.4 Portable, no installation needed"></a>
+  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.5/WakuShare-1.3.5-setup-x64.exe"><img src="docs/assets/download-windows-en.svg" width="232" height="44" alt="Download the WakuShare 1.3.5 installer for Windows x64"></a>
+  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.5/WakuShare-1.3.5-portable-x64.exe"><img src="docs/assets/download-portable.svg" width="190" height="44" alt="Download WakuShare 1.3.5 Portable, no installation needed"></a>
 </p>
 
 <p align="center">
@@ -60,8 +60,8 @@ Open a shared package, choose what you need, and import it into your library. So
 
 | Edition                                                                                                                 | Best for                       | Updates                                                                       |
 | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------- |
-| [**Installer 1.3.4**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.4/WakuShare-1.3.4-setup-x64.exe)   | A regular Windows installation | The app checks for updates; you choose when to install the downloaded release |
-| [**Portable 1.3.4**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.4/WakuShare-1.3.4-portable-x64.exe) | Running without installation   | Download the new Portable release and replace the old EXE                     |
+| [**Installer 1.3.5**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.5/WakuShare-1.3.5-setup-x64.exe)   | A regular Windows installation | The app checks for updates; you choose when to install the downloaded release |
+| [**Portable 1.3.5**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.5/WakuShare-1.3.5-portable-x64.exe) | Running without installation   | Download the new Portable release and replace the old EXE                     |
 
 [All releases and checksums](https://github.com/WAKUDOdani/WakuShare/releases). You only need one EXE. There is no need to download `latest.yml`, `.blockmap`, or the runtime archive manually. `Source code` contains the source, not a ready-to-run app. Each release includes an expandable **English release notes** section at the top.
 
