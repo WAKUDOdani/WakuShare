@@ -43,7 +43,10 @@ export function MiniTimeline({ tracks, durationUs }: MiniTimelineProps): JSX.Ele
     <div className="flex flex-col gap-1.5">
       {tracks.map((track, trackIndex) => (
         <div key={trackIndex} className="flex items-center gap-2">
-          <div className="w-12 shrink-0 text-right text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+          <div
+            title={t(TRACK_LABELS[track.type])}
+            className="w-16 shrink-0 truncate text-right text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
+          >
             {t(TRACK_LABELS[track.type])}
           </div>
           <div className="relative h-5 flex-1 overflow-hidden rounded-lg bg-foreground/6">
@@ -96,7 +99,7 @@ export function MiniTimeline({ tracks, durationUs }: MiniTimelineProps): JSX.Ele
           </div>
         </div>
       ))}
-      <div className="mt-0.5 flex justify-between pl-14 text-[10px] text-muted-foreground tabular-nums">
+      <div className="mt-0.5 flex justify-between pl-18 text-[10px] text-muted-foreground tabular-nums">
         <span>0:00</span>
         <span>{formatDuration(durationUs)}</span>
       </div>

@@ -96,14 +96,18 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
       isDismissable={!exporting}
       isKeyboardDismissDisabled={exporting}
     >
-      <Modal.Container placement="center" size="lg" className={kinematicScale.container}>
+      <Modal.Container
+        placement="center"
+        size="lg"
+        className={cn(kinematicScale.container, 'p-4 sm:p-6')}
+      >
         <Modal.Dialog
           aria-label={project?.name ?? t('Project details')}
-          className="app-no-drag w-full max-w-lg gap-0 overflow-hidden rounded-3xl border border-border bg-background p-0 shadow-2xl"
+          className="app-no-drag flex max-h-[calc(100dvh-3rem)] min-h-0 w-full max-w-lg flex-col gap-0 overflow-hidden rounded-3xl border border-border bg-background p-0 shadow-2xl"
         >
           {project && (
             <>
-              <div className="relative h-56 w-full overflow-hidden bg-foreground/4">
+              <div className="relative h-[clamp(8rem,24dvh,14rem)] w-full shrink-0 overflow-hidden bg-foreground/4">
                 {project.coverDataUrl ? (
                   <img src={project.coverDataUrl} alt="" className="size-full object-cover" />
                 ) : (
@@ -112,7 +116,10 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                   </div>
                 )}
                 <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-black/60 to-transparent" />
-                <h2 className="absolute bottom-3 left-5 text-xl font-bold text-white drop-shadow">
+                <h2
+                  title={project.name}
+                  className="absolute right-5 bottom-3 left-5 line-clamp-2 text-xl leading-snug font-bold wrap-anywhere text-white drop-shadow"
+                >
                   {project.name}
                 </h2>
                 <Button
@@ -126,34 +133,43 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                 </Button>
               </div>
 
-              <div className="flex flex-col gap-5 p-5">
-                <div className="flex flex-wrap gap-2">
-                  <StatChip label={t('Duration')} value={formatDuration(project.durationUs)} />
-                  {project.canvas && (
-                    <StatChip
-                      label={t('Canvas')}
-                      value={`${project.canvas.width}×${project.canvas.height}`}
-                    />
-                  )}
-                  {project.fps && (
-                    <StatChip label={t('FPS')} value={String(Math.round(project.fps))} />
-                  )}
-                  <StatChip
-                    label={t('Media')}
-                    value={String(
-                      project.mediaCounts.video +
-                        project.mediaCounts.audio +
-                        project.mediaCounts.image
+              <div
+                role="region"
+                aria-label={t('Project details')}
+                tabIndex={0}
+                className="project-detail-scroll min-h-0 overflow-y-auto overscroll-contain focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+              >
+                <div className="flex flex-col gap-5 p-5">
+                  <div className="flex flex-wrap gap-2">
+                    <StatChip label={t('Duration')} value={formatDuration(project.durationUs)} />
+                    {project.canvas && (
+                      <StatChip
+                        label={t('Canvas')}
+                        value={`${project.canvas.width}×${project.canvas.height}`}
+                      />
                     )}
-                  />
-                  <StatChip label={t('Size')} value={formatBytes(project.sizeBytes)} />
-                  {project.capcutVersion && (
-                    <StatChip label="CapCut" value={project.capcutVersion} />
-                  )}
+                    {project.fps && (
+                      <StatChip label={t('FPS')} value={String(Math.round(project.fps))} />
+                    )}
+                    <StatChip
+                      label={t('Media')}
+                      value={String(
+                        project.mediaCounts.video +
+                          project.mediaCounts.audio +
+                          project.mediaCounts.image
+                      )}
+                    />
+                    <StatChip label={t('Size')} value={formatBytes(project.sizeBytes)} />
+                    {project.capcutVersion && (
+                      <StatChip label="CapCut" value={project.capcutVersion} />
+                    )}
+                  </div>
+
+                  <MiniTimeline tracks={project.tracks} durationUs={project.durationUs} />
                 </div>
+              </div>
 
-                <MiniTimeline tracks={project.tracks} durationUs={project.durationUs} />
-
+              <div className="shrink-0 border-t border-border/60 p-5">
                 <AnimatePresence mode="wait" initial={false}>
                   {phase.state === 'done' ? (
                     <motion.div
@@ -210,7 +226,7 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                           className="text-[12px] text-amber-600 dark:text-amber-400"
                         >
                           <p>{t('Review these issues before relying on this backup:')}</p>
-                          <ul className="mt-2 max-h-40 list-disc space-y-1 overflow-y-auto pl-4 break-words">
+                          <ul className="project-detail-scroll mt-2 max-h-[min(8rem,20dvh)] list-disc space-y-1 overflow-y-auto overscroll-contain pl-4 break-words">
                             {phase.result.warnings.map((warning, index) => (
                               <li key={index}>{t(warning)}</li>
                             ))}

@@ -979,6 +979,21 @@
   }
 }
 
+/* Long project overviews scroll between the cover and the fixed export actions.
+   Keep a visible scrollbar here so users can discover the remaining tracks. */
+.project-detail-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--foreground) 24%, transparent) transparent;
+}
+.project-detail-scroll::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
+.project-detail-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 24%, transparent);
+}
+
 /* The wordmark remains selectable text and scales cleanly at any DPI. */
 .waku-share-gradient {
   color: #9636ee;
