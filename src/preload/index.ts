@@ -39,7 +39,7 @@ const api = {
     ipcRenderer.on(IPC.explorerSnapshot, handler)
     return () => ipcRenderer.removeListener(IPC.explorerSnapshot, handler)
   },
-  /** Announce the renderer is ready; resolves with a pending .capshare path if the app was opened via a file. */
+  /** Announce readiness; resolves with a pending project or preset package path. */
   rendererReady: (): Promise<string | null> => ipcRenderer.invoke(IPC.rendererReady),
 
   /** Subscribe to OS open-file requests. Returns an unsubscribe function. */

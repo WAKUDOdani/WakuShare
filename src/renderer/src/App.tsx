@@ -17,6 +17,7 @@ import { ExplorerView } from '@/features/explorer/ExplorerView'
 import { useUpdates } from '@/hooks/use-updates'
 import { errorMessage, unwrap } from '@/lib/ipc'
 import { isExplorerPreview } from '@shared/build'
+import { packageView } from '@shared/package-open'
 
 const HEADERS: Record<View, { title: string; subtitle: string }> = {
   projects: { title: 'Projects', subtitle: 'CapCut library' },
@@ -48,6 +49,9 @@ function App(): JSX.Element {
   const [loadingProjects, setLoadingProjects] = useState(true)
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [externalFile, setExternalFile] = useState<string | null>(null)
+  const [externalPresetFile, setExternalPresetFile] = useState<string | null>(null)
+  const [openRequest, setOpenRequest] = useState<string | null>(null)
+  const consumePresetFile = useCallback(() => setExternalPresetFile(null), [])
   const updates = useUpdates()
 
   useTheme(settings?.theme)
@@ -93,21 +97,33 @@ function App(): JSX.Element {
       await refreshProjects()
       const pending = await window.capshare.rendererReady()
       if (pending && !disposed) {
-        setView('import')
-        setExternalFile(pending)
+        setOpenRequest(pending)
       }
     }
     void boot()
 
     const unsubscribe = window.capshare.onOpenFile((filePath) => {
-      setView('import')
-      setExternalFile(filePath)
+      setOpenRequest(filePath)
     })
     return () => {
       disposed = true
       unsubscribe()
     }
   }, [refreshProjects])
+
+  useEffect(() => {
+    if (!openRequest || presetsBusy) return
+    const timer = window.setTimeout(() => {
+      const target = packageView(openRequest)
+      if (target) {
+        setView(target)
+        setExternalFile(target === 'import' ? openRequest : null)
+        setExternalPresetFile(target === 'presets' ? openRequest : null)
+      }
+      setOpenRequest(null)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [openRequest, presetsBusy])
 
   useEffect(() => {
     const onFocus = (): void => void refreshProjects({ silent: true })
@@ -188,7 +204,13 @@ function App(): JSX.Element {
                     updates={updates}
                   />
                 )}
-                {view === 'presets' && <PresetsView onBusyChange={setPresetsBusy} />}
+                {view === 'presets' && (
+                  <PresetsView
+                    onBusyChange={setPresetsBusy}
+                    externalFile={externalPresetFile}
+                    onExternalFileConsumed={consumePresetFile}
+                  />
+                )}
                 {view === 'explorer' && <ExplorerView />}
               </motion.div>
             </AnimatePresence>

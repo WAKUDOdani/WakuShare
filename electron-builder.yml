@@ -30,6 +30,11 @@ electronFuses:
   onlyLoadAppFromAsar: true
 afterPack: build/windows-after-pack.cjs
 fileAssociations:
+  - ext: wakupresets
+    name: WakuShare Presets
+    description: Portable CapCut preset bundle
+    mimeType: application/x-wakupresets
+    role: Editor
   - ext: wakushare
     name: WakuShare Project
     description: Portable CapCut project bundle

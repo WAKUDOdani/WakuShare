@@ -12,7 +12,8 @@ import { prepareAppProfile } from './profile'
 import { getSettings } from './settings'
 import { join } from 'node:path'
 import { explorerPreviewWorkspace } from './sync/runtime'
-import { isProjectPackage } from '../shared/project-package'
+import { extractPackageArg, packageView } from '../shared/package-open'
+import { PackageOpenRequests } from './package-open'
 
 const previewWorkspace = explorerPreviewWorkspace()
 const profile = prepareAppProfile(
@@ -29,25 +30,16 @@ log.transports.file.level = 'info'
 
 let mainWindow: BrowserWindow | null = null
 
-/**
- * A .capshare file the OS asked us to open before the renderer was ready.
- * Flushed when the renderer signals readiness (see 'app:renderer-ready' in ipc.ts).
- */
-let pendingOpenFile: string | null = null
-
-function extractCapshareArg(argv: string[]): string | null {
-  // Windows/Linux: the opened file arrives as a plain argv entry.
-  const candidate = argv.find(isProjectPackage)
-  return candidate ?? null
-}
+const openRequests = new PackageOpenRequests()
 
 function handleOpenFile(filePath: string): void {
+  if (!packageView(filePath)) return
+  if (!mainWindow || mainWindow.isDestroyed()) openRequests.loading()
+  const readyFile = openRequests.receive(filePath)
   if (mainWindow && !mainWindow.isDestroyed()) {
     if (mainWindow.isMinimized()) mainWindow.restore()
     mainWindow.focus()
-    notifyOpenFile(mainWindow, filePath)
-  } else {
-    pendingOpenFile = filePath
+    if (readyFile) notifyOpenFile(mainWindow, readyFile)
   }
 }
 
@@ -56,7 +48,7 @@ if (!gotTheLock) {
   app.quit()
 } else {
   app.on('second-instance', (_event, argv) => {
-    const file = extractCapshareArg(argv)
+    const file = extractPackageArg(argv)
     if (file) handleOpenFile(file)
     if (mainWindow && !mainWindow.isDestroyed()) {
       if (mainWindow.isMinimized()) mainWindow.restore()
@@ -83,15 +75,11 @@ if (!gotTheLock) {
     registerIpcHandlers({
       onLanguageChanged: () => refreshMenu(),
       getMainWindow: () => mainWindow,
-      consumePendingOpenFile: () => {
-        const file = pendingOpenFile
-        pendingOpenFile = null
-        return file
-      }
+      consumePendingOpenFile: () => openRequests.rendererReady()
     })
 
-    const startupFile = extractCapshareArg(process.argv.slice(1))
-    if (startupFile) pendingOpenFile = startupFile
+    const startupFile = extractPackageArg(process.argv.slice(1))
+    if (startupFile) openRequests.receive(startupFile)
 
     mainWindow = createMainWindow()
     const explorer = createExplorerSupervisor()
@@ -108,6 +96,8 @@ if (!gotTheLock) {
         : null
     let quitting = false
     const bindClose = (window: BrowserWindow): void => {
+      openRequests.loading()
+      window.webContents.on('did-start-loading', () => openRequests.loading())
       window.on('close', (event) => {
         if (!quitting && tray?.shouldHideOnClose()) {
           event.preventDefault()

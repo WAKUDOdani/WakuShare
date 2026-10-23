@@ -1,6 +1,6 @@
 import { toast } from '@/lib/notifications'
 import { t, useLanguage } from '@/lib/i18n'
-import { useCallback, useEffect, useState, type JSX } from 'react'
+import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import { Button, Checkbox, Input, Label, TextField } from '@heroui/react'
 import { FormSelect } from '@/components/FormSelect'
 import { ChevronRight, Folder, Package, RefreshCw } from 'lucide-react'
@@ -22,11 +22,16 @@ function branch(nodes: PresetNode[], id: string): string[] {
 }
 
 export function PresetsView({
-  onBusyChange
+  onBusyChange,
+  externalFile = null,
+  onExternalFileConsumed
 }: {
   onBusyChange: (busy: boolean) => void
+  externalFile?: string | null
+  onExternalFileConsumed?: () => void
 }): JSX.Element {
   useLanguage()
+  const initialExternalFile = useRef(externalFile)
 
   const [library, setLibrary] = useState<PresetLibrary | null>(null)
   const [destination, setDestination] = useState('')
@@ -81,6 +86,7 @@ export function PresetsView({
     [showLibrary]
   )
   useEffect(() => {
+    if (initialExternalFile.current) return
     const timer = window.setTimeout(() => void load(), 0)
     return () => window.clearTimeout(timer)
   }, [load])
@@ -113,28 +119,37 @@ export function PresetsView({
     }
   }, [])
 
-  const openArchive = async (existing?: string): Promise<void> => {
-    setBusy(true)
-    try {
-      const path = existing ?? unwrap(await window.capshare.pickPresetPackage())
-      if (path) {
-        const target = unwrap(await window.capshare.listPresets())
-        setDestination(target.root)
-        setTargetLibrary(target)
-        if (
-          targetFolder &&
-          !target.nodes.some((node) => node.id === targetFolder && node.kind === 'folder')
-        )
-          setTargetFolder('')
-        showLibrary(unwrap(await window.capshare.inspectPresetPackage(path)))
-        setArchive(path)
+  const openArchive = useCallback(
+    async (existing?: string): Promise<void> => {
+      setBusy(true)
+      try {
+        const path = existing ?? unwrap(await window.capshare.pickPresetPackage())
+        if (path) {
+          const target = unwrap(await window.capshare.listPresets())
+          setDestination(target.root)
+          setTargetLibrary(target)
+          if (
+            targetFolder &&
+            !target.nodes.some((node) => node.id === targetFolder && node.kind === 'folder')
+          )
+            setTargetFolder('')
+          showLibrary(unwrap(await window.capshare.inspectPresetPackage(path)))
+          setArchive(path)
+        }
+      } catch (error) {
+        setError(errorMessage(error))
+      } finally {
+        setBusy(false)
       }
-    } catch (error) {
-      setError(errorMessage(error))
-    } finally {
-      setBusy(false)
-    }
-  }
+    },
+    [showLibrary, targetFolder]
+  )
+  useEffect(() => {
+    if (!externalFile || busy) return
+    onExternalFileConsumed?.()
+    // Consuming the request clears the prop; do not cancel its queued preview.
+    window.setTimeout(() => void openArchive(externalFile), 0)
+  }, [externalFile, busy, onExternalFileConsumed, openArchive])
   const chooseLibrary = async (): Promise<void> => {
     try {
       const root = unwrap(await window.capshare.pickFolder('Choose the CapCut Presets folder'))

@@ -34,6 +34,8 @@ WakuShare supports local CapCut **composition presets**. Preset packages use the
 
 ### Import
 
+Double-click a `.wakupresets` package in Windows Explorer to open its contents in WakuShare's Presets view. The installer registers the file type and icon; for Portable, select WakuShare using **Open with**. Opening a package does not start importing it automatically.
+
 1. Close CapCut and choose **Presets → Open package**.
 2. Select the folders and presets you need, then choose the destination library and folder. Create a subfolder if needed.
 3. Run the import check. For confirmed exact duplicates, choose to skip, keep a separate copy, or replace the selected preset.
