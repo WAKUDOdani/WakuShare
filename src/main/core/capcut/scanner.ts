@@ -43,11 +43,37 @@ export function normalizeSlashes(value: string): string {
   return value.replace(/\\/g, '/')
 }
 
+/** Canonicalize only local extended DOS paths with ordinary Win32 semantics.
+ * UNC, device namespaces and verbatim-only names stay untouched and blocked. */
+export function normalizeResourcePath(value: string): string {
+  const normalized = normalizeSlashes(value)
+  if (!/^\/\/\?\/[A-Za-z]:\//.test(normalized)) return normalized
+  const local = normalized.slice(4)
+  const parts = local.slice(3).split('/')
+  if (
+    parts.some((part, index) => {
+      if (!part && index === parts.length - 1) return false
+      return (
+        !part ||
+        part === '.' ||
+        part === '..' ||
+        part.length > 255 ||
+        /[<>:"|?*]/.test(part) ||
+        /[. ]$/.test(part) ||
+        [...part].some((c) => c.charCodeAt(0) < 32) ||
+        /^(?:con|prn|aux|nul|conin\$|conout\$|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i.test(part)
+      )
+    })
+  )
+    return normalized
+  return local
+}
+
 export function classifyString(
   value: string,
   ctx: ScanContext = {}
 ): Pick<ScannedString, 'cls' | 'normalized' | 'cacheSuffix' | 'draftRelative'> {
-  const normalized = normalizeSlashes(value)
+  const normalized = normalizeResourcePath(value)
 
   if (normalized.startsWith(DRAFT_PATH_PLACEHOLDER)) {
     return { cls: 'placeholder', normalized }
@@ -88,7 +114,7 @@ export function classifyString(
   const draftFolder = ctx.draftFolderJson
   if (draftFolder) {
     // Windows paths are case-insensitive; macOS defaults are too (HFS+/APFS).
-    const folderLower = draftFolder.toLowerCase().replace(/\/+$/, '')
+    const folderLower = normalizeResourcePath(draftFolder).toLowerCase().replace(/\/+$/, '')
     const valueLower = normalized.toLowerCase()
     if (valueLower.startsWith(folderLower + '/')) {
       return {
@@ -207,13 +233,13 @@ export type RewriteRule =
 export function makeRewriter(rules: RewriteRule[]): (value: string) => string | undefined {
   return (value: string): string | undefined => {
     if (SCHEME_RE.test(value)) return undefined
-    const normalized = normalizeSlashes(value)
+    const normalized = normalizeResourcePath(value)
 
     for (const rule of rules) {
       if (rule.kind === 'exact') {
-        if (normalized === normalizeSlashes(rule.from)) return rule.to
+        if (normalized === normalizeResourcePath(rule.from)) return rule.to
       } else {
-        const from = normalizeSlashes(rule.from).replace(/\/+$/, '')
+        const from = normalizeResourcePath(rule.from).replace(/\/+$/, '')
         const haystack = rule.caseInsensitive ? normalized.toLowerCase() : normalized
         const needle = rule.caseInsensitive ? from.toLowerCase() : from
         if (haystack.startsWith(needle + '/') || haystack === needle) {

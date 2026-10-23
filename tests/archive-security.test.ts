@@ -179,6 +179,33 @@ it('rejects local secret, UNC, traversal and shell URI resource references', () 
     expect(() => assertResourceScheme(value, '/materials/0/path')).toThrow()
   expect(() => assertExportResource('C:/media/Съёмка.mp4')).not.toThrow()
 })
+it.each([
+  '//server/share/a.png',
+  '//?/UNC/server/share/a.png',
+  String.raw`\\?\UNC\server\share\a.png`,
+  '//./C:/media/a.png',
+  '//?/GLOBALROOT/Device/HarddiskVolumeShadowCopy1/a.png',
+  '//?/Volume{123}/a.png',
+  '//?/C:media/a.png',
+  '//?/C:/media/../a.png',
+  '//?/C:/media//a.png',
+  '//?/C:/media./a.png',
+  '//?/C:/media /a.png',
+  '//?/C:/nul/a.png',
+  '//?/C:/media/a.png:stream',
+  '//?/C:/media/a.exe',
+  '//?/C:/private/key.pem'
+])('keeps unsafe extended or network resource blocked: %s', (path) => {
+  expect(() => assertExportResource(path)).toThrow()
+})
+
+it('allows ordinary media in the extended local drive syntax only', () => {
+  expect(() => assertExportResource('//?/C:/media/Съёмка.mp4')).not.toThrow()
+  expect(() => assertExportResource(String.raw`\\?\D:\media\photo.png`)).not.toThrow()
+  expect(() => assertExportResource('//?/C:/captions/Субтитры.srt')).not.toThrow()
+  expect(() => assertRelativeResource('//?/C:/media/photo.png')).toThrow()
+})
+
 it('turns a failing progress subscriber into a rejected operation', async () => {
   const file = await archive([{ name: 'photo.png' }])
   await expect(

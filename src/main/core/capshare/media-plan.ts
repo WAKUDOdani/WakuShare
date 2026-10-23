@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { resolve, sep } from 'node:path'
 import { DRAFT_PATH_PLACEHOLDER } from '../capcut/constants'
-import { walkJsonStrings, normalizeSlashes } from '../capcut/scanner'
+import { walkJsonStrings, normalizeSlashes, normalizeResourcePath } from '../capcut/scanner'
 import type { ProjectDocument } from '../capcut/project'
 import { CapShareError } from '../errors'
 import type { CapShareManifest } from './manifest'
@@ -61,7 +61,7 @@ export function createMediaPlan(manifest: CapShareManifest): {
   }
   const origins = new Set<string>()
   for (const loose of manifest.looseMedia) {
-    const origin = normalizeSlashes(loose.originalPath).toLowerCase()
+    const origin = normalizeResourcePath(loose.originalPath).toLowerCase()
     if (origins.has(origin) || archiveTargets.has(loose.archivePath)) {
       throw new CapShareError(
         'ARCHIVE_INVALID',

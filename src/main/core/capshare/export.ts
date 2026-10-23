@@ -16,10 +16,14 @@ import {
   VOLATILE_FILE_PATTERNS
 } from '../capcut/constants'
 import { asString, findTimelinePath, getPlatformBlock, summarizeTimeline } from '../capcut/draft'
-import { readProjectDocuments, validateTimelineGraph } from '../capcut/project'
+import {
+  createProjectReferenceResolver,
+  readProjectDocuments,
+  validateTimelineGraph
+} from '../capcut/project'
 import { toJsonPath } from '../capcut/locator'
 import type { CapCutEnv } from '../capcut/model'
-import { collectPaths } from '../capcut/scanner'
+import { collectPaths, normalizeResourcePath, normalizeSlashes } from '../capcut/scanner'
 import { CapShareError } from '../errors'
 import { sanitizeFolderName, walkFiles } from '../fsx'
 import { ZipWriter } from '../zip'
@@ -75,7 +79,7 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
   const missingAtExport: string[] = []
   const overrides = new Map(
     Object.entries(options.sourceOverrides ?? {}).map(([from, to]) => [
-      from.replace(/\\/g, '/').toLowerCase(),
+      normalizeResourcePath(from).toLowerCase(),
       to
     ])
   )
@@ -125,6 +129,7 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
   )
 
   const effectPlans = new Map<string, EffectPlan>()
+  const internalReference = createProjectReferenceResolver(documents, scanned)
   const effectRootsSeen = new Set<string>()
   const loosePlans = new Map<string, LoosePlan>()
   const missingSeen = new Set<string>()
@@ -139,6 +144,12 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
       /\/(?:draft_fold_path|draft_root_path)$/.test(item.pointer)
     )
       continue
+
+    const packaged = internalReference(item.value, item.pointer)
+    if (packaged) {
+      assertRelativeResource(packaged)
+      continue
+    }
 
     if (item.cls === 'effect-cache' && item.cacheSuffix) {
       assertRelativeResource(item.cacheSuffix)
@@ -187,7 +198,7 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
           `An override cannot replace a source that still exists: ${item.normalized}`
         )
       }
-      const sourcePath = override ?? item.normalized
+      const sourcePath = normalizeResourcePath(override ?? item.normalized)
       assertExportResource(sourcePath)
       // Only fs-verified files are bundled — classifier hits alone never act.
       if (existsSync(sourcePath)) {
@@ -197,7 +208,7 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
           looseIndex++
           loosePlans.set(key, {
             archivePath: `${LOOSE_MEDIA_PREFIX}${looseIndex}-${sanitizeFolderName(fileName, 'windows')}`,
-            originalPath: item.normalized,
+            originalPath: normalizeSlashes(item.value),
             fileName,
             diskPath: sourcePath,
             size: info.size

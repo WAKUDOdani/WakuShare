@@ -32,7 +32,7 @@ import { presetFingerprint, fingerprintDocument, legacyPresetTarget } from './fi
 import { placeFolders } from './placement'
 import { DRAFT_PATH_PLACEHOLDER } from '../capcut/constants'
 import type { CapCutEnv } from '../capcut/model'
-import { classifyString, walkJsonStrings } from '../capcut/scanner'
+import { classifyString, normalizeResourcePath, walkJsonStrings } from '../capcut/scanner'
 import { CapShareError } from '../errors'
 import { atomicWriteFile, hashFile, sanitizeFolderName, uniqueName } from '../fsx'
 import type { WalkedFile } from '../fsx'
@@ -98,7 +98,7 @@ interface Options {
   onComparisonFailure?: (id: string, error: unknown) => void
   onFingerprint?: (key: string, canonical: unknown) => void
 }
-const jsonPath = (path: string): string => path.replace(/\\/g, '/')
+const jsonPath = normalizeResourcePath
 const MEDIA_EXTENSION =
   /\.(?:mp4|mov|mkv|avi|webm|m4v|mpg|mpeg|wav|mp3|m4a|aac|flac|ogg|aif|aiff|wma|opus|png|jpe?g|webp|gif|bmp|tiff?|heic|avif|svg|ttf|otf|ttc|woff2?)$/i
 function mediaName(original: string, names: Set<string>): string {
@@ -371,7 +371,7 @@ async function buildPresetPlan(
       if (cls.cls === 'absolute' && !isExternalResource(ref.value, ref.pointer, true)) continue
       if (cls.cls === 'absolute') assertExportResource(ref.value, true)
       if (cls.cls === 'effect-cache' && cls.cacheSuffix) assertRelativeResource(cls.cacheSuffix)
-      let disk = ref.value
+      let disk = cls.normalized
       if (presetPlaceholder) assertRelativeResource(ref.value.slice(presetPlaceholder[0].length))
       if (cls.cls === 'placeholder')
         assertRelativeResource(

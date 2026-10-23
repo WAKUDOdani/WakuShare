@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,6 +14,8 @@ import {
 import { CAPSHARE_FORMAT_VERSION, type CapShareManifest } from '../src/main/core/capshare/manifest'
 import { readZipEntries, ZipWriter } from '../src/main/core/zip'
 import { walkFiles } from '../src/main/core/fsx'
+import { readProjectDocuments } from '../src/main/core/capcut/project'
+import { walkJsonStrings } from '../src/main/core/capcut/scanner'
 import {
   createMacDraft,
   createWinFlavoredDraftFolder,
@@ -64,6 +66,90 @@ function readJson(path: string): Record<string, unknown> {
 const TEST_UUIDS = ['11111111-AAAA-4AAA-8AAA-111111111111', '22222222-BBBB-4BBB-8BBB-222222222222']
 
 describe('Mac → Windows roundtrip', () => {
+  it.skipIf(process.platform !== 'win32').each([true, false])(
+    'roundtrips mixed extended paths and copied compound drafts (caches: %s)',
+    async (includeCaches) => {
+      const draft = createMacDraft(mac, {
+        name: 'Extended local paths',
+        looseMediaDir: join(tmp, 'external')
+      })
+      const documents = await readProjectDocuments(draft.folder)
+      for (const doc of documents.values()) {
+        walkJsonStrings(doc.value, (value) =>
+          /^[a-z]:[/\\]/i.test(value) ? '//?/' + value.replaceAll('\\', '/') : undefined
+        )
+        writeFileSync(join(draft.folder, doc.relativePath), JSON.stringify(doc.value))
+      }
+      const path = join(draft.folder, draft.timelineFilename),
+        timeline = readJson(path)
+      const compoundId = '11111111-2222-3333-4444-555555555555'
+      const cropId = 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE'
+      const compoundFolder = join(draft.folder, 'subdraft', compoundId)
+      mkdirSync(compoundFolder, { recursive: true })
+      writeFileSync(
+        join(compoundFolder, 'draft_content.json'),
+        JSON.stringify({ id: compoundId, tracks: [] })
+      )
+      writeFileSync(join(compoundFolder, 'sub_draft_config.json'), '{}')
+      const crop = `smart_crop/${cropId}/1/1_0`
+      mkdirSync(join(draft.folder, `smart_crop/${cropId}/1`), { recursive: true })
+      writeFileSync(join(draft.folder, crop), 'native crop cache')
+      timeline['compound'] = {
+        materials: {
+          drafts: [
+            {
+              draft_file_path: `C:/retired/OldProject/subdraft/${compoundId}/draft_content.json`,
+              draft_config_path: `C:/retired/OldProject/subdraft/${compoundId}/sub_draft_config.json`
+            }
+          ],
+          smart_crops: [{ cache_path: `C:/retired/OldProject/${crop}` }]
+        }
+      }
+      const captions = join(tmp, 'captions.srt')
+      writeFileSync(captions, '1\n00:00:00,000 --> 00:00:01,000\nCaption\n')
+      timeline['subtitle_source_path'] = '//?/' + captions.replaceAll('\\', '/')
+      timeline['extra_media_path'] = draft.looseMediaPaths[0].replaceAll('\\', '/')
+      writeFileSync(path, JSON.stringify(timeline))
+      const sourceBefore = readFileSync(path)
+      const archive = join(tmp, 'extended.wakushare')
+      await exportDraft({
+        draftFolder: draft.folder,
+        env: macEnv(),
+        destinationPath: archive,
+        includeCaches,
+        capshareVersion: 'test'
+      })
+      const contents = await readZipEntries(archive, ['manifest.json'])
+      const manifest = JSON.parse(contents.get('manifest.json')!.toString()) as CapShareManifest
+      expect(manifest.looseMedia).toHaveLength(2)
+      expect(manifest.missingAtExport).toEqual([])
+      expect(manifest.looseMedia[0].originalPath).toMatch(/^\/\/\?\/[A-Z]:\//i)
+      const imported = await importCapshare({
+        filePath: archive,
+        env: winEnv(),
+        backupDir: join(tmp, 'backups')
+      })
+      const result = readJson(join(imported.folderPath, 'draft_content.json'))
+      expect(JSON.stringify(result)).not.toContain('//?/')
+      expect(JSON.stringify(result)).not.toContain('C:/retired/OldProject')
+      expect(JSON.stringify(result)).toContain(
+        `${DRAFT_PATH_PLACEHOLDER}/subdraft/${compoundId}/draft_content.json`
+      )
+      expect(JSON.stringify(result)).toContain(`${DRAFT_PATH_PLACEHOLDER}/${crop}`)
+      expect(existsSync(join(imported.folderPath, crop))).toBe(includeCaches)
+      if (includeCaches)
+        expect(readFileSync(join(imported.folderPath, crop), 'utf8')).toBe('native crop cache')
+      expect(
+        readFileSync(join(imported.folderPath, 'Resources/local/Исходники/captions.srt'), 'utf8')
+      ).toContain('Caption')
+      expect(String(result['extra_media_path'])).toContain('/Resources/local/Исходники/')
+      expect(
+        readFileSync(join(imported.folderPath, 'Resources/local/Исходники/b-roll clip.mp4'), 'utf8')
+      ).toBe('loose-broll-bytes')
+      expect(readFileSync(path).equals(sourceBefore)).toBe(true)
+    }
+  )
+
   it.each(['wakushare', 'capshare'])(
     'imports a mac-exported .%s onto a fresh windows machine',
     async (extension) => {

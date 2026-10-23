@@ -22,6 +22,7 @@ import {
 import { findTimelinePath, getPlatformBlock } from '../capcut/draft'
 import {
   cloneTimelineGraph,
+  createProjectReferenceResolver,
   readProjectDocuments,
   validateTimelineGraph,
   writeProjectDocuments
@@ -33,7 +34,13 @@ import {
   removeRegistryBackup,
   restoreRegistryBackup
 } from '../capcut/registry'
-import { classifyString, walkJsonStrings, normalizeSlashes } from '../capcut/scanner'
+import {
+  classifyString,
+  walkJsonStrings,
+  normalizeSlashes,
+  normalizeResourcePath,
+  collectPaths
+} from '../capcut/scanner'
 import { CapShareError } from '../errors'
 import { dirSize, ensureDir, hashFile, sanitizeFolderName, uniqueName } from '../fsx'
 import { extractZip, readZipEntries } from '../zip'
@@ -397,8 +404,12 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
         : null
 
     const looseByOriginal = new Map<string, string>()
+    const internalReference = createProjectReferenceResolver(
+      documents,
+      [...documents.values()].flatMap((doc) => collectPaths(doc.value))
+    )
     for (const { newRel, originalPath } of looseTargets.values()) {
-      looseByOriginal.set(normalizeSlashes(originalPath).toLowerCase(), newRel)
+      looseByOriginal.set(normalizeResourcePath(originalPath).toLowerCase(), newRel)
     }
 
     const rewriteValue =
@@ -406,6 +417,11 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
       (value: string, pointer: string): string | undefined => {
         if (pointer.includes('draft_materials_copied_info')) return undefined
         assertResourceScheme(value, pointer)
+        const packaged = internalReference(value, pointer)
+        if (packaged) {
+          assertRelativeResource(packaged)
+          return style === 'placeholder' ? `${DRAFT_PATH_PLACEHOLDER}/${packaged}` : `./${packaged}`
+        }
         const internal = relocatedInternalPath(value, internalTargets)
         if (internal)
           return style === 'placeholder' ? `${DRAFT_PATH_PLACEHOLDER}/${internal}` : `./${internal}`

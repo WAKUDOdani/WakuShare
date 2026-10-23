@@ -114,6 +114,35 @@ afterEach(() => {
 })
 
 describe('composition preset transfer', () => {
+  it.skipIf(process.platform !== 'win32')(
+    'roundtrips local extended paths in preset media, fonts and effect caches',
+    async () => {
+      const folder = join(root, 'Combination/Presets/One')
+      for (const relative of [
+        'One.json',
+        'preset_draft/draft_content.json',
+        'preset_draft/template.tmp',
+        'preset_draft/template-2.tmp'
+      ]) {
+        const path = join(folder, relative),
+          value = json(path)
+        walkJsonStrings(value, (value) => (/^[a-z]:\//i.test(value) ? '//?/' + value : undefined))
+        write(path, value)
+      }
+      const archive = join(tmp, 'extended.wakupresets'),
+        target = join(tmp, 'target')
+      await exportPresets(root, ['p1'], archive, env)
+      await importPresets(archive, ['p1'], target, env, join(tmp, 'backups'))
+      const storage = [...(await readLibrary(target)).storage.values()][0]
+      const value = json(join(storage.directory, 'preset_draft/draft_content.json'))
+      expect(JSON.stringify(value)).not.toContain('//?/')
+      expect(readFileSync(String(value['media']), 'utf8')).toBe('shared movie')
+      const font = JSON.parse(String(value['content'])).font.path
+      expect(readFileSync(font, 'utf8')).toBe('font bytes')
+      expect(existsSync(join(String(value['effect']), 'texture.png'))).toBe(true)
+    }
+  )
+
   it('recognizes a relocated copy despite new IDs, name and paths', async () => {
     const archive = join(tmp, 'review.wakupresets'),
       target = join(tmp, 'target')

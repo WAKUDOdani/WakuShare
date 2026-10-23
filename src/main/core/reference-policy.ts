@@ -1,13 +1,13 @@
 import { archiveError, validateArchivePath } from './archive-safety'
 import { assertDataFilename } from './payload-policy'
-import { normalizeSlashes } from './capcut/scanner'
+import { normalizeResourcePath, normalizeSlashes } from './capcut/scanner'
 
 export const MEDIA_RESOURCE =
-  /\.(?:mp4|mov|mkv|avi|webm|m4v|mpg|mpeg|ts|mts|m2ts|wmv|flv|3gp|wav|mp3|m4a|aac|flac|ogg|aif|aiff|wma|opus|png|jpe?g|webp|gif|bmp|tiff?|heic|heif|avif|svg|ico|ttf|otf|ttc|woff2?)$/i
+  /\.(?:mp4|mov|mkv|avi|webm|m4v|mpg|mpeg|ts|mts|m2ts|wmv|flv|3gp|wav|mp3|m4a|aac|flac|ogg|aif|aiff|wma|opus|png|jpe?g|webp|gif|bmp|tiff?|heic|heif|avif|svg|ico|ttf|otf|ttc|woff2?|srt)$/i
 
 /** A package must not turn export into a reader of arbitrary local/network files. */
 export function assertExportResource(path: string, allowDocument = false): void {
-  const normalized = normalizeSlashes(path)
+  const normalized = normalizeResourcePath(path)
   if (normalized.startsWith('//') || /^(?:file|smb|sftp|ftp):/i.test(normalized))
     throw archiveError('Network resource references are not supported in transferable packages')
   assertDataFilename(normalized.split('/').pop() ?? '')

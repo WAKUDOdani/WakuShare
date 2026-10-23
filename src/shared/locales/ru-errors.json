@@ -111,5 +111,8 @@
   "Could not read that image. Choose a PNG or JPEG file.": "Не удалось прочитать изображение. Выбери файл PNG или JPEG.",
   "Finish the current file operation first.": "Сначала дождись завершения текущей операции с файлами.",
   "Review the preset import before starting.": "Перед началом проверь импорт пресетов.",
-  "Finish the file operation before launching CapCut.": "Дождись завершения операции с файлами перед запуском CapCut."
+  "Finish the file operation before launching CapCut.": "Дождись завершения операции с файлами перед запуском CapCut.",
+  "Network resource references are not supported in transferable packages": "Сетевые пути не поддерживаются в пакетах переноса. Скопируй исходники на локальный диск.",
+  "Unsupported resource URI scheme": "Этот тип ссылки на ресурс не поддерживается.",
+  "An external reference is not a supported media, font or preset document": "Внешняя ссылка ведёт на неподдерживаемый тип файла."
 }

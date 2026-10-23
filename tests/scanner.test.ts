@@ -4,6 +4,7 @@ import {
   classifyString,
   collectPaths,
   makeRewriter,
+  normalizeResourcePath,
   walkJsonStrings
 } from '../src/main/core/capcut/scanner'
 
@@ -47,6 +48,31 @@ describe('classifyString', () => {
 
   it('flags UNC paths separately', () => {
     expect(classifyString('\\\\server\\share\\clip.mp4').cls).toBe('unc')
+  })
+
+  it('canonicalizes extended local drive paths for media, caches and draft roots', () => {
+    expect(classifyString(String.raw`\\?\C:\Media\Съёмка.mp4`)).toMatchObject({
+      cls: 'absolute',
+      normalized: 'C:/Media/Съёмка.mp4'
+    })
+    expect(classifyString('//?/C:/CapCut/User Data/Cache/effect/1/a')).toMatchObject({
+      cls: 'effect-cache',
+      cacheSuffix: 'effect/1/a'
+    })
+    expect(
+      classifyString('//?/D:/Project/Resources/a.mp4', { draftFolderJson: 'D:/Project' })
+    ).toMatchObject({
+      cls: 'draft-internal',
+      draftRelative: 'Resources/a.mp4'
+    })
+    expect(
+      classifyString('D:/Project/Resources/a.mp4', { draftFolderJson: '//?/D:/Project' }).cls
+    ).toBe('draft-internal')
+    const rewrite = makeRewriter([
+      { kind: 'exact', from: 'C:/Media/Съёмка.mp4', to: './media.mp4' }
+    ])
+    expect(rewrite('//?/C:/Media/Съёмка.mp4')).toBe('./media.mp4')
+    expect(normalizeResourcePath('//?/C:/')).toBe('C:/')
   })
 
   it('detects draft-internal absolute paths case-insensitively', () => {

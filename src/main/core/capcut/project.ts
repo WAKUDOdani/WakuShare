@@ -4,7 +4,12 @@ import { join } from 'node:path'
 import { CapShareError } from '../errors'
 import { walkFiles } from '../fsx'
 import { TIMELINE_FILENAMES, VOLATILE_FILE_PATTERNS } from './constants'
-import { walkJsonStrings, normalizeSlashes } from './scanner'
+import {
+  walkJsonStrings,
+  normalizeSlashes,
+  normalizeResourcePath,
+  type ScannedString
+} from './scanner'
 
 export interface ProjectDocument {
   relativePath: string
@@ -16,6 +21,46 @@ export interface TimelineGraph {
   mainId: string
   projectId: string | null
   timelines: { id: string; name: string; relativePath: string }[]
+}
+
+/** A copied compound draft can retain its old project root. Resolve only its
+ * packaged UUID documents and native smart-crop caches, never external media. */
+export function createProjectReferenceResolver(
+  documents: Map<string, ProjectDocument>,
+  references: Pick<ScannedString, 'value' | 'pointer'>[]
+): (value: string, pointer: string) => string | undefined {
+  const names = new Map([...documents.keys()].map((name) => [name.toLowerCase(), name]))
+  const roots = new Set<string>()
+  const paths = new Map<string, string>()
+  const documentField = /\/materials\/drafts\/\d+\/(?:draft_file_path|draft_config_path)$/
+  const uuid = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+  const documentPath = new RegExp(
+    `^(.+)/(subdraft/${uuid}/(?:draft_content|draft_info|sub_draft_config)\\.json)$`,
+    'i'
+  )
+  const cachePath = new RegExp(`^smart_crop/${uuid}/[^<>:"|?*]+$`, 'i')
+  for (const ref of references) {
+    if (!documentField.test(ref.pointer)) continue
+    const normalized = normalizeResourcePath(ref.value)
+    if (normalized.startsWith('//') || !/^(?:[a-z]:\/|\/)/i.test(normalized)) continue
+    const match = documentPath.exec(normalized)
+    const relative = match && names.get(match[2].toLowerCase())
+    if (!match || !relative) continue
+    roots.add(match[1].toLowerCase())
+    paths.set(normalized.toLowerCase(), relative)
+  }
+  return (value, pointer) => {
+    const normalized = normalizeResourcePath(value),
+      key = normalized.toLowerCase()
+    if (documentField.test(pointer)) return paths.get(key)
+    if (!/\/materials\/smart_crops\/\d+\/cache_path$/.test(pointer)) return undefined
+    for (const root of roots) {
+      if (!key.startsWith(root + '/')) continue
+      const relative = normalized.slice(root.length + 1)
+      if (cachePath.test(relative)) return relative
+    }
+    return undefined
+  }
 }
 
 function object(value: unknown): Record<string, unknown> {

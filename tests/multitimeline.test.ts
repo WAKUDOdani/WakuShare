@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   cloneTimelineGraph,
+  createProjectReferenceResolver,
   readProjectDocuments,
   validateTimelineGraph,
   writeProjectDocuments
@@ -56,6 +57,29 @@ beforeEach(() => {
 afterEach(() => rmSync(folder, { recursive: true, force: true }))
 
 describe('modern timeline graph', () => {
+  it('resolves only packaged UUID compound documents and their native cache fields', async () => {
+    const id = ids[0],
+      relative = `subdraft/${id}/draft_content.json`
+    write(relative, { id, tracks: [] })
+    const documents = await readProjectDocuments(folder)
+    const pointer = '/materials/drafts/0/draft_file_path'
+    const path = `C:/old/Project/${relative}`
+    const resolve = createProjectReferenceResolver(documents, [{ value: path, pointer }])
+    expect(resolve(path, pointer)).toBe(relative)
+    expect(resolve(path, '/materials/videos/0/path')).toBeUndefined()
+    expect(resolve('C:/old/Project/private.json', pointer)).toBeUndefined()
+    expect(resolve(`C:/old/Project/subdraft/${id}/sub_draft_config.json`, pointer)).toBeUndefined()
+    expect(
+      resolve(`C:/old/Project/smart_crop/${id}/1/1_0`, '/materials/smart_crops/0/cache_path')
+    ).toBe(`smart_crop/${id}/1/1_0`)
+    expect(
+      resolve(`C:/other/Project/smart_crop/${id}/1/1_0`, '/materials/smart_crops/0/cache_path')
+    ).toBeUndefined()
+    const network = `//server/share/${relative}`
+    const networkResolver = createProjectReferenceResolver(documents, [{ value: network, pointer }])
+    expect(networkResolver(network, pointer)).toBeUndefined()
+  })
+
   it('clones all identities, directories, layout and embedded references without changing the edit', async () => {
     const documents = await readProjectDocuments(folder)
     const before = structuredClone([...documents].map(([key, d]) => [key, d.value]))
