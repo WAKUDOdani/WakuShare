@@ -134,6 +134,76 @@ async function exportCase(): Promise<string> {
 }
 
 describe('complete portable multi-timeline project', () => {
+  it('excludes unreachable UUID compounds and proxy history without hiding active missing media', async () => {
+    const orphan = 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE'
+    write(join(source, `subdraft/${orphan}/draft_content.json`), {
+      id: orphan,
+      materials: { audios: [{ id: 'old', path: 'X:/unavailable/old.wav' }] },
+      tracks: []
+    })
+    write(join(source, `subdraft/${orphan}/sub_draft_config.json`), { id: orphan })
+    const metaPath = join(source, 'draft_meta_info.json')
+    const originalMeta = JSON.parse(readFileSync(metaPath, 'utf8'))
+    originalMeta.draft_materials = [
+      {
+        type: 0,
+        value: [
+          { id: 'used', file_Path: external[1].replaceAll('\\', '/') },
+          { id: 'compound', file_Path: `./subdraft/${orphan}/sub_draft_config.json` },
+          { id: 'unused', file_Path: 'X:/unavailable/library-only.mp4' },
+          { id: 'local', file_Path: './Resources/local/original.png' }
+        ]
+      }
+    ]
+    write(metaPath, originalMeta)
+    write(join(source, 'draft_agency_config.json'), {
+      marterials: [{ source_path: 'X:/unavailable/proxy-original.mp4' }]
+    })
+    write(join(source, 'draft_agency_info.json'), {
+      material: [{ source_path: 'X:/unavailable/old.mp4' }]
+    })
+    const archive = await exportCase()
+    const metadata = await readZipEntries(archive, ['manifest.json', 'draft/draft_meta_info.json'])
+    const manifest = JSON.parse(metadata.get('manifest.json')!.toString())
+    expect(manifest.missingAtExport).toEqual([])
+    expect(manifest.warnings).toEqual([])
+    expect(
+      Object.keys(manifest.integrity).some((name) => name.startsWith(`subdraft/${orphan}/`))
+    ).toBe(false)
+    expect(manifest.integrity['draft_agency_config.json']).toBeUndefined()
+    expect(manifest.integrity['subdraft/independent/draft_content.json']).toBeDefined()
+    expect(manifest.integrity[`Timelines/${ids[3]}/draft_content.json`]).toBeDefined()
+    const packagedMeta = JSON.parse(metadata.get('draft/draft_meta_info.json')!.toString())
+    expect(packagedMeta.draft_materials[0].value.map((item: { id: string }) => item.id)).toEqual([
+      'used',
+      'local'
+    ])
+    expect(JSON.parse(readFileSync(metaPath, 'utf8'))).toEqual(originalMeta)
+    const imported = await importCapshare({
+      filePath: archive,
+      env,
+      resolution: 'copy',
+      backupDir: join(root, 'backups')
+    })
+    expect(imported.warnings).toEqual([])
+    expect(
+      validateTimelineGraph(await readProjectDocuments(imported.folderPath))!.timelines
+    ).toHaveLength(4)
+    rmSync(external[1])
+    const missingArchive = join(root, 'missing-active.wakushare')
+    const exported = await exportDraft({
+      draftFolder: source,
+      env,
+      destinationPath: missingArchive,
+      includeCaches: true,
+      capshareVersion: 'test'
+    })
+    const missing = await readZipEntries(missingArchive, ['manifest.json'])
+    const result = JSON.parse(missing.get('manifest.json')!.toString())
+    expect(result.missingAtExport).toContain(external[1].replaceAll('\\', '/'))
+    expect(exported.warnings.length).toBeGreaterThan(0)
+  })
+
   it('keeps four named edits, mirrors and subdrafts; all media works after originals are removed', async () => {
     const archive = await exportCase()
     const manifest = parseManifest(

@@ -92,6 +92,17 @@ describe('Mac → Windows roundtrip', () => {
       )
       writeFileSync(join(compoundFolder, 'sub_draft_config.json'), '{}')
       const crop = `smart_crop/${cropId}/1/1_0`
+      const combined = `Resources/combination/${compoundId}_audio.aac`
+      mkdirSync(join(draft.folder, 'Resources/combination'), { recursive: true })
+      writeFileSync(join(draft.folder, combined), 'compound audio')
+      writeFileSync(
+        join(compoundFolder, 'draft_content.json'),
+        JSON.stringify({
+          id: compoundId,
+          materials: { audios: [{ id: 'compound-audio', path: '../../' + combined }] },
+          tracks: []
+        })
+      )
       mkdirSync(join(draft.folder, `smart_crop/${cropId}/1`), { recursive: true })
       writeFileSync(join(draft.folder, crop), 'native crop cache')
       timeline['compound'] = {
@@ -130,6 +141,11 @@ describe('Mac → Windows roundtrip', () => {
         backupDir: join(tmp, 'backups')
       })
       const result = readJson(join(imported.folderPath, 'draft_content.json'))
+      const compound = readJson(
+        join(imported.folderPath, `subdraft/${compoundId}/draft_content.json`)
+      )
+      expect(JSON.stringify(compound)).toContain(`${DRAFT_PATH_PLACEHOLDER}/${combined}`)
+      expect(readFileSync(join(imported.folderPath, combined), 'utf8')).toBe('compound audio')
       expect(JSON.stringify(result)).not.toContain('//?/')
       expect(JSON.stringify(result)).not.toContain('C:/retired/OldProject')
       expect(JSON.stringify(result)).toContain(

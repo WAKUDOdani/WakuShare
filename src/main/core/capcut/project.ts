@@ -8,6 +8,7 @@ import {
   walkJsonStrings,
   normalizeSlashes,
   normalizeResourcePath,
+  classifyString,
   type ScannedString
 } from './scanner'
 
@@ -23,15 +24,66 @@ export interface TimelineGraph {
   timelines: { id: string; name: string; relativePath: string }[]
 }
 
+/** Keep every named timeline and recursively linked UUID compound. Old UUID
+ * subdrafts left by previous edits and machine-local proxy history are not inputs. */
+export function portableProjectDocuments(all: Map<string, ProjectDocument>): {
+  documents: Map<string, ProjectDocument>
+  excludes: (relative: string) => boolean
+} {
+  const proxy = new Set(['draft_agency_config.json', 'draft_agency_info.json'])
+  const compound = /^subdraft\/([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12})(?:\/|$)/i
+  const reachable = new Set<string>()
+  const documents = new Map<string, ProjectDocument>()
+  const queue: ProjectDocument[] = []
+  const add = (name: string, doc: ProjectDocument): void => {
+    if (documents.has(name)) return
+    documents.set(name, doc)
+    queue.push(doc)
+  }
+  // An authoritative modern graph is required before discarding old compounds.
+  const modern = validateTimelineGraph(all) !== null
+  for (const [name, doc] of all) {
+    if (!proxy.has(name) && (!modern || !compound.test(name))) add(name, doc)
+  }
+  for (let index = 0; index < queue.length; index++) {
+    walkJsonStrings(queue[index].value, (value, pointer) => {
+      if (!/\/materials\/drafts\/\d+\/(?:draft_file_path|draft_config_path)$/.test(pointer))
+        return undefined
+      const ref = classifyString(value)
+      if (ref.cls === 'url' || ref.cls === 'unc') return undefined
+      const match =
+        /(?:^|\/)(subdraft\/[a-f\d-]+)\/(?:draft_content|draft_info|sub_draft_config)\.json$/i.exec(
+          ref.normalized
+        )
+      if (!match || !compound.test(match[1])) return undefined
+      const prefix = match[1].toLowerCase()
+      if (reachable.has(prefix)) return undefined
+      reachable.add(prefix)
+      for (const [name, doc] of all) if (name.toLowerCase().startsWith(prefix + '/')) add(name, doc)
+      return undefined
+    })
+  }
+  return {
+    documents,
+    excludes: (relative) => {
+      if (proxy.has(relative)) return true
+      const match = compound.exec(relative)
+      return modern && match !== null && !reachable.has(`subdraft/${match[1]}`.toLowerCase())
+    }
+  }
+}
+
 /** A copied compound draft can retain its old project root. Resolve only its
  * packaged UUID documents and native smart-crop caches, never external media. */
 export function createProjectReferenceResolver(
   documents: Map<string, ProjectDocument>,
-  references: Pick<ScannedString, 'value' | 'pointer'>[]
+  references: Pick<ScannedString, 'value' | 'pointer'>[],
+  resources: ReadonlySet<string> = new Set()
 ): (value: string, pointer: string) => string | undefined {
   const names = new Map([...documents.keys()].map((name) => [name.toLowerCase(), name]))
   const roots = new Set<string>()
   const paths = new Map<string, string>()
+  const packedNames = new Map([...resources].map((name) => [name.toLowerCase(), name]))
   const documentField = /\/materials\/drafts\/\d+\/(?:draft_file_path|draft_config_path)$/
   const uuid = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
   const documentPath = new RegExp(
@@ -39,6 +91,11 @@ export function createProjectReferenceResolver(
     'i'
   )
   const cachePath = new RegExp(`^smart_crop/${uuid}/[^<>:"|?*]+$`, 'i')
+  const coverPath = new RegExp(`^subdraft/${uuid}/draft_cover\\.(?:jpg|jpeg|png)$`, 'i')
+  const combinedMedia = new RegExp(
+    `^Resources/combination/${uuid}_(?:audio|video)\\.(?:aac|mp4|mov)$`,
+    'i'
+  )
   for (const ref of references) {
     if (!documentField.test(ref.pointer)) continue
     const normalized = normalizeResourcePath(ref.value)
@@ -53,11 +110,20 @@ export function createProjectReferenceResolver(
     const normalized = normalizeResourcePath(value),
       key = normalized.toLowerCase()
     if (documentField.test(pointer)) return paths.get(key)
-    if (!/\/materials\/smart_crops\/\d+\/cache_path$/.test(pointer)) return undefined
     for (const root of roots) {
       if (!key.startsWith(root + '/')) continue
       const relative = normalized.slice(root.length + 1)
-      if (cachePath.test(relative)) return relative
+      const packaged = packedNames.get(relative.toLowerCase())
+      if (/\/materials\/smart_crops\/\d+\/cache_path$/.test(pointer) && cachePath.test(relative))
+        return relative
+      if (/\/(?:draft_cover_path|cover_path)$/.test(pointer) && coverPath.test(relative))
+        return packaged ?? ''
+      if (
+        /\/materials\/(?:audios|videos)\/\d+\/path$/.test(pointer) &&
+        combinedMedia.test(relative) &&
+        packaged
+      )
+        return packaged
     }
     return undefined
   }

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   cloneTimelineGraph,
   createProjectReferenceResolver,
+  portableProjectDocuments,
   readProjectDocuments,
   validateTimelineGraph,
   writeProjectDocuments
@@ -57,6 +58,45 @@ beforeEach(() => {
 afterEach(() => rmSync(folder, { recursive: true, force: true }))
 
 describe('modern timeline graph', () => {
+  it('keeps compounds linked from another timeline with relative, embedded and cyclic links', async () => {
+    const first = ids[0],
+      second = ids[1],
+      orphan = ids[2]
+    const timelinePath = `Timelines/${ids[3]}/draft_content.json`
+    const timeline = JSON.parse(readFileSync(join(folder, timelinePath), 'utf8'))
+    timeline.materials.drafts = [{ draft_file_path: `./subdraft/${first}/draft_content.json` }]
+    write(timelinePath, timeline)
+    write(`subdraft/${first}/draft_content.json`, {
+      materials: {
+        drafts: [
+          {
+            encoded: JSON.stringify({
+              materials: {
+                drafts: [
+                  {
+                    draft_file_path: `../../subdraft/${second}/draft_content.json`
+                  }
+                ]
+              }
+            })
+          }
+        ]
+      }
+    })
+    write(`subdraft/${second}/draft_content.json`, {
+      materials: { drafts: [{ draft_file_path: `./subdraft/${first}/draft_content.json` }] }
+    })
+    write(`subdraft/${orphan}/draft_content.json`, { tracks: [] })
+    const documents = await readProjectDocuments(folder)
+    const portable = portableProjectDocuments(documents)
+    expect(portable.documents.has(`subdraft/${first}/draft_content.json`)).toBe(true)
+    expect(portable.documents.has(`subdraft/${second}/draft_content.json`)).toBe(true)
+    expect(portable.documents.has(`subdraft/${orphan}/draft_content.json`)).toBe(false)
+    expect(portable.excludes(`subdraft/${first}/draft_cover.jpg`)).toBe(false)
+    expect(portable.excludes(`subdraft/${orphan}/draft_cover.jpg`)).toBe(true)
+    expect(portable.documents.get(timelinePath)).toBe(documents.get(timelinePath))
+  })
+
   it('resolves only packaged UUID compound documents and their native cache fields', async () => {
     const id = ids[0],
       relative = `subdraft/${id}/draft_content.json`
@@ -64,9 +104,18 @@ describe('modern timeline graph', () => {
     const documents = await readProjectDocuments(folder)
     const pointer = '/materials/drafts/0/draft_file_path'
     const path = `C:/old/Project/${relative}`
-    const resolve = createProjectReferenceResolver(documents, [{ value: path, pointer }])
+    const media = `Resources/combination/${id}_audio.aac`
+    const cover = `subdraft/${id}/draft_cover.jpg`
+    const resolve = createProjectReferenceResolver(
+      documents,
+      [{ value: path, pointer }],
+      new Set([media, cover])
+    )
     expect(resolve(path, pointer)).toBe(relative)
     expect(resolve(path, '/materials/videos/0/path')).toBeUndefined()
+    expect(resolve(`C:/old/Project/${media.toLowerCase()}`, '/materials/audios/0/path')).toBe(media)
+    expect(resolve(`C:/old/Project/${cover}`, '/materials/drafts/0/draft_cover_path')).toBe(cover)
+    expect(resolve(`C:/old/Project/subdraft/${ids[1]}/draft_cover.jpg`, '/cover_path')).toBe('')
     expect(resolve('C:/old/Project/private.json', pointer)).toBeUndefined()
     expect(resolve(`C:/old/Project/subdraft/${id}/sub_draft_config.json`, pointer)).toBeUndefined()
     expect(

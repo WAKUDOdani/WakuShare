@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { resolve, sep } from 'node:path'
+import { posix, resolve, sep } from 'node:path'
 import { DRAFT_PATH_PLACEHOLDER } from '../capcut/constants'
 import { walkJsonStrings, normalizeSlashes, normalizeResourcePath } from '../capcut/scanner'
 import type { ProjectDocument } from '../capcut/project'
@@ -8,6 +8,21 @@ import { CapShareError } from '../errors'
 import type { CapShareManifest } from './manifest'
 
 export const SOURCES_FOLDER = 'Resources/local/Исходники'
+
+/** Compound documents can use ../../Resources relative to their own directory.
+ * Resolve only to a declared project file, never outside the package. */
+export function documentResourcePath(
+  value: string,
+  document: string,
+  declared: ReadonlySet<string>
+): string | undefined {
+  const normalized = normalizeSlashes(value)
+  if (!/^\.{1,2}\//.test(normalized)) return undefined
+  const relative = posix.normalize(posix.join(posix.dirname(document), normalized))
+  if (relative === '..' || relative.startsWith('../') || posix.isAbsolute(relative))
+    return undefined
+  return declared.has(relative) ? relative : undefined
+}
 
 function mediaName(name: string): string {
   // Preserve extensions and Unicode. Hash folders, not content, disambiguate names.

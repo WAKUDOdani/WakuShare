@@ -51,7 +51,12 @@ import {
   parseManifest,
   type CapShareManifest
 } from './manifest'
-import { createMediaPlan, relocatedInternalPath, verifyLocalMedia } from './media-plan'
+import {
+  createMediaPlan,
+  documentResourcePath,
+  relocatedInternalPath,
+  verifyLocalMedia
+} from './media-plan'
 
 export interface CollisionInfo {
   existingName: string
@@ -404,21 +409,24 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
         : null
 
     const looseByOriginal = new Map<string, string>()
+    const declaredFiles = new Set(Object.keys(manifest.integrity))
     const internalReference = createProjectReferenceResolver(
       documents,
-      [...documents.values()].flatMap((doc) => collectPaths(doc.value))
+      [...documents.values()].flatMap((doc) => collectPaths(doc.value)),
+      declaredFiles
     )
     for (const { newRel, originalPath } of looseTargets.values()) {
       looseByOriginal.set(normalizeResourcePath(originalPath).toLowerCase(), newRel)
     }
 
     const rewriteValue =
-      (style: 'placeholder' | 'relative') =>
+      (style: 'placeholder' | 'relative', document: string) =>
       (value: string, pointer: string): string | undefined => {
         if (pointer.includes('draft_materials_copied_info')) return undefined
         assertResourceScheme(value, pointer)
         const packaged = internalReference(value, pointer)
-        if (packaged) {
+        if (packaged !== undefined) {
+          if (!packaged) return ''
           assertRelativeResource(packaged)
           return style === 'placeholder' ? `${DRAFT_PATH_PLACEHOLDER}/${packaged}` : `./${packaged}`
         }
@@ -454,15 +462,25 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
           !/\/(?:draft_fold_path|draft_root_path)$/.test(pointer)
         )
           throw new CapShareError('ARCHIVE_INVALID', 'Unresolved external resource in package')
-        if (result.cls === 'relative' && isResourceField(pointer) && /[/\\]/.test(value))
+        if (result.cls === 'relative' && isResourceField(pointer) && /[/\\]/.test(value)) {
+          const declared = documentResourcePath(value, document, declaredFiles)
+          if (declared) {
+            const target = internalTargets.get(declared) ?? declared
+            assertRelativeResource(target)
+            return style === 'placeholder' ? `${DRAFT_PATH_PLACEHOLDER}/${target}` : `./${target}`
+          }
           assertRelativeResource(value)
+        }
         return undefined
       }
 
     for (const doc of documents.values()) {
       walkJsonStrings(
         doc.value,
-        rewriteValue(doc.relativePath === DRAFT_META_FILENAME ? 'relative' : 'placeholder')
+        rewriteValue(
+          doc.relativePath === DRAFT_META_FILENAME ? 'relative' : 'placeholder',
+          doc.relativePath
+        )
       )
     }
 

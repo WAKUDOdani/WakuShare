@@ -8,6 +8,7 @@ import yazl from 'yazl'
 import { extractZip, readZipEntries, ZipWriter } from '../src/main/core/zip'
 import { validateArchivePath } from '../src/main/core/archive-safety'
 import { walkJsonStrings } from '../src/main/core/capcut/scanner'
+import { documentResourcePath } from '../src/main/core/capshare/media-plan'
 import {
   assertExportResource,
   assertRelativeResource,
@@ -15,6 +16,38 @@ import {
 } from '../src/main/core/reference-policy'
 
 let root: string
+
+it('resolves document-relative resources only inside declared package files', () => {
+  const declared = new Set(['Resources/combination/audio.aac'])
+  expect(
+    documentResourcePath(
+      '../../Resources/combination/audio.aac',
+      'subdraft/uuid/draft_content.json',
+      declared
+    )
+  ).toBe('Resources/combination/audio.aac')
+  expect(
+    documentResourcePath(
+      '../../../Resources/combination/audio.aac',
+      'subdraft/uuid/draft_content.json',
+      declared
+    )
+  ).toBeUndefined()
+  expect(
+    documentResourcePath(
+      '../../Resources/combination/secret.aac',
+      'subdraft/uuid/draft_content.json',
+      declared
+    )
+  ).toBeUndefined()
+  expect(
+    documentResourcePath('../Resources/combination/audio.aac', 'draft_content.json', declared)
+  ).toBeUndefined()
+  expect(
+    documentResourcePath('//server/share/audio.aac', 'subdraft/uuid/draft_content.json', declared)
+  ).toBeUndefined()
+})
+
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'wakushare-security-'))
 })

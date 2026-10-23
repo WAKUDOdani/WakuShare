@@ -10,6 +10,7 @@ import { basename, join, resolve, sep } from 'node:path'
 import type { ExportResult } from '../../../shared/types'
 import {
   DRAFT_META_FILENAME,
+  DRAFT_PATH_PLACEHOLDER,
   JUNK_FILE_NAMES,
   REGENERABLE_DIRS,
   TIMELINE_FILENAMES,
@@ -18,12 +19,19 @@ import {
 import { asString, findTimelinePath, getPlatformBlock, summarizeTimeline } from '../capcut/draft'
 import {
   createProjectReferenceResolver,
+  portableProjectDocuments,
   readProjectDocuments,
   validateTimelineGraph
 } from '../capcut/project'
 import { toJsonPath } from '../capcut/locator'
 import type { CapCutEnv } from '../capcut/model'
-import { collectPaths, normalizeResourcePath, normalizeSlashes } from '../capcut/scanner'
+import {
+  collectPaths,
+  normalizeResourcePath,
+  normalizeSlashes,
+  classifyString,
+  walkJsonStrings
+} from '../capcut/scanner'
 import { CapShareError } from '../errors'
 import { sanitizeFolderName, walkFiles } from '../fsx'
 import { ZipWriter } from '../zip'
@@ -95,7 +103,9 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
     throw new CapShareError('DRAFT_NOT_FOUND', `No CapCut timeline found in ${draftFolder}`)
   }
 
-  const documents = await readProjectDocuments(draftFolder)
+  const originalDocuments = await readProjectDocuments(draftFolder)
+  const portable = portableProjectDocuments(originalDocuments)
+  const documents = portable.documents
   const graph = validateTimelineGraph(documents)
   const timelineRaw =
     documents.get(paths.timelineFilename)?.raw ?? (await readFile(paths.timelinePath))
@@ -129,13 +139,64 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
   )
 
   const effectPlans = new Map<string, EffectPlan>()
-  const internalReference = createProjectReferenceResolver(documents, scanned)
+  const resourceNames = new Set<string>()
+  for await (const file of walkFiles(draftFolder))
+    if (!portable.excludes(file.relPath)) resourceNames.add(file.relPath)
+  const internalReference = createProjectReferenceResolver(documents, scanned, resourceNames)
+  const resourceKey = (value: string): string => {
+    const item = classifyString(value, { draftFolderJson })
+    if (item.cls === 'draft-internal') return `internal:${item.draftRelative!.toLowerCase()}`
+    if (item.cls === 'placeholder')
+      return `internal:${item.normalized.slice(DRAFT_PATH_PLACEHOLDER.length).replace(/^\//, '').toLowerCase()}`
+    if (item.cls === 'relative' && item.normalized.startsWith('./'))
+      return `internal:${item.normalized.slice(2).toLowerCase()}`
+    return item.normalized.toLowerCase()
+  }
+  const usedResources = new Set<string>()
+  for (const item of scanned) {
+    if (item.document === DRAFT_META_FILENAME && item.pointer.startsWith('/draft_materials/'))
+      continue
+    usedResources.add(resourceKey(item.value))
+    const relative = internalReference(item.value, item.pointer)
+    if (relative) usedResources.add(`internal:${relative.toLowerCase()}`)
+  }
+  const snapshots = new Map<string, Buffer>()
+  for (const doc of documents.values()) {
+    const value = structuredClone(doc.value)
+    let trimmed = false
+    const meta = value as Record<string, unknown>
+    if (doc.relativePath === DRAFT_META_FILENAME && Array.isArray(meta['draft_materials'])) {
+      meta['draft_materials'] = meta['draft_materials'].map((group) => {
+        if (!group || typeof group !== 'object' || !Array.isArray(group.value)) return group
+        const entries = group.value.filter(
+          (entry) =>
+            typeof entry?.file_Path !== 'string' ||
+            !entry.file_Path ||
+            usedResources.has(resourceKey(entry.file_Path))
+        )
+        if (entries.length !== group.value.length) trimmed = true
+        return { ...group, value: entries }
+      })
+    }
+    const changed = walkJsonStrings(value, (value, pointer) => {
+      const relative = internalReference(value, pointer)
+      if (relative === undefined) return undefined
+      if (!relative) return '' // A missing generated compound cover is optional.
+      assertRelativeResource(relative)
+      return `${DRAFT_PATH_PLACEHOLDER}/${relative}`
+    })
+    if (changed || trimmed) snapshots.set(doc.relativePath, Buffer.from(JSON.stringify(value)))
+  }
   const effectRootsSeen = new Set<string>()
   const loosePlans = new Map<string, LoosePlan>()
   const missingSeen = new Set<string>()
   let looseIndex = 0
 
   for (const item of scanned) {
+    // This is CapCut's media-library index, not the edit. Its retained entries
+    // are covered by the timeline dependencies above; old entries add no sources.
+    if (item.document === DRAFT_META_FILENAME && item.pointer.startsWith('/draft_materials/'))
+      continue
     // Provenance-only fields: where media was imported FROM originally. The
     // copies already live in Resources/local — bundling these would duplicate
     // gigabytes and rewrite fields CapCut treats as informational.
@@ -146,8 +207,8 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
       continue
 
     const packaged = internalReference(item.value, item.pointer)
-    if (packaged) {
-      assertRelativeResource(packaged)
+    if (packaged !== undefined) {
+      if (packaged) assertRelativeResource(packaged)
       continue
     }
 
@@ -224,6 +285,7 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
   const timelineNames = new Set<string>(TIMELINE_FILENAMES)
   const leanSkips = new Set<string>(REGENERABLE_DIRS)
   const skip = (relPath: string, isDir: boolean): boolean => {
+    if (portable.excludes(relPath)) return true
     if (isDir) {
       return !includeCaches && leanSkips.has(relPath)
     }
@@ -277,7 +339,7 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
       {
         kind: 'file',
         absPath: paths.timelinePath,
-        snapshot: timelineRaw,
+        snapshot: snapshots.get(paths.timelineFilename) ?? timelineRaw,
         zipPath: `${DRAFT_ENTRY_PREFIX}${paths.timelineFilename}`
       },
       signal
@@ -290,7 +352,7 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
         {
           kind: 'file',
           absPath: paths.metaPath,
-          snapshot: metaRaw,
+          snapshot: snapshots.get(DRAFT_META_FILENAME) ?? metaRaw,
           zipPath: `${DRAFT_ENTRY_PREFIX}${DRAFT_META_FILENAME}`
         },
         signal
@@ -304,7 +366,7 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
         {
           kind: 'file',
           absPath: file.absPath,
-          snapshot: documents.get(file.relPath)?.raw,
+          snapshot: snapshots.get(file.relPath) ?? documents.get(file.relPath)?.raw,
           zipPath: `${DRAFT_ENTRY_PREFIX}${file.relPath}`
         },
         signal
@@ -348,8 +410,8 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
     const documentsNow = await readProjectDocuments(draftFolder)
     const digest = (data: Buffer): string => createHash('sha256').update(data).digest('hex')
     if (
-      documentsNow.size !== documents.size ||
-      [...documents].some(
+      documentsNow.size !== originalDocuments.size ||
+      [...originalDocuments].some(
         ([key, doc]) =>
           !documentsNow.has(key) || digest(doc.raw) !== digest(documentsNow.get(key)!.raw)
       )
