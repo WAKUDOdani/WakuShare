@@ -65,4 +65,7 @@ nsis:
   deleteAppDataOnUninstall: false
 portable:
   artifactName: WakuShare-${version}-portable-${arch}.${ext}
+  # This builder uses $PLUGINSDIR/app per launch when true; a build-wide directory
+  # lets a second launch delete resources still used by the first instance.
+  unpackDirName: true
 npmRebuild: false

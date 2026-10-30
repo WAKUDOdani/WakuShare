@@ -7,6 +7,7 @@ import { verifySecurityRuntime } from './runtime-refresh.mjs'
 const require = createRequire(import.meta.url)
 const asar = require('@electron/asar')
 const yaml = require('js-yaml')
+const buildConfiguration = yaml.load(readFileSync('electron-builder.yml', 'utf8'))
 const { NtExecutable, NtExecutableResource, Resource, Data } = require('resedit')
 const folder = resolve(process.argv[2] || 'dist')
 const unpacked = join(folder, 'win-unpacked')
@@ -54,6 +55,7 @@ for (const name of files.filter(
   }
 }
 const result = {
+  portableLaunchIsolation: buildConfiguration.portable?.unpackDirName === true,
   version: pkg.version,
   hardenedRuntime: Boolean(await verifySecurityRuntime(join(unpacked, 'resources/explorer'))),
   explorerRuntimePathsReady: [

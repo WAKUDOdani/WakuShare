@@ -7,6 +7,8 @@ const { NtExecutable, NtExecutableResource, Data, Resource } = require('resedit'
 
 module.exports = async function windowsAfterPack(context) {
   if (context.electronPlatformName !== 'win32') return
+  if (context.packager.config.portable?.unpackDirName !== true)
+    throw new Error('Portable must extract into a private directory for each launch')
   const appInfo = context.packager.appInfo
   const executableName =
     context.packager.platformSpecificBuildOptions.executableName || appInfo.productFilename

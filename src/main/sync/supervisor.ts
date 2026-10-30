@@ -270,7 +270,7 @@ export class ExplorerSupervisor {
         })
         if (!this.worker) {
           this.status = 'WaitingForRuntime'
-          this.reason = 'EXPLORER_RUNTIME_UNAVAILABLE'
+          this.reason = 'Synchronization components are unavailable. Restart WakuShare.'
           await this.notify()
           return
         }

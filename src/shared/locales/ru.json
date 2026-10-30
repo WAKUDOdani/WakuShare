@@ -429,5 +429,6 @@
   "CapCut is not ready to restore these source paths. No files were changed.": "CapCut пока не готов восстановить эти пути. Файлы проекта не менялись.",
   "Relocated source changed during verification.": "Перенесённый исходник изменился во время проверки.",
   "CapCut has not confirmed the restored source paths yet.": "CapCut ещё не подтвердил восстановление путей.",
-  "Waiting for CapCut to save the restored paths.": "Ожидаем сохранения восстановленных путей в CapCut."
+  "Waiting for CapCut to save the restored paths.": "Ожидаем сохранения восстановленных путей в CapCut.",
+  "Synchronization components are unavailable. Restart WakuShare.": "Компоненты синхронизации недоступны. Перезапусти WakuShare."
 }

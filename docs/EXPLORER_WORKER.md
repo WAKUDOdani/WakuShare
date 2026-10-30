@@ -33,6 +33,13 @@ the private PATH and DOTNET_ROOT. Native staging uses userData/explorer/native-m
 A product DLL already loaded from an earlier app location is reused only when
 its unique name and loaded/staged file hashes agree with the sealed generation.
 
+Portable launches extract into separate NSIS plugin directories. A secondary
+launch that forwards to the existing Electron instance cleans up only its own
+extraction; it cannot delete the active instance's runtime. The Windows afterPack
+guard and package verifier require this setting. A real NSIS-template lifecycle
+control reproduces the shared-directory failure and verifies isolation with an
+inert host, without launching the application or accessing CapCut.
+
 Base build inputs are pinned by runtime-lock.json and the complete runtime-file index.
 scripts/build-windows.mjs retrieves and verifies them; runtime-security-lock.json
 and scripts/runtime-refresh.mjs then pin and verify the refreshed Python/.NET

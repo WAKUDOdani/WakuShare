@@ -284,6 +284,7 @@ it('reports a missing packaged runtime while keeping the selected roots', async 
   await owner.change(0, { type: 'enabled', enabled: true })
   const snapshot = await owner.change(1, { type: 'add', rootPath: source, scope: 'global' })
   expect(snapshot.status).toBe('WaitingForRuntime')
+  expect(snapshot.reason).toBe('Synchronization components are unavailable. Restart WakuShare.')
   expect(snapshot.configuration.sources).toHaveLength(1)
 })
 it('exposes a rejected native connection without pretending that an open project is connected', async () => {

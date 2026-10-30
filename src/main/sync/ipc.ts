@@ -107,7 +107,7 @@ const MESSAGES: Record<string, string> = {
     'Add an additional folder before applying this set to other projects.',
   EXPLORER_SOURCE_NOT_FOUND: 'This source is no longer available in the current configuration.',
   EXPLORER_DISABLED: 'Enable folder synchronization before requesting a check.',
-  EXPLORER_RUNTIME_UNAVAILABLE: 'The synchronization runtime is not included in this build yet.'
+  EXPLORER_RUNTIME_UNAVAILABLE: 'Synchronization components are unavailable. Restart WakuShare.'
 }
 export function registerExplorerIpc(
   getWindow: () => BrowserWindow | null,
