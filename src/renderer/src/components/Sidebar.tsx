@@ -1,7 +1,7 @@
 import { t, useLanguage } from '@/lib/i18n'
 import type { JSX } from 'react'
-import { useState } from 'react'
-import { motion, useReducedMotion } from 'motion/react'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { motion } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { isMacLike } from '@/lib/format'
 import { ArrowUpRight, Clapperboard, CloudDownload, FolderOpen, Send, Settings } from 'lucide-react'
@@ -47,7 +47,6 @@ function NavItem({
 
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
-  const reducedMotion = useReducedMotion()
   const interacting = !disabled && (hovered || focused)
 
   return (
@@ -70,15 +69,6 @@ function NavItem({
         active ? 'text-foreground' : 'text-muted-foreground'
       )}
     >
-      {active && (
-        <motion.span
-          layoutId="sidebar-active-pill"
-          className="sidebar-nav-item__selection"
-          transition={
-            reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 480, damping: 36 }
-          }
-        />
-      )}
       <Icon className="sidebar-nav-item__icon relative z-10" size={16} aria-hidden="true" />
       <span className="relative z-10">{t(label)}</span>
     </motion.button>
@@ -94,6 +84,21 @@ export function Sidebar({
   portable
 }: SidebarProps): JSX.Element {
   useLanguage()
+  const navRef = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    const nav = navRef.current
+    const selected = nav?.querySelector<HTMLElement>(`[data-view="${view}"]`)
+    if (!nav || !selected) return
+    const position = (): void => {
+      nav.style.setProperty('--nav-selection-y', `${selected.offsetTop}px`)
+      nav.style.setProperty('--nav-selection-height', `${selected.offsetHeight}px`)
+    }
+    position()
+    const observer = new ResizeObserver(position)
+    observer.observe(nav)
+    observer.observe(selected)
+    return () => observer.disconnect()
+  }, [view])
 
   return (
     <aside className="app-drag relative z-20 flex w-56 shrink-0 p-2">
@@ -122,7 +127,8 @@ export function Sidebar({
           </div>
         </div>
 
-        <nav className="app-no-drag flex flex-col gap-1">
+        <nav ref={navRef} className="app-no-drag relative flex flex-col gap-1">
+          <span className="sidebar-nav-item__selection" aria-hidden="true" />
           {NAV.map((item) => (
             <NavItem
               key={item.view}

@@ -201,8 +201,8 @@ export function ProjectFolders({
       <motion.div
         key={selected?.key ?? 'empty'}
         className="explorer-projects__detail"
-        initial={{ opacity: 0, y: reducedMotion ? 0 : 5 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ y: reducedMotion ? 0 : 5 }}
+        animate={{ y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
       >
         {selected ? (
@@ -292,9 +292,9 @@ export function ProjectFolders({
                 {copying && (
                   <motion.div
                     key="copy-set"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0, pointerEvents: 'none' }}
+                    initial={{ height: 0 }}
+                    animate={{ height: 'auto' }}
+                    exit={{ height: 0, pointerEvents: 'none' }}
                     transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
                     className="overflow-hidden"
                   >

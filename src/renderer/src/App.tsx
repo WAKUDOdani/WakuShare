@@ -3,7 +3,7 @@ import { Notifications } from '@/components/Notifications'
 import { WelcomeDialog } from '@/components/WelcomeDialog'
 import { t, useLanguage, setLanguage } from '@/lib/i18n'
 import { useCallback, useEffect, useState, type JSX } from 'react'
-import { AnimatePresence, MotionConfig, motion } from 'motion/react'
+import { MotionConfig, motion } from 'motion/react'
 import { I18nProvider } from 'react-aria-components'
 import type { AppSettings, ProjectsResponse } from '@shared/types'
 import { Sidebar, type View } from '@/components/Sidebar'
@@ -173,47 +173,45 @@ function App(): JSX.Element {
                 </p>
               )}
             </header>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={view}
-                className={view === 'settings' ? 'h-full pt-16' : 'h-full'}
-                initial={{ opacity: 0, y: 8, scale: 0.995, filter: 'blur(10px)' }}
-                animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, y: -6, scale: 0.995, filter: 'blur(8px)' }}
-                transition={{ type: 'spring', stiffness: 650, damping: 42, mass: 0.8 }}
-              >
-                {view === 'projects' && (
-                  <ProjectsView
-                    projects={projects}
-                    loading={loadingProjects}
-                    onRefresh={() => void refreshProjects()}
-                    onPickDraftRoot={() => void pickDraftRoot()}
-                  />
-                )}
-                {view === 'import' && (
-                  <ImportView
-                    externalFile={externalFile}
-                    onExternalFileConsumed={() => setExternalFile(null)}
-                    onImported={() => void refreshProjects()}
-                  />
-                )}
-                {view === 'settings' && (
-                  <SettingsView
-                    settings={settings}
-                    onChange={(u) => void updateSettings(u)}
-                    updates={updates}
-                  />
-                )}
-                {view === 'presets' && (
-                  <PresetsView
-                    onBusyChange={setPresetsBusy}
-                    externalFile={externalPresetFile}
-                    onExternalFileConsumed={consumePresetFile}
-                  />
-                )}
-                {view === 'explorer' && <ExplorerView />}
-              </motion.div>
-            </AnimatePresence>
+            <motion.div
+              key={view}
+              data-view-panel={view}
+              className={view === 'settings' ? 'h-full pt-16' : 'h-full'}
+              initial={{ y: 4 }}
+              animate={{ y: 0 }}
+              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {view === 'projects' && (
+                <ProjectsView
+                  projects={projects}
+                  loading={loadingProjects}
+                  onRefresh={() => void refreshProjects()}
+                  onPickDraftRoot={() => void pickDraftRoot()}
+                />
+              )}
+              {view === 'import' && (
+                <ImportView
+                  externalFile={externalFile}
+                  onExternalFileConsumed={() => setExternalFile(null)}
+                  onImported={() => void refreshProjects()}
+                />
+              )}
+              {view === 'settings' && (
+                <SettingsView
+                  settings={settings}
+                  onChange={(u) => void updateSettings(u)}
+                  updates={updates}
+                />
+              )}
+              {view === 'presets' && (
+                <PresetsView
+                  onBusyChange={setPresetsBusy}
+                  externalFile={externalPresetFile}
+                  onExternalFileConsumed={consumePresetFile}
+                />
+              )}
+              {view === 'explorer' && <ExplorerView />}
+            </motion.div>
           </main>
         </div>
         <WelcomeDialog settings={settings} version={updates.version} onSaved={setSettings} />

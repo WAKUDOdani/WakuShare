@@ -540,7 +540,10 @@
 
 /* Scope is a primary Explorer control, with the same readable scale as actions. */
 .explorer-scope {
-  display: inline-flex;
+  position: relative;
+  isolation: isolate;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(132px, 1fr));
   gap: 4px;
   padding: 4px;
   border-radius: 14px;
@@ -548,6 +551,7 @@
 .explorer-scope__tab {
   position: relative;
   isolation: isolate;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -575,13 +579,20 @@
 }
 .explorer-scope__selection {
   position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
+  top: 4px;
+  left: 4px;
+  width: calc((100% - 12px) / 2);
+  height: calc(100% - 8px);
+  z-index: 0;
+  border-radius: 10px;
+  pointer-events: none;
   background: var(--primary);
   box-shadow:
     0 2px 6px rgb(0 0 0 / 12%),
     inset 0 1px 0 rgb(255 255 255 / 18%);
+}
+.explorer-scope[data-scope='project'] > .explorer-scope__selection {
+  transform: translateX(calc(100% + 4px));
 }
 .explorer-scope__tab:focus-visible {
   outline: 2px solid var(--action-outline);
@@ -622,9 +633,13 @@
 .sidebar-nav-item__selection {
   position: absolute;
   z-index: 0;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--nav-selection-height, 36px);
+  transform: translateY(var(--nav-selection-y, 0px));
   border: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent);
-  border-radius: inherit;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--foreground) 4%, transparent);
   box-shadow: 0 2px 6px rgb(0 0 0 / 4%);
   pointer-events: none;
@@ -679,6 +694,12 @@
   }
 }
 @media (prefers-reduced-motion: no-preference) {
+  .sidebar-nav-item__selection,
+  .explorer-scope__selection {
+    transition:
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      height 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
   .sidebar-nav-item {
     transition:
       color 180ms ease,

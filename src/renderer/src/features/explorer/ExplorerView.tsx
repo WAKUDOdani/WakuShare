@@ -14,6 +14,7 @@ import {
   X
 } from 'lucide-react'
 import { ExplorerButton as Button } from './ExplorerButton'
+import { AnimatedHeight } from '@/components/AnimatedHeight'
 import { t, useLanguage } from '@/lib/i18n'
 import { unwrap, errorMessage } from '@/lib/ipc'
 import type { ExplorerEdit, ExplorerSnapshot, ExplorerSource } from '@shared/explorer'
@@ -50,8 +51,8 @@ function SourceCard({
     <motion.article
       className="glass-subtle min-w-0 rounded-2xl p-4"
       data-source-id={source.id}
-      initial={{ opacity: 0, y: reducedMotion ? 0 : 4 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ y: reducedMotion ? 0 : 4 }}
+      animate={{ y: 0 }}
       transition={{ duration: reducedMotion ? 0 : 0.2 }}
     >
       <div className="flex items-start gap-3">
@@ -155,9 +156,9 @@ function SourceCard({
           <motion.div
             key="rename"
             className="overflow-hidden"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0, pointerEvents: 'none' }}
+            initial={{ height: 0 }}
+            animate={{ height: 'auto' }}
+            exit={{ height: 0, pointerEvents: 'none' }}
             transition={{ duration: reducedMotion ? 0 : 0.2 }}
           >
             <form
@@ -196,9 +197,9 @@ function SourceCard({
           <motion.div
             key="disconnect"
             className="overflow-hidden"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0, pointerEvents: 'none' }}
+            initial={{ height: 0 }}
+            animate={{ height: 'auto' }}
+            exit={{ height: 0, pointerEvents: 'none' }}
             transition={{ duration: reducedMotion ? 0 : 0.2 }}
           >
             <div className="mt-3 ml-[52px] rounded-xl bg-foreground/5 p-3">
@@ -226,13 +227,17 @@ function SourceCard({
 
 export function ExplorerView(): JSX.Element {
   const language = useLanguage()
-  const reducedMotion = useReducedMotion()
   const [snapshot, setSnapshot] = useState<ExplorerSnapshot | null>(null)
   const latestSnapshot = useRef<ExplorerSnapshot | null>(null)
   const choosingFolder = useRef(false)
   const [failure, setFailure] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [tab, setTab] = useState<'global' | 'project'>('global')
+  const [projectsVisited, setProjectsVisited] = useState(false)
+  const changeTab = useCallback((scope: 'global' | 'project'): void => {
+    if (scope === 'project') setProjectsVisited(true)
+    setTab(scope)
+  }, [])
   const [selectedProjectKey, setSelectedProjectKey] = useState<string | null>(null)
   const apply = useCallback((value: ExplorerSnapshot): void => {
     if (!latestSnapshot.current || value.sequence >= latestSnapshot.current.sequence) {
@@ -427,22 +432,22 @@ export function ExplorerView(): JSX.Element {
               )}
             </div>
           )}
-          {enabled && (tab === 'global' || snapshot.importProgress?.phase !== 'ready') && (
-            <ImportProgress snapshot={snapshot} />
-          )}
+          {enabled && <ImportProgress snapshot={snapshot} />}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div
               className="glass-subtle explorer-scope"
               role="tablist"
               aria-label={t('Source scope')}
+              data-scope={tab}
             >
+              <span className="explorer-scope__selection" aria-hidden="true" />
               {(['global', 'project'] as const).map((scope) => (
                 <button
                   key={scope}
                   type="button"
                   role="tab"
                   id={'explorer-tab-' + scope}
-                  aria-controls="explorer-folder-panel"
+                  aria-controls={'explorer-' + scope + '-panel'}
                   aria-selected={tab === scope}
                   tabIndex={tab === scope ? 0 : -1}
                   onKeyDown={(event) => {
@@ -456,21 +461,14 @@ export function ExplorerView(): JSX.Element {
                           : tab === 'global'
                             ? 'project'
                             : 'global'
-                    setTab(next)
+                    changeTab(next)
                     document.getElementById('explorer-tab-' + next)?.focus()
                   }}
                   onClick={() => {
-                    setTab(scope)
+                    changeTab(scope)
                   }}
                   className="explorer-scope__tab"
                 >
-                  {tab === scope && (
-                    <motion.span
-                      className="explorer-scope__selection"
-                      layoutId={reducedMotion ? undefined : 'explorer-scope-selection'}
-                      transition={{ type: 'spring', stiffness: 450, damping: 38 }}
-                    />
-                  )}
                   <span className="relative">
                     {t(scope === 'global' ? 'Common folders' : 'By project')}
                   </span>
@@ -489,39 +487,22 @@ export function ExplorerView(): JSX.Element {
               </Button>
             )}
           </div>
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={tab}
-              id="explorer-folder-panel"
+          <AnimatedHeight>
+            <div
+              id="explorer-global-panel"
               role="tabpanel"
-              aria-labelledby={'explorer-tab-' + tab}
-              className="flex min-w-0 flex-col gap-4"
-              initial={{ opacity: 0, y: reducedMotion ? 0 : 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: reducedMotion ? 0 : -3 }}
-              transition={{ duration: reducedMotion ? 0 : 0.16, ease: [0.22, 1, 0.36, 1] }}
+              aria-labelledby="explorer-tab-global"
+              hidden={tab !== 'global'}
+              className={tab === 'global' ? 'flex min-w-0 flex-col gap-4' : 'hidden'}
             >
-              {tab === 'project' && (
-                <ProjectFolders
-                  snapshot={snapshot}
-                  selectedKey={selectedProjectKey}
-                  onSelect={selectProject}
-                  busy={busy}
-                  edit={edit}
-                  onAdd={(key) => void chooseFolder(key)}
-                  onCommon={() => {
-                    setTab('global')
-                  }}
-                />
-              )}
-              {tab === 'global' && (
+              {
                 <p className="px-1 text-xs leading-relaxed text-muted-foreground">
                   {t(
                     'Enabled common folders synchronize with every project. Add client-specific folders in By project.'
                   )}
                 </p>
-              )}
-              {tab === 'global' && sources.length ? (
+              }
+              {sources.length ? (
                 <div className="grid min-w-0 gap-3">
                   {sources.map((source) => (
                     <SourceCard
@@ -534,7 +515,7 @@ export function ExplorerView(): JSX.Element {
                     />
                   ))}
                 </div>
-              ) : tab === 'global' ? (
+              ) : (
                 <div className="glass-subtle flex flex-col items-center rounded-2xl px-6 py-10 text-center">
                   <FolderPlus size={30} className="mb-3 text-primary/70" />
                   <h3 className="text-sm font-semibold">{t('Add your first folder')}</h3>
@@ -554,9 +535,28 @@ export function ExplorerView(): JSX.Element {
                     {t('Add folder')}
                   </Button>
                 </div>
-              ) : null}
-            </motion.div>
-          </AnimatePresence>
+              )}
+            </div>
+            {projectsVisited && (
+              <div
+                id="explorer-project-panel"
+                role="tabpanel"
+                aria-labelledby="explorer-tab-project"
+                hidden={tab !== 'project'}
+                className={tab === 'project' ? 'min-w-0' : 'hidden'}
+              >
+                <ProjectFolders
+                  snapshot={snapshot}
+                  selectedKey={selectedProjectKey}
+                  onSelect={selectProject}
+                  busy={busy}
+                  edit={edit}
+                  onAdd={(key) => void chooseFolder(key)}
+                  onCommon={() => changeTab('global')}
+                />
+              </div>
+            )}
+          </AnimatedHeight>
           <footer className="flex flex-wrap justify-between gap-x-4 gap-y-2 px-1 text-xs leading-relaxed text-muted-foreground">
             {snapshot.lastCheckedAt && (
               <p className="px-1 text-xs text-muted-foreground">
