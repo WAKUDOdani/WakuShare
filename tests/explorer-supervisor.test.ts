@@ -226,6 +226,58 @@ it('places a product source folder directly in the project root', async () => {
     expect.objectContaining({ RootPath: source, ContainerFolderId: '', Name: 'source' })
   ])
 })
+it('does not rebind the live project when preparing the same folder for a closed project', async () => {
+  const a = {
+    key: 'project-v1-' + 'a'.repeat(64),
+    draftId: '11111111-1111-4111-8111-111111111111',
+    location: join(root, 'a'),
+    name: 'Client A'
+  }
+  const b = {
+    ...a,
+    key: 'project-v1-' + 'b'.repeat(64),
+    location: join(root, 'b'),
+    name: 'Client B'
+  }
+  let config = await store.registerProject(a)
+  config = await store.add(config.revision, { rootPath: source, projectKey: a.key })
+  config = await store.registerProject(b)
+  config = await store.enabled(config.revision, true)
+  await owner.initialize()
+  const project = vi.fn(async () => worker.snapshot)
+  Object.assign(worker, { project })
+  worker.emit({
+    ...worker.snapshot,
+    planningOnly: false,
+    nativeMode: 'product',
+    nativeStatus: 'Verified',
+    editorBlocked: false,
+    editor: {
+      Status: 'Project',
+      ProcessId: 123,
+      ConnectionId: '11111111-1111-4111-8111-111111111111',
+      Generation: 1,
+      Sequence: 1,
+      ViewEpoch: 1,
+      Reason: null,
+      Project: { Value: a.key, DraftId: a.draftId, Location: a.location }
+    }
+  })
+  await owner.initialize()
+  project.mockClear()
+  const snapshot = await owner.change((await store.read()).revision, {
+    type: 'projectFolder',
+    sourceId: config.sources[0].id,
+    projectKey: b.key,
+    enabled: true
+  })
+  expect(project).not.toHaveBeenCalled()
+  expect(snapshot.currentProject?.key).toBe(a.key)
+  expect(
+    snapshot.configuration.sources.filter((source) => source.projectKey === b.key)
+  ).toHaveLength(1)
+  expect(worker.roots).toEqual([source])
+})
 it('reports a missing packaged runtime while keeping the selected roots', async () => {
   await owner.close()
   owner = new ExplorerSupervisor({ store, createWorker: async () => null })

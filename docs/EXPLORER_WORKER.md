@@ -4,7 +4,8 @@
 
 Explorer synchronizes Windows media folders with the currently open CapCut
 International 9.6.0.4097 project. Global sources apply to existing and new projects;
-project sources and overrides remain scoped to a confirmed ProjectKey. Nested
+project sources remain scoped to a confirmed ProjectKey. Common sources cannot
+be excluded by a per-project override. Nested
 folders appear directly under the media-library root.
 
 Electron main owns one persistent worker and the system tray. Renderer navigation
@@ -12,13 +13,22 @@ only removes subscribers. Closing an enabled app hides it in the tray; explicit
 Quit and update installation await shutdown. Disabling Explorer releases watches.
 Filesystem and editor events trigger reconciliation; idle polling is not used.
 
+The project-folder browser reads bounded metadata and thumbnails, without parsing
+timelines or writing CapCut data. It accepts catalog keys rather than renderer-provided
+project identities or locations. Additional folders can be configured while a project
+is closed or sync is disabled. Applying a set preserves stable attachment IDs and
+changes only additional connections. The settings selection is independent of the
+open editor project; changing it does not dispatch imports. Native bindings are
+acknowledged per editor generation and effective binding payload, so configuring
+another project does not rebind an unchanged active project.
+
 The worker client launches a fixed executable without a shell, using UTF-8 JSON
 Lines, unique request IDs, strict schema/sequence validation and bounded messages
 and deadlines. The renderer receives presentation snapshots, never bootstrap
 credentials or arbitrary execution capabilities.
 
-Ordinary Windows builds use resources/explorer, including frozen WorkerV8,
-ObserveV6/CommandsV10/CatalogV6/SavedReadV2, product DLLs and interpreters. Main sets
+Ordinary Windows builds use resources/explorer, including frozen WorkerV9,
+ObserveV10/CommandsV14/SavedReadV5, product DLLs and interpreters. Main sets
 the private PATH and DOTNET_ROOT. Native staging uses userData/explorer/native-modules.
 A product DLL already loaded from an earlier app location is reused only when
 its unique name and loaded/staged file hashes agree with the sealed generation.

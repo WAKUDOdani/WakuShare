@@ -1,6 +1,7 @@
 /** IPC channel names — single source of truth for main, preload, and renderer. */
 export const IPC = {
   explorerGet: 'explorer:get',
+  explorerProjects: 'explorer:projects',
   explorerEdit: 'explorer:edit',
   explorerRescan: 'explorer:rescan',
   explorerSnapshot: 'explorer:snapshot',

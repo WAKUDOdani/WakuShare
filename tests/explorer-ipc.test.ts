@@ -20,6 +20,7 @@ import type { BrowserWindow } from 'electron'
 const sender = { mainFrame: {} }
 const supervisor = {
   snapshot: vi.fn(async () => ({ sequence: 1 })),
+  projects: vi.fn(async () => []),
   change: vi.fn(async () => ({ sequence: 2 })),
   rescan: vi.fn(async () => {}),
   subscribe: vi.fn()
@@ -38,6 +39,34 @@ it('accepts only requests from the current main window', async () => {
   expect(
     await handlers.get(IPC.explorerGet)!({ sender, senderFrame: sender.mainFrame })
   ).toMatchObject({ ok: true })
+})
+it('guards the read-only project catalog and rejects forged project identities in edits', async () => {
+  expect(await handlers.get(IPC.explorerProjects)!({ sender: {} })).toMatchObject({ ok: false })
+  expect(supervisor.projects).not.toHaveBeenCalled()
+  expect(
+    await handlers.get(IPC.explorerProjects)!({ sender, senderFrame: sender.mainFrame })
+  ).toMatchObject({ ok: true })
+  for (const edit of [
+    {
+      type: 'projectFolder',
+      sourceId: randomUUID(),
+      projectKey: 'project-v1-' + 'a'.repeat(64),
+      enabled: true,
+      location: 'C:/forged'
+    },
+    {
+      type: 'copyProjectFolders',
+      projectKey: 'project-v1-' + 'a'.repeat(64),
+      targetProjectKeys: Array(257).fill('project-v1-' + 'b'.repeat(64))
+    }
+  ])
+    expect(
+      await handlers.get(IPC.explorerEdit)!(
+        { sender, senderFrame: sender.mainFrame },
+        { expectedRevision: 0, edit }
+      )
+    ).toMatchObject({ ok: false })
+  expect(supervisor.change).not.toHaveBeenCalled()
 })
 it('rejects extra fields and project changes without an expected project key', async () => {
   for (const edit of [

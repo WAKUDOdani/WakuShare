@@ -1,5 +1,11 @@
 import { basename } from 'node:path'
-import type { ExplorerEdit, ExplorerProject, ExplorerSnapshot } from '../../shared/explorer'
+import type {
+  ExplorerConfiguration,
+  ExplorerEdit,
+  ExplorerProject,
+  ExplorerProjectChoice,
+  ExplorerSnapshot
+} from '../../shared/explorer'
 import {
   ExplorerConfigurationError,
   ExplorerConfigurationStore,
@@ -17,6 +23,7 @@ export type ExplorerWorker = Pick<
 export interface ExplorerSupervisorOptions {
   nativeMode?: 'product'
   store: ExplorerConfigurationStore
+  listProjects?: (known: ExplorerProject[]) => Promise<ExplorerProjectChoice[]>
   createWorker: (
     callbacks: Pick<WorkerLaunchOptions, 'onState' | 'onFailure'>
   ) => Promise<ExplorerWorker | null>
@@ -37,6 +44,7 @@ export class ExplorerSupervisor {
   private closed = false
   private registering = new Set<string>()
   private bindingKey = ''
+  private projectChoices = new Map<string, ExplorerProjectChoice>()
   constructor(private readonly options: ExplorerSupervisorOptions) {}
   subscribe(listener: (snapshot: ExplorerSnapshot) => void): () => void {
     this.listeners.add(listener)
@@ -76,12 +84,27 @@ export class ExplorerSupervisor {
       nativeReason: this.workerState?.nativeReason ?? null
     }
   }
+  async projects(): Promise<ExplorerProjectChoice[]> {
+    const known = (await this.options.store.read()).projects
+    const choices: ExplorerProjectChoice[] = this.options.listProjects
+      ? await this.options.listProjects(known)
+      : known
+    this.projectChoices = new Map(choices.map((project) => [project.key, project]))
+    return choices
+  }
+  private async selectedProject(key?: string): Promise<ExplorerProjectChoice> {
+    if (!key) throw new ExplorerConfigurationError('EXPLORER_NO_PROJECT')
+    const known = (await this.options.store.read()).projects.find((project) => project.key === key)
+    const project = known ?? this.projectChoices.get(key)
+    if (!project) throw new ExplorerConfigurationError('EXPLORER_NO_PROJECT')
+    return project
+  }
   change(expected: number, edit: ExplorerEdit): Promise<ExplorerSnapshot> {
     return this.enqueue(async () => {
       const store = this.options.store
       const config = await store.read()
       const project = this.currentProject(config.projects)
-      if ('sourceId' in edit) {
+      if ('sourceId' in edit && edit.type !== 'projectFolder') {
         const source = config.sources.find((source) => source.id === edit.sourceId)
         if (source?.scope === 'project' && source.projectKey !== project?.key)
           throw new ExplorerConfigurationError('EXPLORER_NO_PROJECT')
@@ -91,12 +114,14 @@ export class ExplorerSupervisor {
           await store.enabled(expected, edit.enabled)
           break
         case 'add':
-          if (edit.scope === 'project' && (!project || edit.expectedProjectKey !== project.key))
-            throw new ExplorerConfigurationError('EXPLORER_NO_PROJECT')
           await store.add(expected, {
             rootPath: edit.rootPath,
             label: edit.label,
-            projectKey: edit.scope === 'project' ? project!.key : undefined
+            projectKey: edit.scope === 'project' ? edit.expectedProjectKey : undefined,
+            project:
+              edit.scope === 'project'
+                ? await this.selectedProject(edit.expectedProjectKey)
+                : undefined
           })
           break
         case 'sourceEnabled':
@@ -112,6 +137,22 @@ export class ExplorerSupervisor {
           if (!project || edit.expectedProjectKey !== project.key)
             throw new ExplorerConfigurationError('EXPLORER_NO_PROJECT')
           await store.projectOverride(expected, edit.sourceId, project.key, edit.enabled)
+          break
+        case 'projectFolder':
+          await store.projectFolder(
+            expected,
+            await this.selectedProject(edit.projectKey),
+            edit.sourceId,
+            edit.enabled
+          )
+          break
+        case 'copyProjectFolders':
+          await this.selectedProject(edit.projectKey)
+          await store.copyProjectFolders(
+            expected,
+            edit.projectKey,
+            await Promise.all(edit.targetProjectKeys.map((key) => this.selectedProject(key)))
+          )
           break
       }
       await this.reconcile()
@@ -150,6 +191,31 @@ export class ExplorerSupervisor {
     const editor = this.workerState?.editor
     if (editor?.Status !== 'Project' || !editor.Project || this.worker?.fault) return null
     return projects.find((project) => project.key === editor.Project!.Value) ?? null
+  }
+  private bindings(
+    config: ExplorerConfiguration,
+    project: ExplorerProject
+  ): Parameters<ExplorerWorkerClient['project']>[1] {
+    return effectiveSources(config, project.key).map((source) => {
+      const attachment = config.attachments.find(
+        (value) => value.projectKey === project.key && value.sourceId === source.id
+      )!
+      return {
+        Id: attachment.id,
+        RootPath: source.rootPath,
+        MediaFolderId: attachment.destinationFolderId,
+        ContainerFolderId:
+          this.workerState?.nativeMode === 'product' ? '' : project.containerFolderId,
+        Name: basename(source.rootPath).slice(0, 80)
+      }
+    })
+  }
+  private projectBindingKey(config: ExplorerConfiguration, project: ExplorerProject): string {
+    return JSON.stringify([
+      project.key,
+      this.workerState?.editor?.Generation,
+      this.bindings(config, project)
+    ])
   }
   private async reconcile(): Promise<void> {
     if (this.closed) return
@@ -196,29 +262,14 @@ export class ExplorerSupervisor {
       if (previous !== config.revision)
         await this.worker.configure(previous, config.revision, roots)
       const project = this.currentProject(config.projects)
-      const key = `${project?.key}:${this.workerState?.editor?.Generation}:${config.revision}`
+      const key = project ? this.projectBindingKey(config, project) : ''
       if (
         project &&
         this.worker.project &&
         this.workerState?.planningOnly === false &&
         key !== this.bindingKey
       ) {
-        await this.worker.project(
-          project.key,
-          effectiveSources(config, project.key).map((source) => {
-            const attachment = config.attachments.find(
-              (value) => value.projectKey === project.key && value.sourceId === source.id
-            )!
-            return {
-              Id: attachment.id,
-              RootPath: source.rootPath,
-              MediaFolderId: attachment.destinationFolderId,
-              ContainerFolderId:
-                this.workerState?.nativeMode === 'product' ? '' : project.containerFolderId,
-              Name: basename(source.rootPath).slice(0, 80)
-            }
-          })
-        )
+        await this.worker.project(project.key, this.bindings(config, project))
         this.bindingKey = key
       }
       await this.worker.run()
@@ -255,8 +306,14 @@ export class ExplorerSupervisor {
               name: basename(project.Location)
             })
           }
-          const key = `${project.Value}:${state.editor?.Generation}:${(await this.options.store.read()).revision}`
-          if (state.planningOnly === false && key !== this.bindingKey) await this.reconcile()
+          const latest = await this.options.store.read()
+          const current = this.currentProject(latest.projects)
+          if (
+            state.planningOnly === false &&
+            current &&
+            this.projectBindingKey(latest, current) !== this.bindingKey
+          )
+            await this.reconcile()
         } finally {
           this.registering.delete(project.Value)
         }

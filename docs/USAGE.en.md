@@ -49,12 +49,14 @@ Font files are collected from explicit, accessible references. WakuShare does no
 ## Set up automatic sync
 
 1. Open **Explorer** and enable **Automatic synchronization**.
-2. Choose **All projects** for shared media folders or **This project** for the currently open CapCut project.
+2. Add shared media folders under **Common folders**. Enabled common folders apply to every project, regardless of the selected tab.
 3. Click **Add folder**, choose a Windows folder, and confirm the connection.
 4. Open the desired project in CapCut. Your folder and its subfolders appear directly at the root of the media library, without an extra WakuShare wrapper folder.
 5. Wait for **“Import complete — you can work”**. CapCut itself needs time to process large collections.
 
-After the first import, new files and changes are handled through events. There is no continuous scan every few seconds. Connections under All projects apply to both new and existing projects when you open them.
+After the first import, new files and changes are handled through events. There is no continuous scan every few seconds. Common folder connections apply to both new and existing projects when you open them.
+
+Under **By project**, select a project from the compact list and connect additional folders for that client. You can configure a project before opening it in CapCut; synchronization starts when you open it. Common folders are shown separately and cannot be disabled for individual projects. **Apply set** copies the selected additional folder set to multiple projects, replacing their previous additional selection while keeping imported media and timeline clips. Folder settings are also available with synchronization turned off. Switching tabs or selecting a project in this list does not start an import.
 
 ### Controls and status
 

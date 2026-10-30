@@ -17,6 +17,7 @@ import { t, useLanguage } from '@/lib/i18n'
 import { unwrap, errorMessage } from '@/lib/ipc'
 import type { ExplorerEdit, ExplorerSnapshot, ExplorerSource } from '@shared/explorer'
 import { ImportProgress } from './ImportProgress'
+import { ProjectFolders } from './ProjectFolders'
 
 const samePath = (a: string, b: string): boolean =>
   a.replaceAll('\\', '/').toLowerCase() === b.replaceAll('\\', '/').toLowerCase()
@@ -123,7 +124,7 @@ function SourceCard({
         <Button
           size="sm"
           variant="ghost"
-          isDisabled={busy || paused || runtimeMissing}
+          isDisabled={busy || paused || runtimeMissing || !snapshot.configuration.enabled}
           onPress={() => {
             void rescan(source.id)
           }}
@@ -235,6 +236,7 @@ export function ExplorerView(): JSX.Element {
   const [failure, setFailure] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [tab, setTab] = useState<'global' | 'project'>('global')
+  const [selectedProjectKey, setSelectedProjectKey] = useState<string | null>(null)
   const [draft, setDraft] = useState<{
     path: string
     label: string
@@ -295,7 +297,11 @@ export function ExplorerView(): JSX.Element {
       setBusy(false)
     }
   }
-  const chooseFolder = async (): Promise<void> => {
+  const selectProject = useCallback((key: string): void => {
+    setSelectedProjectKey(key)
+    setDraft(null)
+  }, [])
+  const chooseFolder = async (projectKey?: string): Promise<void> => {
     try {
       const path = unwrap(await window.capshare.pickFolder(t('Choose a source folder')))
       if (path)
@@ -308,7 +314,7 @@ export function ExplorerView(): JSX.Element {
               .at(-1)
               ?.slice(0, 80) || 'Folder',
           scope: tab,
-          projectKey: snapshot?.currentProject?.key
+          projectKey: projectKey ?? selectedProjectKey ?? snapshot?.currentProject?.key
         })
     } catch (error) {
       setFailure(errorMessage(error))
@@ -335,21 +341,17 @@ export function ExplorerView(): JSX.Element {
     )
   const enabled = snapshot.configuration.enabled
   const sources = snapshot.configuration.sources.filter(
-    (source) =>
-      !source.detached &&
-      (tab === 'global'
-        ? source.scope === 'global'
-        : source.scope === 'global' || source.projectKey === snapshot.currentProject?.key)
+    (source) => !source.detached && source.scope === 'global'
   )
   const projectChanged =
     draft?.scope === 'project' &&
-    (!snapshot.currentProject || draft.projectKey !== snapshot.currentProject.key)
+    draft.projectKey !== (selectedProjectKey ?? snapshot.currentProject?.key)
   return (
     <section
       className="h-full overflow-y-auto px-4 pt-24 pb-8"
       aria-label={t('Folder synchronization')}
     >
-      <div className="mx-auto flex max-w-4xl flex-col gap-4">
+      <div className="mx-auto flex max-w-5xl flex-col gap-4">
         <div className="glass flex items-center gap-4 rounded-2xl p-5">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <FolderSync size={24} />
@@ -393,13 +395,18 @@ export function ExplorerView(): JSX.Element {
             <p>{t(failure)}</p>
           </div>
         )}
-        {enabled ? (
-          <>
-            {window.capshare.env.platform === 'win32' && (
-              <p className="px-1 text-xs text-muted-foreground">
-                {t('When you close the window, WakuShare continues working in the system tray.')}
-              </p>
-            )}
+        <>
+          {!enabled && (
+            <p className="glass-subtle rounded-2xl px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+              {t('Synchronization is off. You can still prepare folder settings for any project.')}
+            </p>
+          )}
+          {enabled && tab === 'global' && window.capshare.env.platform === 'win32' && (
+            <p className="px-1 text-xs text-muted-foreground">
+              {t('When you close the window, WakuShare continues working in the system tray.')}
+            </p>
+          )}
+          {enabled && tab === 'global' && (
             <div className="glass-subtle rounded-2xl px-4 py-3 text-xs leading-relaxed text-muted-foreground">
               <span className="mr-2 rounded-full bg-warning/10 px-2 py-0.5 font-medium text-warning">
                 {t(
@@ -424,52 +431,56 @@ export function ExplorerView(): JSX.Element {
                         'Folder settings and change tracking are available. Automatic importing into CapCut is still being connected.'
                       )}
             </div>
-            {['Error', 'Conflict', 'WaitingForRuntime', 'SourceUnavailable'].includes(
-              snapshot.status
-            ) && (
-              <div
-                role="status"
-                className="glass-subtle flex items-start gap-2 rounded-2xl p-4 text-xs text-warning"
-              >
-                <AlertCircle size={16} className="shrink-0" />
-                {t(
-                  snapshot.reason ||
-                    (snapshot.status === 'WaitingForRuntime'
-                      ? 'Runtime not available'
-                      : snapshot.status === 'SourceUnavailable'
-                        ? 'Check source folders'
-                        : 'Synchronization needs attention')
-                )}
-              </div>
-            )}
+          )}
+          {['Error', 'Conflict', 'WaitingForRuntime', 'SourceUnavailable'].includes(
+            snapshot.status
+          ) && (
+            <div
+              role="status"
+              className="glass-subtle flex items-start gap-2 rounded-2xl p-4 text-xs text-warning"
+            >
+              <AlertCircle size={16} className="shrink-0" />
+              {t(
+                snapshot.reason ||
+                  (snapshot.status === 'WaitingForRuntime'
+                    ? 'Runtime not available'
+                    : snapshot.status === 'SourceUnavailable'
+                      ? 'Check source folders'
+                      : 'Synchronization needs attention')
+              )}
+            </div>
+          )}
+          {enabled && (tab === 'global' || snapshot.importProgress?.phase !== 'ready') && (
             <ImportProgress snapshot={snapshot} />
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div
-                className="glass-subtle explorer-scope"
-                role="tablist"
-                aria-label={t('Source scope')}
-              >
-                {(['global', 'project'] as const).map((scope) => (
-                  <button
-                    key={scope}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === scope}
-                    onClick={() => {
-                      setTab(scope)
-                      setDraft(null)
-                    }}
-                    className="explorer-scope__tab"
-                  >
-                    {t(scope === 'global' ? 'All projects' : 'This project')}
-                  </button>
-                ))}
-              </div>
+          )}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div
+              className="glass-subtle explorer-scope"
+              role="tablist"
+              aria-label={t('Source scope')}
+            >
+              {(['global', 'project'] as const).map((scope) => (
+                <button
+                  key={scope}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === scope}
+                  onClick={() => {
+                    setTab(scope)
+                    setDraft(null)
+                  }}
+                  className="explorer-scope__tab"
+                >
+                  {t(scope === 'global' ? 'Common folders' : 'By project')}
+                </button>
+              ))}
+            </div>
+            {tab === 'global' && (
               <Button
                 size="sm"
                 variant="secondary"
                 className="min-h-10 px-4"
-                isDisabled={busy || (tab === 'project' && !snapshot.currentProject)}
+                isDisabled={busy}
                 onPress={() => {
                   void chooseFolder()
                 }}
@@ -477,182 +488,138 @@ export function ExplorerView(): JSX.Element {
                 <Plus size={16} />
                 {t('Add folder')}
               </Button>
-            </div>
-            {tab === 'project' && (
-              <div className="glass-subtle min-w-0 rounded-2xl p-4">
-                <p className="truncate text-sm font-medium">
-                  {snapshot.currentProject?.name ?? t('No confirmed project')}
-                </p>
-                <p
-                  className="mt-1 truncate text-xs text-muted-foreground"
-                  title={snapshot.currentProject?.location}
-                >
-                  {snapshot.currentProject?.location ??
-                    t('Local folders become available after a CapCut project is connected.')}
-                </p>
-              </div>
-            )}
-            {draft && (
-              <form
-                className="glass rounded-2xl p-4"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  void edit({
-                    type: 'add',
-                    rootPath: draft.path,
-                    label: draft.label,
-                    scope: draft.scope,
-                    expectedProjectKey: draft.projectKey
-                  }).then((saved) => {
-                    if (saved) setDraft(null)
-                  })
-                }}
-              >
-                <h3 className="mb-3 text-sm font-semibold">{t('New source folder')}</h3>
-                <p className="mb-4 break-all text-xs text-muted-foreground select-text">
-                  {draft.path}
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <TextField
-                    value={draft.label}
-                    onChange={(value) => setDraft({ ...draft, label: value })}
-                    isDisabled={busy}
-                  >
-                    <Label>{t('Connection name')}</Label>
-                    <Input maxLength={80} />
-                  </TextField>
-                  <div className="flex flex-col justify-end gap-1">
-                    <span className="text-xs font-medium">{t('Source scope')}</span>
-                    <FormSelect
-                      label={t('Source scope')}
-                      value={draft.scope}
-                      options={[
-                        { id: 'global', label: t('All projects') },
-                        ...(snapshot.currentProject
-                          ? [{ id: 'project', label: t('This project') }]
-                          : [])
-                      ]}
-                      onChange={(value) =>
-                        setDraft({
-                          ...draft,
-                          scope: value as 'global' | 'project',
-                          projectKey: snapshot.currentProject?.key
-                        })
-                      }
-                      disabled={busy}
-                    />
-                  </div>
-                </div>
-                {projectChanged && (
-                  <p className="mt-3 text-xs text-warning">
-                    {t('The project changed. Select the source scope again.')}
-                  </p>
-                )}
-                <div className="mt-4 flex gap-2">
-                  <Button
-                    type="submit"
-                    size="sm"
-                    isDisabled={busy || !draft.label.trim() || projectChanged}
-                  >
-                    {t('Add folder')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    isDisabled={busy}
-                    onPress={() => setDraft(null)}
-                  >
-                    {t('Cancel')}
-                  </Button>
-                </div>
-              </form>
-            )}
-            {sources.length && (tab !== 'project' || snapshot.currentProject) ? (
-              <div className="grid min-w-0 gap-3">
-                {sources.map((source) => (
-                  <SourceCard
-                    key={source.id}
-                    source={source}
-                    snapshot={snapshot}
-                    localTab={tab === 'project'}
-                    busy={busy}
-                    edit={edit}
-                    rescan={rescan}
-                  />
-                ))}
-              </div>
-            ) : !draft && tab === 'global' ? (
-              <div className="glass-subtle flex flex-col items-center rounded-2xl px-6 py-10 text-center">
-                <FolderPlus size={30} className="mb-3 text-primary/70" />
-                <h3 className="text-sm font-semibold">{t('Add your first folder')}</h3>
-                <p className="mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
-                  {t(
-                    'Your folder structure is kept. Files are added to the media library, never to the timeline.'
-                  )}
-                </p>
-                <Button
-                  size="sm"
-                  className="mt-5"
-                  onPress={() => {
-                    void chooseFolder()
-                  }}
-                >
-                  <Plus size={15} />
-                  {t('Add folder')}
-                </Button>
-              </div>
-            ) : null}
-            {snapshot.lastCheckedAt && (
-              <p className="px-1 text-xs text-muted-foreground">
-                {t('Last folder check: {0}', [
-                  new Date(snapshot.lastCheckedAt).toLocaleTimeString(
-                    language === 'ru' ? 'ru-RU' : 'en-US',
-                    { hour: '2-digit', minute: '2-digit' }
-                  )
-                ])}
-              </p>
-            )}
-          </>
-        ) : (
-          <div className="glass-subtle flex flex-col items-center rounded-2xl px-6 py-10 text-center">
-            <FolderOpen size={32} className="mb-3 text-muted-foreground/60" />
-            <h3 className="text-sm font-semibold">
-              {t(
-                sources.length
-                  ? 'Your folders are ready'
-                  : 'Your media folders, always close at hand'
-              )}
-            </h3>
-            <p className="mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
-              {t(
-                sources.length
-                  ? 'Turn on synchronization to watch your connected folders. Only file changes trigger synchronization.'
-                  : 'Enable synchronization to choose folders. Saved connections will stay here when you turn it off.'
-              )}
-            </p>
-            {sources.length > 0 && (
-              <div className="mt-5 w-full max-w-lg space-y-2 text-left">
-                {sources.map((source) => (
-                  <div
-                    key={source.id}
-                    className="flex min-w-0 items-center gap-3 rounded-xl bg-foreground/5 px-4 py-3"
-                  >
-                    <FolderOpen size={17} className="shrink-0 text-primary" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium">{source.label}</p>
-                      <p
-                        className="mt-1 truncate text-[11px] text-muted-foreground"
-                        title={source.rootPath}
-                      >
-                        {source.rootPath}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
             )}
           </div>
-        )}
+          {draft && (
+            <form
+              className="glass rounded-2xl p-4"
+              onSubmit={(event) => {
+                event.preventDefault()
+                void edit({
+                  type: 'add',
+                  rootPath: draft.path,
+                  label: draft.label,
+                  scope: draft.scope,
+                  expectedProjectKey: draft.projectKey
+                }).then((saved) => {
+                  if (saved) setDraft(null)
+                })
+              }}
+            >
+              <h3 className="mb-3 text-sm font-semibold">{t('New source folder')}</h3>
+              <p className="mb-4 break-all text-xs text-muted-foreground select-text">
+                {draft.path}
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <TextField
+                  value={draft.label}
+                  onChange={(value) => setDraft({ ...draft, label: value })}
+                  isDisabled={busy}
+                >
+                  <Label>{t('Connection name')}</Label>
+                  <Input maxLength={80} />
+                </TextField>
+                <div className="flex flex-col justify-end gap-1">
+                  <span className="text-xs font-medium">{t('Source scope')}</span>
+                  <FormSelect
+                    label={t('Source scope')}
+                    value={draft.scope}
+                    options={[
+                      { id: 'global', label: t('Common folders') },
+                      ...(selectedProjectKey || snapshot.currentProject
+                        ? [{ id: 'project', label: t('Selected project') }]
+                        : [])
+                    ]}
+                    onChange={(value) =>
+                      setDraft({
+                        ...draft,
+                        scope: value as 'global' | 'project',
+                        projectKey: selectedProjectKey ?? snapshot.currentProject?.key
+                      })
+                    }
+                    disabled={busy}
+                  />
+                </div>
+              </div>
+              {projectChanged && (
+                <p className="mt-3 text-xs text-warning">
+                  {t('The project changed. Select the source scope again.')}
+                </p>
+              )}
+              <div className="mt-4 flex gap-2">
+                <Button
+                  type="submit"
+                  size="sm"
+                  isDisabled={busy || !draft.label.trim() || projectChanged}
+                >
+                  {t('Add folder')}
+                </Button>
+                <Button size="sm" variant="ghost" isDisabled={busy} onPress={() => setDraft(null)}>
+                  {t('Cancel')}
+                </Button>
+              </div>
+            </form>
+          )}
+          {tab === 'project' && (
+            <ProjectFolders
+              snapshot={snapshot}
+              selectedKey={selectedProjectKey}
+              onSelect={selectProject}
+              busy={busy}
+              edit={edit}
+              onAdd={(key) => void chooseFolder(key)}
+              onCommon={() => {
+                setTab('global')
+                setDraft(null)
+              }}
+            />
+          )}
+          {tab === 'global' && sources.length ? (
+            <div className="grid min-w-0 gap-3">
+              {sources.map((source) => (
+                <SourceCard
+                  key={source.id}
+                  source={source}
+                  snapshot={snapshot}
+                  localTab={false}
+                  busy={busy}
+                  edit={edit}
+                  rescan={rescan}
+                />
+              ))}
+            </div>
+          ) : !draft && tab === 'global' ? (
+            <div className="glass-subtle flex flex-col items-center rounded-2xl px-6 py-10 text-center">
+              <FolderPlus size={30} className="mb-3 text-primary/70" />
+              <h3 className="text-sm font-semibold">{t('Add your first folder')}</h3>
+              <p className="mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
+                {t(
+                  'Your folder structure is kept. Files are added to the media library, never to the timeline.'
+                )}
+              </p>
+              <Button
+                size="sm"
+                className="mt-5"
+                onPress={() => {
+                  void chooseFolder()
+                }}
+              >
+                <Plus size={15} />
+                {t('Add folder')}
+              </Button>
+            </div>
+          ) : null}
+          {snapshot.lastCheckedAt && (
+            <p className="px-1 text-xs text-muted-foreground">
+              {t('Last folder check: {0}', [
+                new Date(snapshot.lastCheckedAt).toLocaleTimeString(
+                  language === 'ru' ? 'ru-RU' : 'en-US',
+                  { hour: '2-digit', minute: '2-digit' }
+                )
+              ])}
+            </p>
+          )}
+        </>
       </div>
     </section>
   )

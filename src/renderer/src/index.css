@@ -1012,3 +1012,173 @@
 .dark .waku-share-gradient {
   background-image: linear-gradient(125deg, #f0a3ff 0%, #bf47f5 35%, #9129ef 67%, #8272ff 100%);
 }
+
+/* Project settings remain separate from the live editor selection. */
+.explorer-projects {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.85fr) minmax(0, 1.8fr);
+  align-items: start;
+  gap: 16px;
+  container-type: inline-size;
+}
+.explorer-projects__list {
+  min-width: 0;
+  border-radius: 18px;
+  overflow: hidden;
+}
+.explorer-projects__list-header {
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+.explorer-projects__items {
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 6px;
+}
+.explorer-project-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+.explorer-project-choice:hover {
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+.explorer-project-choice[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  border-color: color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+.explorer-project-choice:focus-visible,
+.explorer-text-action:focus-visible {
+  outline: 2px solid var(--action-outline);
+  outline-offset: 2px;
+}
+.explorer-project-choice__cover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  color: var(--muted-foreground);
+}
+.explorer-project-choice__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.explorer-open-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+}
+.explorer-projects__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.explorer-projects__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 3px 1px;
+}
+.explorer-common-folders {
+  border-radius: 16px;
+  padding: 16px;
+}
+.explorer-folder-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--foreground) 75%, transparent);
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+.explorer-text-action {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  border-radius: 5px;
+  transition: color 160ms ease;
+}
+.explorer-text-action:hover {
+  color: var(--foreground);
+}
+.explorer-project-sources {
+  border-radius: 16px;
+  min-width: 0;
+}
+.explorer-project-folder {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  transition: background 160ms ease;
+}
+.explorer-project-folder:hover {
+  background: color-mix(in srgb, var(--foreground) 4%, transparent);
+}
+.explorer-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: var(--muted-foreground);
+  background: color-mix(in srgb, var(--background) 35%, transparent);
+}
+.explorer-search input {
+  min-width: 0;
+  width: 100%;
+  font-size: 12px;
+  outline: none;
+  color: var(--foreground);
+  background: transparent;
+}
+.explorer-search:focus-within {
+  border-color: color-mix(in srgb, var(--foreground) 30%, transparent);
+}
+.explorer-search input::placeholder {
+  color: var(--muted-foreground);
+}
+.explorer-copy-set {
+  background: color-mix(in srgb, var(--foreground) 3%, transparent);
+  border: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+@media (max-width: 900px) {
+  .explorer-projects {
+    grid-template-columns: minmax(155px, 0.7fr) minmax(0, 1.5fr);
+    gap: 12px;
+  }
+  .explorer-project-choice {
+    gap: 8px;
+    padding-inline: 6px;
+  }
+  .explorer-project-choice__cover {
+    width: 32px;
+    height: 30px;
+  }
+  .explorer-projects__heading {
+    flex-wrap: wrap;
+  }
+}

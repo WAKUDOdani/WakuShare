@@ -1,5 +1,5 @@
 import { assertMainFrame } from '../ipc-security'
-import { app, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron'
+import { app, ipcMain, nativeImage, type BrowserWindow, type IpcMainInvokeEvent } from 'electron'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -12,6 +12,8 @@ import { ExplorerConfigurationError, ExplorerConfigurationStore } from './config
 import { ExplorerSourcePolicy } from './source-policy'
 import { ExplorerSupervisor } from './supervisor'
 import { createExplorerWorker, explorerProductEnabled } from './runtime'
+import { detectCapCutEnvFromProcess } from '../core/capcut/locator'
+import { listExplorerProjects } from './project-catalog'
 
 export const explorerEditSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('enabled'), enabled: z.boolean() }).strict(),
@@ -43,6 +45,25 @@ export const explorerEditSchema = z.discriminatedUnion('type', [
       enabled: z.boolean(),
       expectedProjectKey: z.string().regex(/^project-v1-[a-f0-9]{64}$/)
     })
+    .strict(),
+  z
+    .object({
+      type: z.literal('projectFolder'),
+      sourceId: z.uuid(),
+      projectKey: z.string().regex(/^project-v1-[a-f0-9]{64}$/),
+      enabled: z.boolean()
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('copyProjectFolders'),
+      projectKey: z.string().regex(/^project-v1-[a-f0-9]{64}$/),
+      targetProjectKeys: z
+        .array(z.string().regex(/^project-v1-[a-f0-9]{64}$/))
+        .min(1)
+        .max(256)
+        .refine((keys) => new Set(keys).size === keys.length)
+    })
     .strict()
 ])
 const MESSAGES: Record<string, string> = {
@@ -56,7 +77,11 @@ const MESSAGES: Record<string, string> = {
   EXPLORER_CONFIGURATION_CHANGED: 'Folder settings changed. Refresh and try again.',
   EXPLORER_CONFIGURATION_UNREADABLE:
     'Folder settings could not be read. Existing settings were preserved.',
-  EXPLORER_NO_PROJECT: 'Wait for a confirmed CapCut project before changing local sources.',
+  EXPLORER_NO_PROJECT: 'Select an available project and try again.',
+  EXPLORER_GLOBAL_ALWAYS_ON:
+    'Common folders apply to every project. Manage them in Common folders.',
+  EXPLORER_NO_PROJECT_FOLDERS:
+    'Add an additional folder before applying this set to other projects.',
   EXPLORER_SOURCE_NOT_FOUND: 'This source is no longer available in the current configuration.',
   EXPLORER_DISABLED: 'Enable folder synchronization before requesting a check.',
   EXPLORER_RUNTIME_UNAVAILABLE: 'The synchronization runtime is not included in this build yet.'
@@ -91,6 +116,7 @@ export function registerExplorerIpc(
     }
   }
   ipcMain.handle(IPC.explorerGet, (event) => result(event, () => supervisor.snapshot()))
+  ipcMain.handle(IPC.explorerProjects, (event) => result(event, () => supervisor.projects()))
   ipcMain.handle(IPC.explorerEdit, (event, raw: unknown) =>
     result(event, async () => {
       const request = z
@@ -125,6 +151,21 @@ export function createExplorerSupervisor(): ExplorerSupervisor {
   )
   return new ExplorerSupervisor({
     store,
+    listProjects: (known) =>
+      listExplorerProjects(
+        detectCapCutEnvFromProcess(getSettings().draftRootOverride)?.draftRoot ?? null,
+        known,
+        (bytes) => {
+          const image = nativeImage.createFromBuffer(bytes)
+          if (image.isEmpty()) return null
+          const { width, height } = image.getSize()
+          if (width * height > 16_000_000 || width / height > 10 || height / width > 10) return null
+          return (
+            'data:image/jpeg;base64,' +
+            image.resize({ width: 80, quality: 'good' }).toJPEG(80).toString('base64')
+          )
+        }
+      ),
     createWorker: createExplorerWorker,
     nativeMode: explorerProductEnabled() ? 'product' : undefined
   })

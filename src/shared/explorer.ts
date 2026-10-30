@@ -5,6 +5,9 @@ export interface ExplorerProject {
   name: string
   containerFolderId: string
 }
+export interface ExplorerProjectChoice extends Omit<ExplorerProject, 'containerFolderId'> {
+  coverDataUrl?: string | null
+}
 export interface ExplorerSource {
   id: string
   label: string
@@ -42,6 +45,8 @@ export type ExplorerEdit =
   | { type: 'rename'; sourceId: string; label: string }
   | { type: 'detach'; sourceId: string }
   | { type: 'projectEnabled'; sourceId: string; enabled: boolean; expectedProjectKey: string }
+  | { type: 'projectFolder'; sourceId: string; projectKey: string; enabled: boolean }
+  | { type: 'copyProjectFolders'; projectKey: string; targetProjectKeys: string[] }
 
 export interface ExplorerImportProgress {
   projectKey: string

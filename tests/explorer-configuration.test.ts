@@ -85,14 +85,83 @@ describe('Explorer durable configuration', () => {
     ).rejects.toMatchObject({ code: 'EXPLORER_SOURCE_OVERLAP' })
     expect(await readFile(file)).toEqual(before)
   })
-  it('persists a per-project pause without pausing another project', async () => {
+  it('keeps common folders universal and rejects per-project exclusions', async () => {
     const added = await store.add(0, { rootPath: sources })
     await store.registerProject(project('a', join(root, 'a')))
     const config = await store.registerProject(project('b', join(root, 'b')))
-    await store.projectOverride(config.revision, added.sources[0].id, project('a', '').key, false)
+    await expect(
+      store.projectOverride(config.revision, added.sources[0].id, project('a', '').key, false)
+    ).rejects.toMatchObject({ code: 'EXPLORER_GLOBAL_ALWAYS_ON' })
     const restored = await new ExplorerConfigurationStore(file, async (path) => path).read()
-    expect(effectiveSources(restored, project('a', '').key)).toHaveLength(0)
+    expect(effectiveSources(restored, project('a', '').key)).toHaveLength(1)
     expect(effectiveSources(restored, project('b', '').key)).toHaveLength(1)
+  })
+  it('ignores legacy common-folder exclusions after adopting universal common folders', async () => {
+    const added = await store.add(0, { rootPath: sources })
+    const config = await store.registerProject(project('a', join(root, 'a')))
+    config.overrides.push({
+      sourceId: added.sources[0].id,
+      projectKey: project('a', '').key,
+      enabled: false
+    })
+    await writeFile(file, JSON.stringify(config))
+    const restored = await new ExplorerConfigurationStore(file, async (path) => path).read()
+    expect(effectiveSources(restored, project('a', '').key)).toHaveLength(1)
+  })
+  it('prepares a closed project atomically and preserves its connection identity across toggles', async () => {
+    const a = project('a', join(root, 'a')),
+      b = project('b', join(root, 'b'))
+    let config = await store.add(0, { rootPath: sources, projectKey: a.key, project: a })
+    const original = config.sources[0]
+    config = await store.projectFolder(config.revision, b, original.id, true)
+    const local = config.sources.find((source) => source.projectKey === b.key)!
+    const attachment = config.attachments.find((value) => value.sourceId === local.id)!
+    expect(local.id).not.toBe(original.id)
+    expect(effectiveSources(config, a.key)).toHaveLength(1)
+    expect(effectiveSources(config, b.key)).toHaveLength(1)
+    config = await store.projectFolder(config.revision, b, local.id, false)
+    expect(effectiveSources(config, b.key)).toHaveLength(0)
+    expect(effectiveSources(config, a.key)).toHaveLength(1)
+    config = await store.projectFolder(config.revision, b, original.id, true)
+    expect(config.sources.find((source) => source.projectKey === b.key)?.id).toBe(local.id)
+    expect(config.attachments.find((value) => value.sourceId === local.id)).toEqual(attachment)
+  })
+  it('copies only additional folders and retains common folders plus prior destination ownership', async () => {
+    const common = join(root, 'common'),
+      client = join(root, 'client'),
+      old = join(root, 'old')
+    await Promise.all([common, client, old].map((path) => mkdir(path)))
+    const a = project('a', join(root, 'a')),
+      b = project('b', join(root, 'b'))
+    let config = await store.add(0, { rootPath: common })
+    config = await store.add(config.revision, { rootPath: client, projectKey: a.key, project: a })
+    config = await store.add(config.revision, { rootPath: old, projectKey: b.key, project: b })
+    const oldSource = config.sources.find((source) => source.rootPath === old)!
+    const oldAttachments = structuredClone(config.attachments)
+    config = await store.copyProjectFolders(config.revision, a.key, [b])
+    expect(
+      effectiveSources(config, b.key)
+        .map((source) => source.rootPath)
+        .sort()
+    ).toEqual([common, client].sort())
+    expect(config.sources.find((source) => source.id === oldSource.id)?.enabled).toBe(false)
+    for (const attachment of oldAttachments) expect(config.attachments).toContainEqual(attachment)
+    const repeated = await store.copyProjectFolders(config.revision, a.key, [b])
+    expect(repeated).toEqual(config)
+    expect(config.sources.filter((source) => source.scope === 'global')).toHaveLength(1)
+  })
+  it('never pauses a common source through project assignment', async () => {
+    const config = await store.add(0, { rootPath: sources })
+    const before = await readFile(file)
+    await expect(
+      store.projectFolder(
+        config.revision,
+        project('a', join(root, 'a')),
+        config.sources[0].id,
+        false
+      )
+    ).rejects.toMatchObject({ code: 'EXPLORER_GLOBAL_ALWAYS_ON' })
+    expect(await readFile(file)).toEqual(before)
   })
   it('retains source and destination ownership when detached and reconnected', async () => {
     await writeFile(join(sources, 'a.png'), 'original')

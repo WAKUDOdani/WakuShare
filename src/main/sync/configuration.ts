@@ -3,7 +3,12 @@ import { mkdir, readFile } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, relative, sep } from 'node:path'
 import { z } from 'zod'
 import { atomicWriteFile } from '../core/fsx'
-import type { ExplorerConfiguration, ExplorerProject, ExplorerSource } from '../../shared/explorer'
+import type {
+  ExplorerConfiguration,
+  ExplorerProject,
+  ExplorerProjectChoice,
+  ExplorerSource
+} from '../../shared/explorer'
 
 const key = z.string().regex(/^project-v1-[a-f0-9]{64}$/)
 const label = z
@@ -95,11 +100,7 @@ export function effectiveSources(
     (source) =>
       !source.detached &&
       source.enabled &&
-      (source.scope === 'global' || source.projectKey === projectKey) &&
-      !config.overrides.some(
-        (override) =>
-          override.sourceId === source.id && override.projectKey === projectKey && !override.enabled
-      )
+      (source.scope === 'global' || source.projectKey === projectKey)
   )
 }
 export function observableRoots(config: ExplorerConfiguration): string[] {
@@ -201,9 +202,19 @@ export class ExplorerConfigurationStore {
   }
   async add(
     expected: number,
-    input: { rootPath: string; label?: string; projectKey?: string }
+    input: {
+      rootPath: string
+      label?: string
+      projectKey?: string
+      project?: ExplorerProjectChoice
+    }
   ): Promise<ExplorerConfiguration> {
     return this.edit(expected, async (config) => {
+      if (input.project) {
+        if (input.project.key !== input.projectKey)
+          throw new ExplorerConfigurationError('EXPLORER_NO_PROJECT')
+        this.putProject(config, input.project)
+      }
       if (input.projectKey && !config.projects.some((project) => project.key === input.projectKey))
         throw new ExplorerConfigurationError('EXPLORER_NO_PROJECT')
       const path = await this.resolveSource(input.rootPath)
@@ -256,6 +267,7 @@ export class ExplorerConfigurationStore {
     enabled: boolean
   ): Promise<ExplorerConfiguration> {
     return this.edit(expected, (config) => {
+      if (!enabled) throw new ExplorerConfigurationError('EXPLORER_GLOBAL_ALWAYS_ON')
       if (!config.projects.some((project) => project.key === projectKey))
         throw new ExplorerConfigurationError('EXPLORER_NO_PROJECT')
       if (
@@ -268,6 +280,103 @@ export class ExplorerConfigurationStore {
         (override) => override.sourceId !== sourceId || override.projectKey !== projectKey
       )
       if (!enabled) config.overrides.push({ sourceId, projectKey, enabled })
+    })
+  }
+  private putProject(config: ExplorerConfiguration, project: ExplorerProjectChoice): void {
+    const existing = config.projects.find((candidate) => candidate.key === project.key)
+    if (existing) {
+      if (
+        existing.draftId.toUpperCase() !== project.draftId.toUpperCase() ||
+        normalized(existing.location) !== normalized(project.location)
+      )
+        throw new ExplorerConfigurationError('EXPLORER_PROJECT_CONFLICT')
+      existing.name = project.name
+    } else {
+      config.projects.push({
+        key: project.key,
+        draftId: project.draftId,
+        location: project.location,
+        name: project.name,
+        containerFolderId: randomUUID()
+      })
+    }
+  }
+  async projectFolder(
+    expected: number,
+    project: ExplorerProjectChoice,
+    sourceId: string,
+    enabled: boolean
+  ): Promise<ExplorerConfiguration> {
+    return this.edit(expected, async (config) => {
+      const origin = config.sources.find((source) => source.id === sourceId && !source.detached)
+      if (!origin) throw new ExplorerConfigurationError('EXPLORER_SOURCE_NOT_FOUND')
+      if (origin.scope === 'global') {
+        if (!enabled) throw new ExplorerConfigurationError('EXPLORER_GLOBAL_ALWAYS_ON')
+        return
+      }
+      this.putProject(config, project)
+      const owned = config.sources.find(
+        (source) =>
+          source.projectKey === project.key &&
+          normalized(source.rootPath) === normalized(origin.rootPath)
+      )
+      if (owned) {
+        owned.enabled = enabled
+        if (enabled) owned.detached = false
+      } else if (enabled) {
+        const rootPath = await this.resolveSource(origin.rootPath)
+        config.sources.push({
+          ...origin,
+          id: randomUUID(),
+          rootPath,
+          scope: 'project',
+          projectKey: project.key,
+          enabled: true,
+          detached: false
+        })
+      }
+    })
+  }
+  async copyProjectFolders(
+    expected: number,
+    sourceProjectKey: string,
+    targets: ExplorerProjectChoice[]
+  ): Promise<ExplorerConfiguration> {
+    return this.edit(expected, async (config) => {
+      const chosen = config.sources.filter(
+        (source) => source.projectKey === sourceProjectKey && source.enabled && !source.detached
+      )
+      if (!chosen.length) throw new ExplorerConfigurationError('EXPLORER_NO_PROJECT_FOLDERS')
+      const roots = new Set(chosen.map((source) => normalized(source.rootPath)))
+      const resolved = new Map<string, string>()
+      for (const target of targets) {
+        if (target.key === sourceProjectKey) continue
+        this.putProject(config, target)
+        for (const source of config.sources.filter((source) => source.projectKey === target.key)) {
+          source.enabled = roots.has(normalized(source.rootPath))
+          if (source.enabled) source.detached = false
+        }
+        for (const source of chosen) {
+          if (
+            config.sources.some(
+              (owned) =>
+                owned.projectKey === target.key &&
+                normalized(owned.rootPath) === normalized(source.rootPath)
+            )
+          )
+            continue
+          const root = normalized(source.rootPath)
+          if (!resolved.has(root)) resolved.set(root, await this.resolveSource(source.rootPath))
+          config.sources.push({
+            ...source,
+            id: randomUUID(),
+            rootPath: resolved.get(root)!,
+            projectKey: target.key,
+            enabled: true,
+            detached: false
+          })
+        }
+      }
     })
   }
   /** Called only with an OS-verified worker observation, never renderer data. */

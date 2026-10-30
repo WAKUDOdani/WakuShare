@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC } from '../shared/channels'
-import type { ExplorerEdit, ExplorerSnapshot } from '../shared/explorer'
+import type { ExplorerEdit, ExplorerProjectChoice, ExplorerSnapshot } from '../shared/explorer'
 import type {
   AppSettings,
   ExportResult,
@@ -26,6 +26,8 @@ import type {
  */
 const api = {
   explorerGet: (): Promise<IpcResult<ExplorerSnapshot>> => ipcRenderer.invoke(IPC.explorerGet),
+  explorerProjects: (): Promise<IpcResult<ExplorerProjectChoice[]>> =>
+    ipcRenderer.invoke(IPC.explorerProjects),
   explorerEdit: (
     expectedRevision: number,
     edit: ExplorerEdit
