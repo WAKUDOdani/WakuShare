@@ -903,6 +903,42 @@
 }
 
 /* Welcome uses the same glass material, with restrained brand-colored reflections. */
+.welcome-backdrop[data-entering='true'] {
+  animation-duration: 240ms;
+}
+.welcome-backdrop[data-exiting='true'] {
+  animation-duration: 180ms;
+}
+.welcome-container[data-entering='true'] {
+  animation: welcome-dialog-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.welcome-container[data-exiting='true'] {
+  animation: welcome-dialog-out 180ms ease-out both;
+}
+@keyframes welcome-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes welcome-dialog-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.welcome-dialog[data-saving='true'] :is(.button, .checkbox, .close-button) {
+  opacity: 1;
+  cursor: progress;
+}
 .welcome-dialog {
   background:
     radial-gradient(ellipse at 0% 0%, oklch(0.68 0.18 295 / 16%), transparent 58%),
@@ -949,7 +985,9 @@
   gap: 8px;
 }
 /* Clip the reflection, keeping the button's keyboard focus ring unobstructed. */
-.welcome-telegram__shine {
+.welcome-telegram__shine,
+.welcome-telegram__invite,
+.welcome-telegram__reflection {
   position: absolute;
   z-index: 0;
   inset: 0;
@@ -957,7 +995,8 @@
   border-radius: inherit;
   pointer-events: none;
 }
-.welcome-telegram__shine::before {
+.welcome-telegram__shine::before,
+.welcome-telegram__invite::before {
   content: '';
   position: absolute;
   top: -100%;
@@ -977,6 +1016,39 @@
   opacity: 0;
   transform: translateX(-180%) skewX(-22deg);
 }
+.welcome-telegram__reflection {
+  background: radial-gradient(
+    180px circle at var(--telegram-x, 50%) var(--telegram-y, 50%),
+    #ffffff3b,
+    #e7d3ff12 48%,
+    transparent 76%
+  );
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+.welcome-telegram:not(:disabled, [aria-disabled='true']):is(
+    :hover,
+    [data-hovered='true'],
+    [data-focus-visible='true']
+  )
+  .welcome-telegram__reflection {
+  opacity: 1;
+}
+@keyframes welcome-telegram-invite {
+  0% {
+    opacity: 0;
+    transform: translateX(-180%) skewX(-22deg);
+  }
+  2%,
+  8% {
+    opacity: 0.75;
+  }
+  11%,
+  100% {
+    opacity: 0;
+    transform: translateX(440%) skewX(-22deg);
+  }
+}
 @keyframes welcome-telegram-shine {
   0% {
     opacity: 0;
@@ -992,6 +1064,35 @@
   }
 }
 @media (prefers-reduced-motion: no-preference) {
+  .welcome-telegram:not(:disabled, [aria-disabled='true']):not(
+      :hover,
+      [data-hovered='true'],
+      [data-focus-visible='true']
+    )
+    .welcome-telegram__invite::before {
+    animation: welcome-telegram-invite 8s linear 3s infinite;
+  }
+  .welcome-telegram__label > svg {
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .welcome-telegram:not(:disabled, [aria-disabled='true']):is(
+      :hover,
+      [data-hovered='true'],
+      [data-focus-visible='true']
+    )
+    .welcome-telegram__label
+    > svg:first-child {
+    transform: translate(calc(var(--telegram-dx, 0) * 2px), calc(var(--telegram-dy, 0) * 2px));
+  }
+  .welcome-telegram:not(:disabled, [aria-disabled='true']):is(
+      :hover,
+      [data-hovered='true'],
+      [data-focus-visible='true']
+    )
+    .welcome-telegram__label
+    > svg:last-child {
+    transform: translate(2px, -2px);
+  }
   .welcome-telegram:not(:disabled, [aria-disabled='true']):is(
       :hover,
       [data-hovered='true'],
@@ -999,6 +1100,15 @@
     )
     .welcome-telegram__shine::before {
     animation: welcome-telegram-shine 850ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .welcome-backdrop:is([data-entering='true'], [data-exiting='true']),
+  .welcome-container:is([data-entering='true'], [data-exiting='true']) {
+    animation: none;
+  }
+  .welcome-telegram__reflection {
+    transition: none;
   }
 }
 @media (prefers-reduced-transparency: reduce) {

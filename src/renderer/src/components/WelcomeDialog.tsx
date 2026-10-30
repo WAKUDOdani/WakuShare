@@ -5,7 +5,6 @@ import type { AppSettings } from '@shared/types'
 import { BRAND } from '@shared/branding'
 import logo from '@/assets/logo.png'
 import { t, useLanguage } from '@/lib/i18n'
-import { kinematicScale } from '@/lib/dialog-anim'
 import { errorMessage, unwrap } from '@/lib/ipc'
 import { toast } from '@/lib/notifications'
 import { closeButtonClass, cn } from '@/lib/utils'
@@ -37,13 +36,12 @@ export function WelcomeDialog({ settings, version, onSaved }: WelcomeDialogProps
           ...(neverShow ? { welcomeHidden: true } : {})
         })
       )
-      onSaved(next)
       setDismissed(true)
+      onSaved(next)
     } catch (error) {
-      toast.danger(t('Could not save your choice'), { description: t(errorMessage(error)) })
-    } finally {
       savingRef.current = false
       setSaving(false)
+      toast.danger(t('Could not save your choice'), { description: t(errorMessage(error)) })
     }
   }
 
@@ -52,12 +50,13 @@ export function WelcomeDialog({ settings, version, onSaved }: WelcomeDialogProps
       isOpen={open}
       onOpenChange={(next) => !next && void dismiss()}
       variant="blur"
-      className={kinematicScale.backdrop}
+      className="welcome-backdrop"
       isDismissable={!saving}
       isKeyboardDismissDisabled={saving}
     >
-      <Modal.Container placement="center" size="lg" className={kinematicScale.container}>
+      <Modal.Container placement="center" size="lg" className="welcome-container">
         <Modal.Dialog
+          data-saving={saving ? 'true' : undefined}
           aria-label={t('Welcome to WakuShare')}
           className="app-no-drag glass-strong welcome-dialog w-full max-w-[480px] rounded-3xl p-7"
         >
@@ -99,12 +98,29 @@ export function WelcomeDialog({ settings, version, onSaved }: WelcomeDialogProps
             <Button
               className="welcome-telegram h-11 w-full rounded-2xl text-sm font-semibold text-white"
               isDisabled={saving}
+              onPointerMove={(event) => {
+                if (event.pointerType === 'touch') return
+                const button = event.currentTarget
+                const bounds = button.getBoundingClientRect()
+                const x = event.clientX - bounds.left
+                const y = event.clientY - bounds.top
+                button.style.setProperty('--telegram-x', `${x}px`)
+                button.style.setProperty('--telegram-y', `${y}px`)
+                button.style.setProperty('--telegram-dx', `${(x / bounds.width - 0.5) * 2}`)
+                button.style.setProperty('--telegram-dy', `${(y / bounds.height - 0.5) * 2}`)
+              }}
+              onPointerLeave={(event) => {
+                for (const property of ['x', 'y', 'dx', 'dy'])
+                  event.currentTarget.style.removeProperty(`--telegram-${property}`)
+              }}
               onPress={() => {
                 if (savingRef.current) return
                 window.open(BRAND.telegram, '_blank', 'noopener,noreferrer')
                 void dismiss()
               }}
             >
+              <span aria-hidden="true" className="welcome-telegram__reflection" />
+              <span aria-hidden="true" className="welcome-telegram__invite" />
               <span aria-hidden="true" className="welcome-telegram__shine" />
               <span className="welcome-telegram__label">
                 <Send className="size-4" />
@@ -116,7 +132,7 @@ export function WelcomeDialog({ settings, version, onSaved }: WelcomeDialogProps
               <Button
                 variant="ghost"
                 className="h-8 rounded-full px-3 font-medium text-foreground/75"
-                isPending={saving}
+                isDisabled={saving}
                 onPress={() => void dismiss()}
               >
                 {t('Continue')}
