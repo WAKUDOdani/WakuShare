@@ -546,6 +546,8 @@
   border-radius: 14px;
 }
 .explorer-scope__tab {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -570,6 +572,12 @@
 }
 .explorer-scope__tab[aria-selected='true'] {
   color: var(--primary-foreground);
+}
+.explorer-scope__selection {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
   background: var(--primary);
   box-shadow:
     0 2px 6px rgb(0 0 0 / 12%),
@@ -1014,6 +1022,26 @@
 }
 
 /* Project settings remain separate from the live editor selection. */
+.explorer-action {
+  height: 36px;
+  min-height: 36px;
+  padding-inline: 12px;
+  gap: 8px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.explorer-action--icon {
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.explorer-action svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
 .explorer-projects {
   display: grid;
   grid-template-columns: minmax(190px, 0.85fr) minmax(0, 1.8fr);
@@ -1047,6 +1075,30 @@
     background 160ms ease,
     border-color 160ms ease;
 }
+@media (prefers-reduced-motion: no-preference) {
+  .explorer-project-choice {
+    transition:
+      background 180ms ease,
+      border-color 180ms ease,
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .explorer-project-choice:active {
+    transform: scale(0.985);
+  }
+  .explorer-project-folder {
+    animation: explorer-folder-enter 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+@keyframes explorer-folder-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 .explorer-project-choice:hover {
   background: color-mix(in srgb, var(--foreground) 5%, transparent);
 }
@@ -1054,8 +1106,7 @@
   background: color-mix(in srgb, var(--foreground) 8%, transparent);
   border-color: color-mix(in srgb, var(--foreground) 12%, transparent);
 }
-.explorer-project-choice:focus-visible,
-.explorer-text-action:focus-visible {
+.explorer-project-choice:focus-visible {
   outline: 2px solid var(--action-outline);
   outline-offset: 2px;
 }
@@ -1110,16 +1161,6 @@
   flex-shrink: 0;
   color: color-mix(in srgb, var(--foreground) 75%, transparent);
   background: color-mix(in srgb, var(--foreground) 5%, transparent);
-}
-.explorer-text-action {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--muted-foreground);
-  border-radius: 5px;
-  transition: color 160ms ease;
-}
-.explorer-text-action:hover {
-  color: var(--foreground);
 }
 .explorer-project-sources {
   border-radius: 16px;

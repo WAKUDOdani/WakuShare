@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState, type JSX } from 'react'
-import { Button, Input, Label, Switch, TextField } from '@heroui/react'
+import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
+import { Input, Label, Switch, TextField } from '@heroui/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
   AlertCircle,
   Check,
@@ -12,7 +13,7 @@ import {
   Unplug,
   X
 } from 'lucide-react'
-import { FormSelect } from '@/components/FormSelect'
+import { ExplorerButton as Button } from './ExplorerButton'
 import { t, useLanguage } from '@/lib/i18n'
 import { unwrap, errorMessage } from '@/lib/ipc'
 import type { ExplorerEdit, ExplorerSnapshot, ExplorerSource } from '@shared/explorer'
@@ -25,47 +26,34 @@ const samePath = (a: string, b: string): boolean =>
 function SourceCard({
   source,
   snapshot,
-  localTab,
   busy,
   edit,
   rescan
 }: {
   source: ExplorerSource
   snapshot: ExplorerSnapshot
-  localTab: boolean
   busy: boolean
   edit: (edit: ExplorerEdit) => Promise<boolean>
   rescan: (id: string) => Promise<void>
 }): JSX.Element {
+  const reducedMotion = useReducedMotion()
   const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState(source.label)
   const [disconnecting, setDisconnecting] = useState(false)
-  const inherited = localTab && source.scope === 'global'
-  const paused =
-    !source.enabled ||
-    (inherited &&
-      snapshot.configuration.overrides.some(
-        (value) =>
-          value.sourceId === source.id &&
-          value.projectKey === snapshot.currentProject?.key &&
-          !value.enabled
-      ))
+  const paused = !source.enabled
   const root = snapshot.roots.find((root) => samePath(root.rootPath, source.rootPath))
   const runtimeMissing = snapshot.status === 'WaitingForRuntime' || snapshot.status === 'Error'
   const toggle = (enabled: boolean): void => {
-    void edit(
-      inherited
-        ? {
-            type: 'projectEnabled',
-            sourceId: source.id,
-            enabled,
-            expectedProjectKey: snapshot.currentProject!.key
-          }
-        : { type: 'sourceEnabled', sourceId: source.id, enabled }
-    )
+    void edit({ type: 'sourceEnabled', sourceId: source.id, enabled })
   }
   return (
-    <article className="glass-subtle min-w-0 rounded-2xl p-4" data-source-id={source.id}>
+    <motion.article
+      className="glass-subtle min-w-0 rounded-2xl p-4"
+      data-source-id={source.id}
+      initial={{ opacity: 0, y: reducedMotion ? 0 : 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reducedMotion ? 0 : 0.2 }}
+    >
       <div className="flex items-start gap-3">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <FolderOpen size={20} />
@@ -87,7 +75,7 @@ function SourceCard({
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
             {paused
-              ? t(inherited ? 'Paused in this project' : 'Paused')
+              ? t('Paused')
               : root
                 ? !root.available
                   ? t('Source unavailable')
@@ -101,7 +89,7 @@ function SourceCard({
           className="explorer-switch"
           aria-label={t('Enable {0}', [source.label])}
           isSelected={!paused}
-          isDisabled={busy || (inherited && !source.enabled)}
+          isDisabled={busy}
           onChange={toggle}
         >
           <Switch.Control>
@@ -111,8 +99,6 @@ function SourceCard({
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5 pl-[52px]">
         <Button
-          size="sm"
-          variant="ghost"
           onPress={() => {
             void window.capshare.revealPath(source.rootPath)
           }}
@@ -122,8 +108,6 @@ function SourceCard({
           {t('Show folder')}
         </Button>
         <Button
-          size="sm"
-          variant="ghost"
           isDisabled={busy || paused || runtimeMissing || !snapshot.configuration.enabled}
           onPress={() => {
             void rescan(source.id)
@@ -135,116 +119,126 @@ function SourceCard({
           <RefreshCw size={14} />
           {t('Check now')}
         </Button>
-        {!inherited && (
-          <>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              isDisabled={busy}
-              onPress={() => {
-                setName(source.label)
-                setRenaming(!renaming)
-                setDisconnecting(false)
-              }}
-              aria-label={t('Rename connection')}
-            >
-              <Pencil size={14} />
-            </Button>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              isDisabled={busy}
-              onPress={() => {
-                setDisconnecting(!disconnecting)
-                setRenaming(false)
-              }}
-              aria-label={t('Disconnect folder')}
-            >
-              <Unplug size={14} />
-            </Button>
-          </>
-        )}
+        <>
+          <Button
+            isIconOnly
+            isDisabled={busy}
+            onPress={() => {
+              setName(source.label)
+              setRenaming(!renaming)
+              setDisconnecting(false)
+            }}
+            aria-label={t('Rename connection')}
+          >
+            <Pencil size={14} />
+          </Button>
+          <Button
+            isIconOnly
+            isDisabled={busy}
+            onPress={() => {
+              setDisconnecting(!disconnecting)
+              setRenaming(false)
+            }}
+            aria-label={t('Disconnect folder')}
+          >
+            <Unplug size={14} />
+          </Button>
+        </>
       </div>
-      {inherited && !source.enabled && (
-        <p className="mt-2 pl-[52px] text-xs text-muted-foreground">
-          {t('This source is paused for all projects.')}
-        </p>
-      )}
       {root?.warnings.length && !paused ? (
         <p className="mt-2 truncate pl-[52px] text-xs text-warning" title={root.warnings[0]}>
           {root.warnings[0]}
         </p>
       ) : null}
-      {renaming && (
-        <form
-          className="mt-3 flex items-end gap-2"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void edit({ type: 'rename', sourceId: source.id, label: name }).then((saved) => {
-              if (saved) setRenaming(false)
-            })
-          }}
-        >
-          <TextField className="min-w-0 flex-1" value={name} onChange={setName} isDisabled={busy}>
-            <Label>{t('Connection name')}</Label>
-            <Input maxLength={80} />
-          </TextField>
-          <Button type="submit" size="sm" isDisabled={busy || !name.trim()} aria-label={t('Save')}>
-            <Check size={16} />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onPress={() => setRenaming(false)}
-            aria-label={t('Cancel')}
+      <AnimatePresence initial={false}>
+        {renaming && (
+          <motion.div
+            key="rename"
+            className="overflow-hidden"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0, pointerEvents: 'none' }}
+            transition={{ duration: reducedMotion ? 0 : 0.2 }}
           >
-            <X size={16} />
-          </Button>
-        </form>
-      )}
-      {disconnecting && (
-        <div className="mt-3 rounded-xl bg-foreground/5 p-3">
-          <p className="text-xs text-muted-foreground">
-            {t('Disconnect this folder? Existing CapCut materials and clips will remain.')}
-          </p>
-          <div className="mt-2 flex gap-2">
-            <Button
-              size="sm"
-              variant="secondary"
-              isDisabled={busy}
-              onPress={() => {
-                void edit({ type: 'detach', sourceId: source.id })
+            <form
+              className="mt-3 flex items-end gap-2 pl-[52px]"
+              onSubmit={(event) => {
+                event.preventDefault()
+                void edit({ type: 'rename', sourceId: source.id, label: name }).then((saved) => {
+                  if (saved) setRenaming(false)
+                })
               }}
             >
-              {t('Disconnect')}
-            </Button>
-            <Button size="sm" variant="ghost" onPress={() => setDisconnecting(false)}>
-              {t('Cancel')}
-            </Button>
-          </div>
-        </div>
-      )}
-    </article>
+              <TextField
+                className="min-w-0 flex-1"
+                value={name}
+                onChange={setName}
+                isDisabled={busy}
+              >
+                <Label>{t('Connection name')}</Label>
+                <Input maxLength={80} />
+              </TextField>
+              <Button
+                isIconOnly
+                type="submit"
+                isDisabled={busy || !name.trim()}
+                aria-label={t('Save')}
+              >
+                <Check size={16} />
+              </Button>
+              <Button isIconOnly onPress={() => setRenaming(false)} aria-label={t('Cancel')}>
+                <X size={16} />
+              </Button>
+            </form>
+          </motion.div>
+        )}
+        {disconnecting && (
+          <motion.div
+            key="disconnect"
+            className="overflow-hidden"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0, pointerEvents: 'none' }}
+            transition={{ duration: reducedMotion ? 0 : 0.2 }}
+          >
+            <div className="mt-3 ml-[52px] rounded-xl bg-foreground/5 p-3">
+              <p className="text-xs text-muted-foreground">
+                {t('Disconnect this folder? Existing CapCut materials and clips will remain.')}
+              </p>
+              <div className="mt-2 flex gap-2">
+                <Button
+                  isDisabled={busy}
+                  onPress={() => {
+                    void edit({ type: 'detach', sourceId: source.id })
+                  }}
+                >
+                  {t('Disconnect')}
+                </Button>
+                <Button onPress={() => setDisconnecting(false)}>{t('Cancel')}</Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.article>
   )
 }
 
 export function ExplorerView(): JSX.Element {
   const language = useLanguage()
+  const reducedMotion = useReducedMotion()
   const [snapshot, setSnapshot] = useState<ExplorerSnapshot | null>(null)
+  const latestSnapshot = useRef<ExplorerSnapshot | null>(null)
+  const choosingFolder = useRef(false)
   const [failure, setFailure] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [tab, setTab] = useState<'global' | 'project'>('global')
   const [selectedProjectKey, setSelectedProjectKey] = useState<string | null>(null)
-  const [draft, setDraft] = useState<{
-    path: string
-    label: string
-    scope: 'global' | 'project'
-    projectKey?: string
-  } | null>(null)
   const apply = useCallback((value: ExplorerSnapshot): void => {
-    setSnapshot((previous) => (!previous || value.sequence >= previous.sequence ? value : previous))
+    if (!latestSnapshot.current || value.sequence >= latestSnapshot.current.sequence) {
+      latestSnapshot.current = value
+      setSnapshot(value)
+    }
   }, [])
   useEffect(() => {
     let disposed = false
@@ -272,11 +266,12 @@ export function ExplorerView(): JSX.Element {
     }
   }
   const edit = async (change: ExplorerEdit): Promise<boolean> => {
-    if (!snapshot) return false
+    const current = latestSnapshot.current
+    if (!current) return false
     setBusy(true)
     setFailure(null)
     try {
-      apply(unwrap(await window.capshare.explorerEdit(snapshot.configuration.revision, change)))
+      apply(unwrap(await window.capshare.explorerEdit(current.configuration.revision, change)))
       return true
     } catch (error) {
       setFailure(errorMessage(error))
@@ -299,25 +294,26 @@ export function ExplorerView(): JSX.Element {
   }
   const selectProject = useCallback((key: string): void => {
     setSelectedProjectKey(key)
-    setDraft(null)
   }, [])
   const chooseFolder = async (projectKey?: string): Promise<void> => {
+    if (busy || choosingFolder.current) return
+    choosingFolder.current = true
+    setBusy(true)
+    setFailure(null)
     try {
       const path = unwrap(await window.capshare.pickFolder(t('Choose a source folder')))
       if (path)
-        setDraft({
-          path,
-          label:
-            path
-              .replace(/[\\/]+$/, '')
-              .split(/[\\/]/)
-              .at(-1)
-              ?.slice(0, 80) || 'Folder',
-          scope: tab,
-          projectKey: projectKey ?? selectedProjectKey ?? snapshot?.currentProject?.key
+        await edit({
+          type: 'add',
+          rootPath: path,
+          scope: projectKey ? 'project' : 'global',
+          expectedProjectKey: projectKey
         })
     } catch (error) {
       setFailure(errorMessage(error))
+    } finally {
+      choosingFolder.current = false
+      setBusy(false)
     }
   }
   if (!snapshot)
@@ -328,7 +324,6 @@ export function ExplorerView(): JSX.Element {
           {failure && (
             <Button
               className="mt-3"
-              variant="secondary"
               onPress={() => {
                 void refresh()
               }}
@@ -343,9 +338,6 @@ export function ExplorerView(): JSX.Element {
   const sources = snapshot.configuration.sources.filter(
     (source) => !source.detached && source.scope === 'global'
   )
-  const projectChanged =
-    draft?.scope === 'project' &&
-    draft.projectKey !== (selectedProjectKey ?? snapshot.currentProject?.key)
   return (
     <section
       className="h-full overflow-y-auto px-4 pt-24 pb-8"
@@ -392,7 +384,7 @@ export function ExplorerView(): JSX.Element {
         {failure && (
           <div role="alert" className="glass-subtle flex items-start gap-3 rounded-2xl p-4 text-sm">
             <AlertCircle className="mt-0.5 shrink-0 text-warning" size={18} />
-            <p>{t(failure)}</p>
+            <p className="min-w-0 break-words">{t(failure)}</p>
           </div>
         )}
         <>
@@ -401,35 +393,20 @@ export function ExplorerView(): JSX.Element {
               {t('Synchronization is off. You can still prepare folder settings for any project.')}
             </p>
           )}
-          {enabled && tab === 'global' && window.capshare.env.platform === 'win32' && (
-            <p className="px-1 text-xs text-muted-foreground">
-              {t('When you close the window, WakuShare continues working in the system tray.')}
-            </p>
-          )}
-          {enabled && tab === 'global' && (
+          {enabled && tab === 'global' && snapshot.nativeMode !== 'product' && (
             <div className="glass-subtle rounded-2xl px-4 py-3 text-xs leading-relaxed text-muted-foreground">
               <span className="mr-2 rounded-full bg-warning/10 px-2 py-0.5 font-medium text-warning">
-                {t(
-                  snapshot.nativeMode === 'product'
-                    ? 'Automatic synchronization'
-                    : snapshot.nativeMode === 'laboratory'
-                      ? 'Laboratory mode'
-                      : 'In development'
-                )}
+                {t(snapshot.nativeMode === 'laboratory' ? 'Laboratory mode' : 'In development')}
               </span>
-              {snapshot.nativeMode === 'product'
+              {snapshot.nativeMode === 'laboratory'
                 ? t(
-                    'Media from selected folders is added to the open project, keeping its folder structure. Changes synchronize automatically.'
+                    'Preview: automatic import and verified PNG path updates are available in CapSync-Lab-20261013-001. Other projects are not modified.'
                   )
-                : snapshot.nativeMode === 'laboratory'
-                  ? t(
-                      'Preview: automatic import and verified PNG path updates are available in CapSync-Lab-20261013-001. Other projects are not modified.'
-                    )
-                  : snapshot.status === 'WaitingForRuntime'
-                    ? t('The synchronization runtime is not included in this build yet.')
-                    : t(
-                        'Folder settings and change tracking are available. Automatic importing into CapCut is still being connected.'
-                      )}
+                : snapshot.status === 'WaitingForRuntime'
+                  ? t('The synchronization runtime is not included in this build yet.')
+                  : t(
+                      'Folder settings and change tracking are available. Automatic importing into CapCut is still being connected.'
+                    )}
             </div>
           )}
           {['Error', 'Conflict', 'WaitingForRuntime', 'SourceUnavailable'].includes(
@@ -464,22 +441,44 @@ export function ExplorerView(): JSX.Element {
                   key={scope}
                   type="button"
                   role="tab"
+                  id={'explorer-tab-' + scope}
+                  aria-controls="explorer-folder-panel"
                   aria-selected={tab === scope}
+                  tabIndex={tab === scope ? 0 : -1}
+                  onKeyDown={(event) => {
+                    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+                    event.preventDefault()
+                    const next =
+                      event.key === 'Home'
+                        ? 'global'
+                        : event.key === 'End'
+                          ? 'project'
+                          : tab === 'global'
+                            ? 'project'
+                            : 'global'
+                    setTab(next)
+                    document.getElementById('explorer-tab-' + next)?.focus()
+                  }}
                   onClick={() => {
                     setTab(scope)
-                    setDraft(null)
                   }}
                   className="explorer-scope__tab"
                 >
-                  {t(scope === 'global' ? 'Common folders' : 'By project')}
+                  {tab === scope && (
+                    <motion.span
+                      className="explorer-scope__selection"
+                      layoutId={reducedMotion ? undefined : 'explorer-scope-selection'}
+                      transition={{ type: 'spring', stiffness: 450, damping: 38 }}
+                    />
+                  )}
+                  <span className="relative">
+                    {t(scope === 'global' ? 'Common folders' : 'By project')}
+                  </span>
                 </button>
               ))}
             </div>
             {tab === 'global' && (
               <Button
-                size="sm"
-                variant="secondary"
-                className="min-h-10 px-4"
                 isDisabled={busy}
                 onPress={() => {
                   void chooseFolder()
@@ -490,135 +489,91 @@ export function ExplorerView(): JSX.Element {
               </Button>
             )}
           </div>
-          {draft && (
-            <form
-              className="glass rounded-2xl p-4"
-              onSubmit={(event) => {
-                event.preventDefault()
-                void edit({
-                  type: 'add',
-                  rootPath: draft.path,
-                  label: draft.label,
-                  scope: draft.scope,
-                  expectedProjectKey: draft.projectKey
-                }).then((saved) => {
-                  if (saved) setDraft(null)
-                })
-              }}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={tab}
+              id="explorer-folder-panel"
+              role="tabpanel"
+              aria-labelledby={'explorer-tab-' + tab}
+              className="flex min-w-0 flex-col gap-4"
+              initial={{ opacity: 0, y: reducedMotion ? 0 : 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: reducedMotion ? 0 : -3 }}
+              transition={{ duration: reducedMotion ? 0 : 0.16, ease: [0.22, 1, 0.36, 1] }}
             >
-              <h3 className="mb-3 text-sm font-semibold">{t('New source folder')}</h3>
-              <p className="mb-4 break-all text-xs text-muted-foreground select-text">
-                {draft.path}
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <TextField
-                  value={draft.label}
-                  onChange={(value) => setDraft({ ...draft, label: value })}
-                  isDisabled={busy}
-                >
-                  <Label>{t('Connection name')}</Label>
-                  <Input maxLength={80} />
-                </TextField>
-                <div className="flex flex-col justify-end gap-1">
-                  <span className="text-xs font-medium">{t('Source scope')}</span>
-                  <FormSelect
-                    label={t('Source scope')}
-                    value={draft.scope}
-                    options={[
-                      { id: 'global', label: t('Common folders') },
-                      ...(selectedProjectKey || snapshot.currentProject
-                        ? [{ id: 'project', label: t('Selected project') }]
-                        : [])
-                    ]}
-                    onChange={(value) =>
-                      setDraft({
-                        ...draft,
-                        scope: value as 'global' | 'project',
-                        projectKey: selectedProjectKey ?? snapshot.currentProject?.key
-                      })
-                    }
-                    disabled={busy}
-                  />
-                </div>
-              </div>
-              {projectChanged && (
-                <p className="mt-3 text-xs text-warning">
-                  {t('The project changed. Select the source scope again.')}
-                </p>
-              )}
-              <div className="mt-4 flex gap-2">
-                <Button
-                  type="submit"
-                  size="sm"
-                  isDisabled={busy || !draft.label.trim() || projectChanged}
-                >
-                  {t('Add folder')}
-                </Button>
-                <Button size="sm" variant="ghost" isDisabled={busy} onPress={() => setDraft(null)}>
-                  {t('Cancel')}
-                </Button>
-              </div>
-            </form>
-          )}
-          {tab === 'project' && (
-            <ProjectFolders
-              snapshot={snapshot}
-              selectedKey={selectedProjectKey}
-              onSelect={selectProject}
-              busy={busy}
-              edit={edit}
-              onAdd={(key) => void chooseFolder(key)}
-              onCommon={() => {
-                setTab('global')
-                setDraft(null)
-              }}
-            />
-          )}
-          {tab === 'global' && sources.length ? (
-            <div className="grid min-w-0 gap-3">
-              {sources.map((source) => (
-                <SourceCard
-                  key={source.id}
-                  source={source}
+              {tab === 'project' && (
+                <ProjectFolders
                   snapshot={snapshot}
-                  localTab={false}
+                  selectedKey={selectedProjectKey}
+                  onSelect={selectProject}
                   busy={busy}
                   edit={edit}
-                  rescan={rescan}
+                  onAdd={(key) => void chooseFolder(key)}
+                  onCommon={() => {
+                    setTab('global')
+                  }}
                 />
-              ))}
-            </div>
-          ) : !draft && tab === 'global' ? (
-            <div className="glass-subtle flex flex-col items-center rounded-2xl px-6 py-10 text-center">
-              <FolderPlus size={30} className="mb-3 text-primary/70" />
-              <h3 className="text-sm font-semibold">{t('Add your first folder')}</h3>
-              <p className="mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
-                {t(
-                  'Your folder structure is kept. Files are added to the media library, never to the timeline.'
-                )}
+              )}
+              {tab === 'global' && (
+                <p className="px-1 text-xs leading-relaxed text-muted-foreground">
+                  {t(
+                    'Enabled common folders synchronize with every project. Add client-specific folders in By project.'
+                  )}
+                </p>
+              )}
+              {tab === 'global' && sources.length ? (
+                <div className="grid min-w-0 gap-3">
+                  {sources.map((source) => (
+                    <SourceCard
+                      key={source.id}
+                      source={source}
+                      snapshot={snapshot}
+                      busy={busy}
+                      edit={edit}
+                      rescan={rescan}
+                    />
+                  ))}
+                </div>
+              ) : tab === 'global' ? (
+                <div className="glass-subtle flex flex-col items-center rounded-2xl px-6 py-10 text-center">
+                  <FolderPlus size={30} className="mb-3 text-primary/70" />
+                  <h3 className="text-sm font-semibold">{t('Add your first folder')}</h3>
+                  <p className="mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
+                    {t(
+                      'Your folder structure is kept. Files are added to the media library, never to the timeline.'
+                    )}
+                  </p>
+                  <Button
+                    className="mt-5"
+                    isDisabled={busy}
+                    onPress={() => {
+                      void chooseFolder()
+                    }}
+                  >
+                    <Plus size={15} />
+                    {t('Add folder')}
+                  </Button>
+                </div>
+              ) : null}
+            </motion.div>
+          </AnimatePresence>
+          <footer className="flex flex-wrap justify-between gap-x-4 gap-y-2 px-1 text-xs leading-relaxed text-muted-foreground">
+            {snapshot.lastCheckedAt && (
+              <p className="px-1 text-xs text-muted-foreground">
+                {t('Last folder check: {0}', [
+                  new Date(snapshot.lastCheckedAt).toLocaleTimeString(
+                    language === 'ru' ? 'ru-RU' : 'en-US',
+                    { hour: '2-digit', minute: '2-digit' }
+                  )
+                ])}
               </p>
-              <Button
-                size="sm"
-                className="mt-5"
-                onPress={() => {
-                  void chooseFolder()
-                }}
-              >
-                <Plus size={15} />
-                {t('Add folder')}
-              </Button>
-            </div>
-          ) : null}
-          {snapshot.lastCheckedAt && (
-            <p className="px-1 text-xs text-muted-foreground">
-              {t('Last folder check: {0}', [
-                new Date(snapshot.lastCheckedAt).toLocaleTimeString(
-                  language === 'ru' ? 'ru-RU' : 'en-US',
-                  { hour: '2-digit', minute: '2-digit' }
-                )
-              ])}
-            </p>
-          )}
+            )}
+            {enabled && window.capshare.env.platform === 'win32' && (
+              <p>
+                {t('When you close the window, WakuShare continues working in the system tray.')}
+              </p>
+            )}
+          </footer>
         </>
       </div>
     </section>

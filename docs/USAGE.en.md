@@ -50,7 +50,7 @@ Font files are collected from explicit, accessible references. WakuShare does no
 
 1. Open **Explorer** and enable **Automatic synchronization**.
 2. Add shared media folders under **Common folders**. Enabled common folders apply to every project, regardless of the selected tab.
-3. Click **Add folder**, choose a Windows folder, and confirm the connection.
+3. Click **Add folder** and choose a Windows folder. It connects immediately after selection; use the pencil button to rename the connection later.
 4. Open the desired project in CapCut. Your folder and its subfolders appear directly at the root of the media library, without an extra WakuShare wrapper folder.
 5. Wait for **“Import complete — you can work”**. CapCut itself needs time to process large collections.
 

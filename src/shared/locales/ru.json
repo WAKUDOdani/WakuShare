@@ -407,5 +407,6 @@
   "Select an available project and try again.": "Выбери доступный проект и попробуй ещё раз.",
   "Common folders apply to every project. Manage them in Common folders.": "Общие папки подключены ко всем проектам. Управляй ими во вкладке «Общие папки».",
   "Add an additional folder before applying this set to other projects.": "Сначала добавь дополнительную папку, чтобы применить набор к другим проектам.",
-  "Additional: {0}": "Доп. папок: {0}"
+  "Additional: {0}": "Доп. папок: {0}",
+  "Enabled common folders synchronize with every project. Add client-specific folders in By project.": "Включённые общие папки синхронизируются со всеми проектами. Папки клиентов можно настроить во вкладке «По проектам»."
 }

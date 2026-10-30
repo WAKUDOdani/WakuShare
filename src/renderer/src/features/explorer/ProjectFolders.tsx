@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from 'react'
-import { Button, Checkbox, Switch } from '@heroui/react'
+import { Checkbox, Switch } from '@heroui/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
   Check,
   Clapperboard,
@@ -16,6 +17,7 @@ import type { ExplorerEdit, ExplorerProjectChoice, ExplorerSnapshot } from '@sha
 import { folderPathKey, projectFolderChoices } from '@shared/explorer-folders'
 import { t } from '@/lib/i18n'
 import { errorMessage, unwrap } from '@/lib/ipc'
+import { ExplorerButton as Button } from './ExplorerButton'
 
 export function ProjectFolders({
   snapshot,
@@ -34,6 +36,7 @@ export function ProjectFolders({
   busy: boolean
   edit: (edit: ExplorerEdit) => Promise<boolean>
 }): JSX.Element {
+  const reducedMotion = useReducedMotion()
   const [catalog, setCatalog] = useState<ExplorerProjectChoice[]>([])
   const [loading, setLoading] = useState(true)
   const [failure, setFailure] = useState<string | null>(null)
@@ -127,8 +130,6 @@ export function ProjectFolders({
             <h3 className="text-sm font-semibold">{t('Projects')}</h3>
             <Button
               isIconOnly
-              size="sm"
-              variant="ghost"
               aria-label={t('Refresh projects')}
               isDisabled={loading}
               onPress={() => {
@@ -197,7 +198,13 @@ export function ProjectFolders({
           </p>
         )}
       </aside>
-      <div className="explorer-projects__detail">
+      <motion.div
+        key={selected?.key ?? 'empty'}
+        className="explorer-projects__detail"
+        initial={{ opacity: 0, y: reducedMotion ? 0 : 5 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+      >
         {selected ? (
           <>
             <div className="explorer-projects__heading">
@@ -213,13 +220,7 @@ export function ProjectFolders({
                       )}
                 </p>
               </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="shrink-0"
-                isDisabled={busy}
-                onPress={() => onAdd(selected.key)}
-              >
+              <Button className="shrink-0" isDisabled={busy} onPress={() => onAdd(selected.key)}>
                 <Plus size={15} />
                 {t('Add folder')}
               </Button>
@@ -261,9 +262,9 @@ export function ProjectFolders({
                   ))}
                 </div>
               )}
-              <button type="button" className="explorer-text-action mt-3" onClick={onCommon}>
+              <Button className="mt-3" onPress={onCommon}>
                 {globals.length ? t('Manage common folders') : t('Add a common folder')}
-              </button>
+              </Button>
             </section>
             <section
               className="glass-subtle explorer-project-sources"
@@ -275,8 +276,6 @@ export function ProjectFolders({
                   <span className="ml-1 font-normal text-muted-foreground">{activeCount}</span>
                 </h4>
                 <Button
-                  size="sm"
-                  variant="ghost"
                   isDisabled={busy || !activeCount || projects.length < 2}
                   onPress={() => {
                     setCopying(!copying)
@@ -289,82 +288,92 @@ export function ProjectFolders({
                   {t('Apply set')}
                 </Button>
               </div>
-              {copying && (
-                <div className="explorer-copy-set mx-4 mt-3 rounded-xl p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs leading-relaxed text-muted-foreground">
-                      {t(
-                        'Apply these additional folders to selected projects. Their previous additional selection will be replaced; imported media stays in place.'
-                      )}
-                    </p>
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="ghost"
-                      aria-label={t('Close')}
-                      onPress={() => setCopying(false)}
-                    >
-                      <X size={14} />
-                    </Button>
-                  </div>
-                  <label className="explorer-search mt-3">
-                    <Search size={14} />
-                    <input
-                      aria-label={t('Search target projects')}
-                      placeholder={t('Search projects')}
-                      value={copySearch}
-                      onChange={(event) => setCopySearch(event.target.value)}
-                    />
-                  </label>
-                  <div className="mt-2 max-h-44 overflow-y-auto">
-                    {projects
-                      .filter(
-                        (project) =>
-                          project.key !== selected.key &&
-                          project.name.toLocaleLowerCase().includes(copySearch.toLocaleLowerCase())
-                      )
-                      .map((project) => (
-                        <Checkbox
-                          key={project.key}
-                          className="flex w-full gap-2 rounded-lg px-2 py-2"
-                          isSelected={targets.includes(project.key)}
-                          isDisabled={busy}
-                          onChange={(checked) =>
-                            setTargets((values) =>
-                              checked
-                                ? [...values, project.key]
-                                : values.filter((key) => key !== project.key)
-                            )
-                          }
-                        >
-                          <Checkbox.Control>
-                            <Checkbox.Indicator />
-                          </Checkbox.Control>
-                          <span className="truncate text-xs">{project.name}</span>
-                        </Checkbox>
-                      ))}
-                  </div>
-                  <Button
-                    size="sm"
-                    className="mt-3"
-                    isDisabled={busy || !targets.length}
-                    onPress={() => {
-                      void edit({
-                        type: 'copyProjectFolders',
-                        projectKey: selected.key,
-                        targetProjectKeys: targets
-                      }).then((ok) => {
-                        if (ok) {
-                          setCopying(false)
-                          setCopiedProject(selected.key)
-                        }
-                      })
-                    }}
+              <AnimatePresence initial={false}>
+                {copying && (
+                  <motion.div
+                    key="copy-set"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0, pointerEvents: 'none' }}
+                    transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
                   >
-                    {t('Apply to {0} projects', [targets.length])}
-                  </Button>
-                </div>
-              )}
+                    <div className="explorer-copy-set mx-4 mt-3 rounded-xl p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                          {t(
+                            'Apply these additional folders to selected projects. Their previous additional selection will be replaced; imported media stays in place.'
+                          )}
+                        </p>
+                        <Button
+                          isIconOnly
+                          aria-label={t('Close')}
+                          onPress={() => setCopying(false)}
+                        >
+                          <X size={14} />
+                        </Button>
+                      </div>
+                      <label className="explorer-search mt-3">
+                        <Search size={14} />
+                        <input
+                          aria-label={t('Search target projects')}
+                          placeholder={t('Search projects')}
+                          value={copySearch}
+                          onChange={(event) => setCopySearch(event.target.value)}
+                        />
+                      </label>
+                      <div className="mt-2 max-h-44 overflow-y-auto">
+                        {projects
+                          .filter(
+                            (project) =>
+                              project.key !== selected.key &&
+                              project.name
+                                .toLocaleLowerCase()
+                                .includes(copySearch.toLocaleLowerCase())
+                          )
+                          .map((project) => (
+                            <Checkbox
+                              key={project.key}
+                              className="flex w-full gap-2 rounded-lg px-2 py-2"
+                              isSelected={targets.includes(project.key)}
+                              isDisabled={busy}
+                              onChange={(checked) =>
+                                setTargets((values) =>
+                                  checked
+                                    ? [...values, project.key]
+                                    : values.filter((key) => key !== project.key)
+                                )
+                              }
+                            >
+                              <Checkbox.Control>
+                                <Checkbox.Indicator />
+                              </Checkbox.Control>
+                              <span className="truncate text-xs">{project.name}</span>
+                            </Checkbox>
+                          ))}
+                      </div>
+                      <Button
+                        className="mt-3"
+                        isDisabled={busy || !targets.length}
+                        onPress={() => {
+                          void edit({
+                            type: 'copyProjectFolders',
+                            projectKey: selected.key,
+                            targetProjectKeys: targets
+                          }).then((ok) => {
+                            if (ok) {
+                              setCopying(false)
+                              setCopiedProject(selected.key)
+                            }
+                          })
+                        }}
+                      >
+                        {t('Apply to {0} projects', [targets.length])}
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               {copiedProject === selected.key && (
                 <p
                   role="status"
@@ -402,8 +411,6 @@ export function ProjectFolders({
                     </div>
                     <Button
                       isIconOnly
-                      size="sm"
-                      variant="ghost"
                       aria-label={t('Show {0}', [source.label])}
                       onPress={() => void window.capshare.revealPath(source.rootPath)}
                     >
@@ -459,7 +466,7 @@ export function ProjectFolders({
             </p>
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
   )
 }
