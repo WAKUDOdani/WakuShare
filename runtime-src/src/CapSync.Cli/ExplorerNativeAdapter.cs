@@ -3,28 +3,38 @@ using System.Text.Json;
 using CapSync.Core;
 
 // Development-only bridge to the accepted lab primitives. No old polling runner.
-internal sealed class ExplorerNativeAdapter(string root, string statePath, EditorEventChannel editor, bool productRuntime = false, Action<string,string>? progress = null) : IAddBatchAdapter, IUpdateAdapter, IPresenceAdapter, IRestoreAdapter, IDeleteAdapter, ITransferAdapter
+internal sealed class ExplorerNativeAdapter(string root, string statePath, EditorEventChannel editor, bool productRuntime = false, Action<string,long,string>? progress = null, Func<object,Task<JsonElement>>? invokeOverride = null) : IAddBatchAdapter, IUpdateAdapter, IPresenceAdapter, IRestoreAdapter, IDeleteAdapter, ITransferAdapter
 {
     public string Mode => productRuntime ? "product" : "laboratory";
     public bool BatchEnabled => productRuntime;
+    private EditorLease? _destinationLease;
+    public bool CanDispatch => editor.Lease() is {} lease && (!productRuntime || (_destinationLease == lease && Destinations.Length > 0));
+    public void InvalidateSession() { Destinations=[]; _destinationLease=null; Status="Waiting"; Reason=null; }
+    public void ConfigureProject(string projectKey, Destination[] destinations) {
+        var lease=editor.Lease();
+        if(lease == null || lease.ProjectKey != projectKey)throw new InvalidDataException("Project changed before destination acknowledgement.");
+        Destinations=destinations.ToArray();_destinationLease=lease;Status="Waiting";Reason=null;
+    }
     public async Task<IReadOnlyList<AddReply>> ExecuteBatchAsync(Guid batchId,IReadOnlyList<AddJob> jobs)
     {
-        if(!productRuntime || jobs.Count is <1 or >16384 || jobs.Any(j=>j.ProjectId!=editor.Lease()?.ProjectKey))
+        var lease=editor.Lease();
+        if(!CanDispatch || !productRuntime || jobs.Count is <1 or >16384 || jobs.Any(j=>j.ProjectId!=editor.Lease()?.ProjectKey))
             return jobs.Select(j=>new AddReply(j.Id,"Waiting",Reason:"Wait for the batch's project to be open.")).ToArray();
         Status="Applying";
         try {
             var value=await Invoke(new {action="batch",batchId,jobs,statePath,editor=editor.State,token=editor.Token});
             var replies=value.GetProperty("Replies").Deserialize<AddReply[]>(StateStore.JsonOptions) ?? throw new InvalidDataException("Missing batch replies");
             var commands=value.GetProperty("NativeCommands").GetInt32();if(commands is <0 or >2)throw new InvalidDataException("Invalid batch command count");Commands+=commands;
-            var failed=replies.FirstOrDefault(r=>r.Status is not ("Verified" or "RejectedFormat"));Status=failed?.Status ?? "Verified";Reason=failed?.Reason;
+            var failed=replies.FirstOrDefault(r=>r.Status is not ("Verified" or "RejectedFormat"));if(lease != null && editor.Matches(lease)){Status=failed?.Status ?? "Verified";Reason=failed?.Reason;}
             return replies;
         }catch(Exception error) when(error is IOException or JsonException or InvalidDataException) {
-            Status="Unknown";Reason="Batch completion is unknown; no automatic replay.";return jobs.Select(j=>new AddReply(j.Id,"Unknown",Reason:Reason)).ToArray();
+            var reason="Batch completion is unknown; no automatic replay.";if(lease != null && editor.Matches(lease)){Status="Unknown";Reason=reason;}return jobs.Select(j=>new AddReply(j.Id,"Unknown",Reason:reason)).ToArray();
         }
     }
     public async Task<IReadOnlyList<AddReply>> EnsureFoldersBatchAsync(Guid batchId,IReadOnlyList<FolderJob> folders)
     {
-        if(!productRuntime || folders.Count is <1 or >4096 || folders.Any(j=>j.ProjectId!=editor.Lease()?.ProjectKey))
+        var lease=editor.Lease();
+        if(!CanDispatch || !productRuntime || folders.Count is <1 or >4096 || folders.Any(j=>j.ProjectId!=editor.Lease()?.ProjectKey))
             return folders.Select(j=>new AddReply(j.Id,"Waiting",Reason:"Wait for the directory forest's project.")).ToArray();
         var jobs=folders.Select(j=>new {j.Id,j.ProjectId,j.RootPath,j.FolderId,j.ParentFolderId,Name=Path.GetFileName(j.RelativePath),SourceDirectory=Path.Combine(j.RootPath,j.RelativePath)}).ToArray();
         Status="Applying";
@@ -32,12 +42,12 @@ internal sealed class ExplorerNativeAdapter(string root, string statePath, Edito
             var value=await Invoke(new{action="folders",batchId,jobs,statePath,editor=editor.State,token=editor.Token,destinations=Destinations});
             var replies=value.GetProperty("Replies").Deserialize<AddReply[]>(StateStore.JsonOptions) ?? throw new InvalidDataException("Missing directory forest replies");
             var count=value.GetProperty("NativeCommands").GetInt32();if(count is <0 or >1)throw new InvalidDataException("Invalid forest command count");Commands+=count;
-            var failed=replies.FirstOrDefault(r=>r.Status!="Verified");Status=failed?.Status ?? "Verified";Reason=failed?.Reason;return replies;
-        }catch(Exception error) when(error is IOException or JsonException or InvalidDataException){Status="Unknown";Reason="Directory forest completion is unknown; no replay.";return folders.Select(j=>new AddReply(j.Id,"Unknown",Reason:Reason)).ToArray();}
+            var failed=replies.FirstOrDefault(r=>r.Status!="Verified");if(lease != null && editor.Matches(lease)){Status=failed?.Status ?? "Verified";Reason=failed?.Reason;}return replies;
+        }catch(Exception error) when(error is IOException or JsonException or InvalidDataException){var reason="Directory forest completion is unknown; no replay.";if(lease != null && editor.Matches(lease)){Status="Unknown";Reason=reason;}return folders.Select(j=>new AddReply(j.Id,"Unknown",Reason:reason)).ToArray();}
     }
     public bool RemainderEnabled => productRuntime || Environment.GetEnvironmentVariable("WAKUSHARE_LAB_REMAINDER") == "1";
     public sealed record Destination(Guid Id, string RootPath, string MediaFolderId, string ContainerFolderId, string Name);
-    public Destination[] Destinations { get; set; } = [];
+    public Destination[] Destinations { get; private set; } = [];
     public long Commands { get; private set; }
     public string? Reason { get; private set; }
     public string Status { get; private set; } = "Waiting";
@@ -59,6 +69,8 @@ internal sealed class ExplorerNativeAdapter(string root, string statePath, Edito
     }
     private async Task<JsonElement> Invoke(object request, string helper = "explorer_native_runtime.py")
     {
+        // Internal dependency injection for deterministic transition tests. No IPC or CLI route sets it.
+        if(invokeOverride != null)return await invokeOverride(request);
         if (productRuntime) helper = "explorer_product_runtime_v6.py";
         var start = new ProcessStartInfo("python") { UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
@@ -66,9 +78,9 @@ internal sealed class ExplorerNativeAdapter(string root, string statePath, Edito
         start.Environment["PYTHONIOENCODING"] = "utf-8";
         start.ArgumentList.Add(Path.Combine(root, "tools", helper));
         using var process = Process.Start(start) ?? throw new IOException("Cannot start native development adapter.");
-        var progressProject = editor.State.Project?.Value;
+        var progressProject = editor.State.Project?.Value;var progressGeneration=editor.State.Generation;
         var stdout = process.StandardOutput.ReadToEndAsync();
-        var stderr = ReadDiagnostics(process.StandardError, progressProject);
+        var stderr = ReadDiagnostics(process.StandardError, progressProject,progressGeneration);
         await process.StandardInput.WriteAsync(JsonSerializer.Serialize(request, StateStore.JsonOptions)); process.StandardInput.Close();
         await process.WaitForExitAsync();
         var output = await stdout; var diagnostic = await stderr;
@@ -80,14 +92,14 @@ internal sealed class ExplorerNativeAdapter(string root, string statePath, Edito
         }
         return JsonDocument.Parse(output).RootElement.Clone();
     }
-    private async Task<string> ReadDiagnostics(StreamReader reader,string? project)
+    private async Task<string> ReadDiagnostics(StreamReader reader,string? project,long generation)
     {
         var diagnostic = new System.Text.StringBuilder();
         while(await reader.ReadLineAsync() is {} line)
         {
             if(line.StartsWith("WAKUSHARE_STAGE ",StringComparison.Ordinal) && project != null &&
                 line[16..] is "preparing" or "importing" or "placing" or "checking")
-                progress?.Invoke(project,line[16..]);
+                progress?.Invoke(project,generation,line[16..]);
             else if(diagnostic.Length<65536)diagnostic.AppendLine(line[..Math.Min(line.Length,65536-diagnostic.Length)]);
         }
         return diagnostic.ToString();
@@ -95,7 +107,7 @@ internal sealed class ExplorerNativeAdapter(string root, string statePath, Edito
     public async Task<AddReply> Run(string kind, object job, Guid id, string projectKey, string? identity = null, string? retiredMaterialId = null)
     {
         var lease = editor.Lease();
-        if (lease == null || lease.ProjectKey != projectKey || (!productRuntime && editor.State.Project?.DraftId != "582F1BF9-2B25-4CF2-B83F-3528F1B868B2"))
+        if (!CanDispatch || lease == null || lease.ProjectKey != projectKey || (!productRuntime && editor.State.Project?.DraftId != "582F1BF9-2B25-4CF2-B83F-3528F1B868B2"))
             return new(id, "Waiting", Reason: productRuntime ? "Wait for this job's project to be open; another project's queue is retained." : "Open the authorized laboratory project; native dispatch is laboratory-only.");
         try {
             Status = "Applying";
@@ -106,25 +118,26 @@ internal sealed class ExplorerNativeAdapter(string root, string statePath, Edito
                 Commands += count;
             }
             // A late durable result remains owned by the old job, never the new project.
-            Reason = reply.Reason; Status = reply.Status == "RejectedFormat" ? "Waiting" : reply.Status;
+            if(editor.Matches(lease)){Reason = reply.Reason; Status = reply.Status == "RejectedFormat" ? "Waiting" : reply.Status;}
             return reply;
         } catch (Exception error) when (error is IOException or JsonException or InvalidDataException) {
-            Reason = "Native completion is unknown; automatic replay is disabled.";
-            Status = "Unknown";
-            return new(id, "Unknown", Reason: Reason);
+            var reason = "Native completion is unknown; automatic replay is disabled.";
+            if(editor.Matches(lease)){Reason=reason;Status="Unknown";}
+            return new(id, "Unknown", Reason: reason);
         }
     }
     public async Task<bool> EnsureRoots(SyncState state, Action persist, CancellationToken cancellation)
     {
-        var current = editor.State.Project;
-        if (current == null) return false;
-        foreach (var destination in Destinations)
+        var current = editor.State.Project;var lease=editor.Lease();
+        if (!CanDispatch || current == null || lease == null) return false;
+        var destinations=Destinations.ToArray();
+        foreach (var destination in destinations)
         {
             foreach (var folder in new[] {
                 (Id: destination.ContainerFolderId, Parent: "", Name: "WakuShare"),
                 (Id: destination.MediaFolderId, Parent: destination.ContainerFolderId, Name: destination.Name) }.Where(folder => folder.Id.Length > 0))
             {
-                if (cancellation.IsCancellationRequested) return false;
+                if (cancellation.IsCancellationRequested || !editor.Matches(lease) || !CanDispatch) return false;
                 // The adapter's durable marker owns creation; an existing UUID is
                 // accepted only with its matching verified receipt.
                 var id = Guid.Parse(folder.Id);
@@ -135,7 +148,8 @@ internal sealed class ExplorerNativeAdapter(string root, string statePath, Edito
                     FolderId = folder.Id, ParentFolderId = folder.Parent, Name = folder.Name, SourceDirectory = directory }, id, current.Value);
                 if (reply.Status != "Verified") return false;
             }
-            var binding = state.Bindings.Single(b => b.Id == destination.Id);
+            if(!editor.Matches(lease) || !CanDispatch)return false;
+            var binding = state.Bindings.Single(b => b.Id == destination.Id && b.ProjectId == current.Value);
             binding.Status = "Ready"; persist();
         }
         return true;
@@ -147,7 +161,8 @@ internal sealed class ExplorerNativeAdapter(string root, string statePath, Edito
     public Task<AddReply> RestoreRemovedAsync(RestoreJob job) => Run("restore", job.Import, job.Import.Id, job.Import.ProjectId, job.Import.FileIdentity, job.PreviousMaterialId);
     public async Task<string[]?> ReadCatalog()
     {
-        if (!RemainderEnabled || editor.Lease() == null) return null;
+        var lease=editor.Lease();
+        if (!RemainderEnabled || !CanDispatch || lease == null) return null;
         var project = editor.State.Project!;
         try {
             var result = await Invoke(new { action = "catalog", statePath, editor = editor.State, token = editor.Token }, "explorer_catalog_runtime.py");
@@ -158,7 +173,7 @@ internal sealed class ExplorerNativeAdapter(string root, string statePath, Edito
                 throw new InvalidDataException("Invalid complete catalog identities.");
             return ids;
         } catch (Exception error) when (error is IOException or JsonException or InvalidDataException) {
-            Reason = "A complete SDK/catalog read is unavailable; no restoration was dispatched."; Status = "Waiting"; return null;
+            if(editor.Matches(lease)){Reason = "A complete SDK/catalog read is unavailable; no restoration was dispatched."; Status = "Waiting";} return null;
         }
     }
     public async Task<AddReply> TrackPresenceAsync(UpdateJob job)
@@ -185,6 +200,7 @@ internal sealed class ExplorerNativeAdapter(string root, string statePath, Edito
     }
     public Task<AddReply> UpdateAsync(UpdateJob job)
     {
+        if(!CanDispatch || editor.Lease()?.ProjectKey != job.ProjectId)return Task.FromResult(new AddReply(job.Id,"Waiting",Reason:"Wait for the owned project."));
         if (job.Flags != ChangeFlags.Path || !(RemainderEnabled ? MediaFormats.IsCandidate(job.RelativePath) :
             new[] { ".png", ".jpg", ".jpeg" }.Contains(Path.GetExtension(job.RelativePath), StringComparer.OrdinalIgnoreCase)))
         {

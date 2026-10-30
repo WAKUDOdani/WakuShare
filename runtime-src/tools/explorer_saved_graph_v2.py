@@ -12,8 +12,8 @@ class Request(C.Structure):
     _fields_=[('size',C.c_uint32),('version',C.c_uint32),('output',C.c_wchar*1024),('lease',Lease)]
 
 def read(data,context,case):
-    dll=ROOT/'artifacts/NativeExplorerObserveBuild/CapSync.ExplorerProductSavedReadV4.dll'
-    manifest=ROOT/'artifacts/ExplorerSavedReadV4/manifest.json'
+    dll=ROOT/'artifacts/NativeExplorerObserveBuild/CapSync.ExplorerProductSavedReadV5.dll'
+    manifest=ROOT/'artifacts/ExplorerSavedReadV5/manifest.json'
     value={'binaries':{'Read':digest(dll)}}
     manifest.parent.mkdir(exist_ok=True)
     if manifest.exists():

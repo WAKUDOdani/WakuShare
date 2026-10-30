@@ -53,5 +53,6 @@ def initial_template_equivalent(original,current,before_timeline):
     meta=json.loads((original/'draft_meta_info.json').read_bytes())
     if not isinstance(meta.get('draft_materials'),list) or any(g.get('value') for g in meta['draft_materials']):return False
     left=json.loads((original/'template-2.tmp').read_bytes())
-    right=json.loads((current/'template-2.tmp').read_bytes())
+    from explorer_project_io_v2 import read_documents
+    right=json.loads(read_documents(current)['template-2.tmp'])
     return left==before_timeline and defaults_equivalent(left,right)

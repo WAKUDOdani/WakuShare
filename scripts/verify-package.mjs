@@ -57,9 +57,9 @@ const result = {
   version: pkg.version,
   hardenedRuntime: Boolean(await verifySecurityRuntime(join(unpacked, 'resources/explorer'))),
   explorerRuntimePathsReady: [
-    'ExplorerProductCommandsV12',
-    'ExplorerProductObserveV9',
-    'ExplorerSavedReadV4'
+    'ExplorerProductCommandsV14',
+    'ExplorerProductObserveV10',
+    'ExplorerSavedReadV5'
   ].every(
     (generation) =>
       code.includes(generation) &&

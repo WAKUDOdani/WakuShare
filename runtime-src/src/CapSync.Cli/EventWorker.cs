@@ -32,11 +32,11 @@ internal sealed class EventWorker
     private long _outSequence, _epoch, _batches;
     private readonly object _outputLock = new();
     private int _sources, _pending;
-    private sealed record ImportStage(string Project,string Phase);
+    private sealed record ImportStage(string Project,long Generation,string Phase);
     private readonly Channel<ImportStage> _stages = Channel.CreateBounded<ImportStage>(new BoundedChannelOptions(64) { SingleReader=true, FullMode=BoundedChannelFullMode.DropOldest });
     private Task<ImportStage>? _stageRead;
     private ImportStage? _importStage;
-    private void ReportStage(string project,string phase) => _stages.Writer.TryWrite(new(project,phase));
+    private void ReportStage(string project,long generation,string phase) => _stages.Writer.TryWrite(new(project,generation,phase));
     private sealed record Reply(bool Ok, object? Result = null, string? Error = null);
     private sealed record Request(string Id, string Command, JsonElement Payload, string Hash);
     private sealed record Frame(string? Text, bool TooLarge = false);
@@ -98,10 +98,11 @@ internal sealed class EventWorker
                 if (_processRead != null) waiting.Add(_processRead);
                 await Task.WhenAny(waiting);
                 if(_stageRead.IsCompleted) {
-                    _importStage=await _stageRead;
+                    var stage=await _stageRead;
                     _stageRead=_stages.Reader.ReadAsync(inputCancellation.Token).AsTask();
-                    if(_importStage.Project==_editor?.State.Project?.Value && _execution!=null)
-                        Emit("event",null,new{name="stateChanged",state=Snapshot()});
+                    if(stage.Project==_editor?.State.Project?.Value && stage.Generation==_editor.State.Generation && _execution!=null) {
+                        _importStage=stage;Emit("event",null,new{name="stateChanged",state=Snapshot()});
+                    }
                 }
                 if (_bootstrap is { IsCompleted: true }) {
                     try { await _bootstrap; } catch (IOException) {
@@ -253,20 +254,23 @@ internal sealed class EventWorker
             var observation = await reading;
             if (observation == null)
             {
-                _editor!.Disconnect("NativeDisconnected"); _editor.Dispose();
+                _editor!.Disconnect("NativeDisconnected"); _editor.Dispose();_native?.InvalidateSession();_nativeCancellation?.Cancel();_importStage=null;
                 _engine?.SessionChanged("ProjectClosed");
             }
             else
             {
                 var generation = _editor!.State.Generation;
                 _editor.Apply(observation);
+                if(generation != _editor.State.Generation) {
+                    _native?.InvalidateSession();_nativeCancellation?.Cancel();_importStage=null;
+                }
                 _engine?.SessionChanged(generation != _editor.State.Generation ? "ProjectChanged" : "MediaChanged");
                 _editorRead = _editor.ReadAsync();
             }
         }
         catch (Exception error) when (error is IOException or InvalidDataException or JsonException or InvalidOperationException or FormatException or ArgumentException)
         {
-            _editor!.Disconnect("NativeProtocolFault"); _editor.Dispose();
+            _editor!.Disconnect("NativeProtocolFault"); _editor.Dispose();_native?.InvalidateSession();_nativeCancellation?.Cancel();_importStage=null;
             _engine?.SessionChanged("ProjectClosed");
         }
         Emit("event", null, new { name = "editorChanged", state = Snapshot() });
@@ -327,7 +331,7 @@ internal sealed class EventWorker
                     if (binding == null) { binding = new() { Id = destination.Id, ProjectId = projectKey, RootPath = destination.RootPath, MediaFolderId = destination.MediaFolderId }; _state.Bindings.Add(binding); }
                     binding.Status = "WaitingForRootFolder";
                 }
-                _native.Destinations = destinations; _store.Save(_state);
+                _native.ConfigureProject(projectKey,destinations); _store.Save(_state);
                 if (running) Start();
                 return new(true, Snapshot());
             case "status": Fields(payload); return new(true, Snapshot());
@@ -384,7 +388,7 @@ internal sealed class EventWorker
             Emit("event", null, new { name = "stateChanged", state = Snapshot() });
             var transferReady = _native?.RemainderEnabled == true && _editor?.State.Project is { } currentProject && result.Transfers.Count > 0 &&
                 _state.Bindings.Where(b => b.ProjectId == currentProject.Value && b.Status != "Suspended").All(b => b.Status is "Ready" or "WaitingForCrossBindingAdapter");
-            if (restart && _native != null && _native.Destinations.Length > 0 && _editor?.State.Status == "Project" && (!result.EditorBlocked || transferReady))
+            if (restart && _native != null && _native.CanDispatch && _editor?.State.Status == "Project" && (!result.EditorBlocked || transferReady))
             { _importStage=null; _nativeCancellation = new(); _execution = ExecuteNative(_nativeCancellation.Token); }
         }
         catch (OperationCanceledException) when (_planningCancellation!.IsCancellationRequested) { }

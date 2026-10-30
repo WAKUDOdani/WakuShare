@@ -37,7 +37,9 @@ try{
  // live lease/SDK owner/tree directly; the serializer may hold its own files.
  // Complete durable documents are independently checked after it settles.
  using Check=bool(__cdecl*)(const ExplorerRuntimeLease*);const auto host=GetModuleHandleW(
-#if CAPSYNC_PRODUCT_GENERATION >= 6
+#if CAPSYNC_PRODUCT_GENERATION >= 7
+L"CapSync.ExplorerProductEventsV7.dll"
+#elif CAPSYNC_PRODUCT_GENERATION >= 6
 L"CapSync.ExplorerProductEventsV6.dll"
 #else
 L"CapSync.ExplorerProductEventsV5.dll"

@@ -1,24 +1,36 @@
-"""Exact Draft comparison with CapCut's saved audio-cache path spelling.
+"""Complete Draft equality across CapCut's project-relative path spelling.
 
-Only vocal-beautify production paths under this project's Resources/audioAlg
-can use the stock UUID placeholder. No other field or missing file is ignored.
+Only path fields pointing to the same resource under this project may expand a
+UUID placeholder. No content, identity, field or different target is ignored.
 """
 from copy import deepcopy
-from pathlib import Path
+from pathlib import PureWindowsPath
 import re
-
-PLACEHOLDER=re.compile(r'^##_draftpath_placeholder_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_##/(Resources/audioAlg/[^:]+)$')
 
 def same_draft(saved,live,directory):
     normalized=deepcopy(saved)
-    for row in normalized.get('materials',{}).get('vocal_beautifys',[]):
-        path=row.get('production_path')
-        if not isinstance(path,str):continue
-        match=PLACEHOLDER.fullmatch(path)
-        if not match:continue
-        relative=match[1]
-        if '\\' in relative or any(part in ('','.','..') for part in relative.split('/')):continue
-        row['production_path']=str(Path(directory)/relative).replace('\\','/')
+    # CapCut stores its own project resources with a UUID placeholder, including
+    # nested compositions, matting and color-match caches. The live SDK expands
+    # that prefix. Compare only equivalent paths under this exact project root;
+    # do not ignore a field, a missing resource, arbitrary text or another root.
+    placeholder=re.compile(r'^##_draftpath_placeholder_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_##[/\\](.+)$')
+    def walk(left,right):
+        if isinstance(left,dict) and isinstance(right,dict):
+            for key,value in list(left.items()):
+                other=right.get(key)
+                if isinstance(value,str) and isinstance(other,str) and (key=='path' or key.endswith('_path')):
+                    match=placeholder.fullmatch(value)
+                    if match:
+                        relative=match[1].replace('\\','/');parts=relative.split('/')
+                        if any(part in ('','.','..') or ':' in part or '\0' in part for part in parts):continue
+                        if '\0' in other or any(part in ('.','..') for part in other.replace('\\','/').split('/')):continue
+                        expected=PureWindowsPath(str(directory)).joinpath(*parts)
+                        actual=PureWindowsPath(other)
+                        if actual.is_absolute() and actual==expected:left[key]=other
+                else:walk(value,other)
+        elif isinstance(left,list) and isinstance(right,list):
+            for a,b in zip(left,right):walk(a,b)
+    walk(normalized,live)
     return normalized==live
 
 def unique_source_ids(draft):

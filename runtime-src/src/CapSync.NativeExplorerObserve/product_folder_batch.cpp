@@ -23,7 +23,9 @@ try{
  for(const auto value:jobs){const auto j=value.toObject();const auto id=j.value("FolderId").toString(),parent=j.value("ParentFolderId").toString();NativeMetadata data(creator);data.configure(creator,id.toLatin1(),j.value("Name").toString().toUtf8());dispatched=true;result.insert("mutationDispatched",true);auto* node=reinterpret_cast<QObject*(__fastcall*)(const NativeMetadata::Pair*,QObject*)>(creator+0x5e124a0)(&data.pair,nodes.at(parent));if(!node || ExplorerProject::nodeId(node)!=id || node->parent()!=nodes.at(parent))throw std::runtime_error("folder forest append unconfirmed");nodes.emplace(id,node);}
  reinterpret_cast<void(__fastcall*)(quintptr)>(creator+0x5e121e0)(service);if(!QMetaObject::invokeMethod(grid,"onFileMetaTreeUpdated",Qt::DirectConnection))throw std::runtime_error("folder forest save unavailable");reinterpret_cast<void(__fastcall*)(QObject*)>(creator+0x29e1e20)(grid);sdk.verify();draft.verify();
  using Check=bool(__cdecl*)(const ExplorerRuntimeLease*);const auto host=GetModuleHandleW(
-#if CAPSYNC_PRODUCT_GENERATION >= 6
+#if CAPSYNC_PRODUCT_GENERATION >= 7
+L"CapSync.ExplorerProductEventsV7.dll"
+#elif CAPSYNC_PRODUCT_GENERATION >= 6
 L"CapSync.ExplorerProductEventsV6.dll"
 #else
 L"CapSync.ExplorerProductEventsV5.dll"

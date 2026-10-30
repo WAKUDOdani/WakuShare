@@ -1,3 +1,4 @@
+#include "saved_document.h"
 #include "material_limits.h"
 // Complete SDK/bin agreement before observing manually removed owned cards.
 #include "runtime_guard.h"
@@ -42,14 +43,14 @@ void perform(Request request) {
 #endif
         QFile file(identity.location+QStringLiteral("/draft_meta_info.json"));
         if(!file.open(QIODevice::ReadOnly) || file.size()>10*1024*1024)throw std::runtime_error("catalog unavailable");
-        const auto document=QJsonDocument::fromJson(file.readAll()).object();
+        const auto document=EXPLORER_SAVED_JSON(file).object();
         if(document.value("draft_id").toString().toUpper()!=identity.draftId)throw std::runtime_error("different catalog project");
         const auto creator=reinterpret_cast<quintptr>(GetModuleHandleW(L"VECreator.dll"));
         BinSnapshot snapshot(creator,document);snapshot.verify();ExplorerRuntime::check(request.lease);
 #ifdef CAPSYNC_LIVE_SOURCE_NAMES
         ExplorerDraftSnapshot::Snapshot liveDraft;
         QFile content(identity.location+QStringLiteral("/draft_content.json"));if(!content.open(QIODevice::ReadOnly) || content.size()>64*1024*1024)throw std::runtime_error("saved Draft identity unavailable");
-        const auto savedDraft=QJsonDocument::fromJson(content.readAll()).object(),live=liveDraft.object();
+        const auto savedDraft=EXPLORER_SAVED_JSON(content).object(),live=liveDraft.object();
         if(live.isEmpty() || live.value("id").toString().isEmpty() || live.value("id")!=savedDraft.value("id"))throw std::runtime_error("live Draft identity differs from saved lab");
 #endif
         QJsonArray materials;
@@ -58,7 +59,9 @@ void perform(Request request) {
         // Subscribe to the actual model signal. No recurring catalog reads or
         // timers; the observer's existing queued snapshot wakes the worker.
 #ifdef CAPSYNC_PRODUCT_RUNTIME
-#if CAPSYNC_PRODUCT_GENERATION >= 6
+#if CAPSYNC_PRODUCT_GENERATION >= 7
+        const auto host=GetModuleHandleW(L"CapSync.ExplorerProductEventsV7.dll");
+#elif CAPSYNC_PRODUCT_GENERATION >= 6
         const auto host=GetModuleHandleW(L"CapSync.ExplorerProductEventsV6.dll");
 #elif CAPSYNC_PRODUCT_GENERATION >= 5
         const auto host=GetModuleHandleW(L"CapSync.ExplorerProductEventsV5.dll");

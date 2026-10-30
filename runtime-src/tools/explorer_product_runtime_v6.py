@@ -12,6 +12,8 @@ from live_add import atomic
 def run(data):
     if data['action']=='prepare':return prepare_commands()
     if data['action']=='bootstrap':return bootstrap(data)
+    from explorer_saved_documents_v1 import bind
+    bind(data)
     if data['action']=='batch':
         from explorer_batch_import_v6 import execute
         return execute(data)

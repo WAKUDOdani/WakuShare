@@ -1,9 +1,9 @@
 {
-  "tag": "v1.3.13",
-  "asset": "WakuShare-explorer-runtime-1.3.13-win-x64.zip",
-  "sha256": "f9ba3463d6aadee3248b7512ef0eb174ac05599abb231bbd7c66753fb682bce8",
-  "bytes": 137150519,
-  "indexSha256": "df4b1caf84f4791da8281f400d82f199617d43c18bfdec3d6f65f7db856c78ef",
-  "files": 1020,
+  "tag": "v1.3.14",
+  "asset": "WakuShare-explorer-runtime-1.3.14-win-x64.zip",
+  "sha256": "1642e469c1a14f52264fd860854221469d0c77ad5e109416a54c603996713099",
+  "bytes": 138412579,
+  "indexSha256": "d0adc2d8a829c9aa1099d4a2d16e363634f2150cc177e89c088e859eab5c74f3",
+  "files": 1050,
   "capcutBuild": "9.6.0.4097"
 }

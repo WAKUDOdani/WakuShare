@@ -7,6 +7,9 @@
 #include <QtCore/QSet>
 #include "stock_service_scope.h"
 #include "material_limits.h"
+#ifdef CAPSYNC_SDK_SAVED_DOCUMENTS
+#include "saved_document.h"
+#endif
 #ifdef CAPSYNC_TREE_SCOPE_V2
 #include "registry_tree_scope.h"
 #endif
@@ -28,7 +31,12 @@ inline QObject* object(quintptr address,const char* type){
 inline QJsonObject document(const QString& location,const QString& name){
     QFile file(location+QLatin1Char('/')+name);
     if(QFileInfo(file.fileName()).canonicalPath().compare(location,Qt::CaseInsensitive) || !file.open(QIODevice::ReadOnly) || file.size()>32*1024*1024)throw std::runtime_error("project document unavailable");
-    const auto parsed=QJsonDocument::fromJson(file.readAll());
+    const auto raw=file.readAll();
+#ifdef CAPSYNC_SDK_SAVED_DOCUMENTS
+    const auto parsed=ExplorerSavedDocument::parse(raw,file.fileName(),32*1024*1024);
+#else
+    const auto parsed=QJsonDocument::fromJson(raw);
+#endif
     if(!parsed.isObject())throw std::runtime_error("project document invalid");return parsed.object();
 }
 inline void metadata(const QJsonObject& meta,const QString& path){

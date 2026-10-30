@@ -1,3 +1,4 @@
+#include "saved_document.h"
 // Verified read-only access to the actual SDK Draft, shared with catalog reads.
 #pragma once
 #include "session_identity.h"
@@ -32,7 +33,7 @@ struct Snapshot {
         const auto identity=ExplorerSession::current();
         QFile saved(identity.location+QStringLiteral("/draft_content.json"));
         if(!saved.open(QIODevice::ReadOnly) || saved.size()>64*1024*1024)throw std::runtime_error("saved timeline unavailable");
-        const auto wanted=QJsonDocument::fromJson(saved.readAll()).object().value("id").toString();
+        const auto wanted=EXPLORER_SAVED_JSON(saved).object().value("id").toString();
         if(wanted.isEmpty())throw std::runtime_error("saved timeline identity unavailable");
         for(auto entry=begin;entry<end;entry+=16) {
             const auto holder=read<quintptr>(entry),root=read<quintptr>(holder);

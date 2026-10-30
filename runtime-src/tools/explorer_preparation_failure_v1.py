@@ -10,6 +10,11 @@ from load_native_lab import modules,digest
 from explorer_project_io_v2 import document_hashes
 from live_add import atomic
 
+def snapshot_hashes(directory):
+    import json
+    proof=directory/'.source-hashes.json'
+    return json.loads(proof.read_bytes()) if proof.exists() else document_hashes(directory)
+
 def proven(data,context,run,record):
     proof_file=run/'preparation-failure-proof.json'
     if not proof_file.is_file():return False
@@ -24,6 +29,6 @@ def proven(data,context,run,record):
     if error.parent!=context.private/'adapter-errors' or digest(error)!=proof['errorSha256']:return False
     failure=json.loads(error.read_bytes())
     if failure.get('type')!='FileNotFoundError' or not failure.get('reason','').endswith("CapSync.ExplorerProductCatalogV6.dll'"):return False
-    if document_hashes(run/'before')!=document_hashes(context.directory):return False
+    if snapshot_hashes(run/'before')!=document_hashes(context.directory):return False
     atomic(run/'preparation-failure-verified.json',{'accepted':True,'projectUnchanged':True,'targetModuleNeverLoaded':True,'nativeCommands':0,'proofSha256':digest(proof_file)})
     return True

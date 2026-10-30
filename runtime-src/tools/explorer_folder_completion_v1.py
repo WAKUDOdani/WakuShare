@@ -7,13 +7,17 @@ from explorer_saved_graph_v2 import read
 from live_add import atomic
 from load_native_lab import digest
 
-def compare(before,after,job,original,current):
+def compare(before,after,job,original,current,sdk_before=None,project=None):
     checked=compare_folder(before,after,job)
     left,right=deepcopy(before['meta']),deepcopy(after['meta'])
     for value in (left,right):
         value.pop('draft_materials',None);value.pop('tm_draft_modified',None)
     if left!=right:checked['errors'].append('Other metadata changed')
-    if not template_exact(original,current,before['timeline']):checked['errors'].append('Complete template changed')
+    if sdk_before is None:matches=template_exact(original,current,before['timeline'])
+    else:
+        from explorer_folder_sdk_baseline_v1 import template_exact as sdk_template_exact
+        matches=sdk_template_exact(current,sdk_before,project)
+    if not matches:checked['errors'].append('Complete template changed')
     checked['accepted']=not checked['errors']
     return checked
 
@@ -28,12 +32,16 @@ def complete(data,context):
     proof=json.loads(receipt.read_bytes())
     if proof.get('status')!='created' or proof.get('jobId')!=job['Id'] or proof.get('folderId')!=job['FolderId'] or proof.get('name')!=job['Name']:return False
     if not all(proof.get(k) is True for k in ('folderAppended','metadataConstructed','focusUnchanged','foregroundUnchanged','navigationUnchanged')):return False
-    before=load_project(run/'before');case=run/('read-only-completion-'+uuid.uuid4().hex);case.mkdir()
+    before=load_project(run/'before')
+    from explorer_folder_sdk_baseline_v1 import baseline,saved_state,template_exact as sdk_template_exact
+    before,sdk_before=baseline(before,proof,run/'evidence/folder.json.draft-before.json')
+    case=run/('read-only-completion-'+uuid.uuid4().hex);case.mkdir()
     for name,delay in (('immediate',0),('saved',30)):
         if delay:time.sleep(delay)
         sample=case/name;sample.mkdir();read(data,context,sample)
         snapshot_project(context.directory,sample/'project')
-        checked=compare(before,load_project(sample/'project'),job,run/'before',sample/'project')
+        current=saved_state(load_project(sample/'project'),sdk_before,context.directory)
+        checked=compare(before,current,job,run/'before',sample/'project',sdk_before,context.directory)
         atomic(sample/'comparison.json',checked)
         if not checked['accepted']:return False
     atomic(case/'acceptance.json',{'accepted':True,'nativeMutations':0,'savedSeconds':30,'wholeSdkSavedGraph':True,'originalReceiptSha256':digest(receipt)})

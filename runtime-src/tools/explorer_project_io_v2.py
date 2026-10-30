@@ -18,11 +18,26 @@ IMPLICIT_STORE={'draft_materials':[],'draft_virtual_store':[
     {'type':2,'value':[]}]}
 NAMES=('draft_content.json','draft_meta_info.json','draft_virtual_store.json','template-2.tmp')
 
-def _read_documents(directory):
+def raw_documents(directory):
     exists={name:(directory/name).exists() for name in NAMES}
     if not all(exists[name] for name in NAMES[:2]):raise SaveInProgress('Project documents unavailable')
     data={name:(directory/name).read_bytes() for name in NAMES if exists[name]}
-    parsed={name:json.loads(value) for name,value in data.items()}
+    if any(len(value)>64*1024*1024 for value in data.values()):raise ValueError('Project document exceeds bounds')
+    if exists!={name:(directory/name).exists() for name in NAMES} or any((directory/name).read_bytes()!=value for name,value in data.items()):
+        raise SaveInProgress('Project is being saved')
+    return data
+
+def _read_documents(directory):
+    raw=raw_documents(directory);data=raw
+    try:parsed={name:json.loads(value) for name,value in raw.items()}
+    except (UnicodeDecodeError,json.JSONDecodeError):
+        # A damaged plaintext document must not silently become an SDK fallback.
+        for value in raw.values():
+            if value.lstrip().startswith((b'{',b'[')):json.loads(value)
+        from explorer_saved_documents_v1 import decode
+        data=decode(directory,raw);parsed={name:json.loads(value) for name,value in data.items()}
+    if any(not isinstance(value,dict) for value in parsed.values()):raise ValueError('Project document must be an object')
+    exists={name:name in raw for name in NAMES}
     if not exists['draft_virtual_store.json']:
         meta=parsed['draft_meta_info.json']
         if not isinstance(meta.get('draft_materials'),list) or any(g.get('value') for g in meta['draft_materials']):
@@ -32,7 +47,7 @@ def _read_documents(directory):
         # while such a timeline is already populated. Only the empty registry
         # permits this in-memory model; every native operation independently
         # verifies the actual SDK owner and complete live library tree.
-    if exists!={name:(directory/name).exists() for name in NAMES} or any((directory/name).read_bytes()!=value for name,value in data.items()):
+    if raw_documents(directory)!=raw:
         raise SaveInProgress('Project is being saved')
     return data
 
@@ -50,12 +65,19 @@ def load_project(directory):
         'timeline':json.loads(data['draft_content.json'])}
 
 def document_hashes(directory):
-    data=settling_read(read_documents,directory)
+    data=settling_read(raw_documents,directory)
     return {name:hashlib.sha256(data[name]).hexdigest() if name in data else None for name in NAMES}
 
 def snapshot_project(directory,destination):
     if destination.exists():raise ValueError('Snapshot already exists')
+    raw=settling_read(raw_documents,directory)
     data=settling_read(read_documents,directory)
+    if raw_documents(directory)!=raw:raise SaveInProgress('Project changed before snapshot')
     destination.mkdir(parents=True,exist_ok=False)
     for name,value in data.items():(destination/name).write_bytes(value)
-    return {name:hashlib.sha256(data[name]).hexdigest() if name in data else None for name in NAMES}
+    hashes={name:hashlib.sha256(raw[name]).hexdigest() if name in raw else None for name in NAMES}
+    (destination/'.source-hashes.json').write_text(json.dumps(hashes),encoding='utf8')
+    if raw!=data:
+        (destination/'.raw').mkdir()
+        for name,value in raw.items():(destination/'.raw'/name).write_bytes(value)
+    return hashes

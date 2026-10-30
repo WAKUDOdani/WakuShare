@@ -1,3 +1,4 @@
+#include "../CapSync.NativeExplorerObserve/saved_document.h"
 // R4097 lab-only hierarchy writer. No material serializer or project-file writes.
 #pragma once
 #include <array>
@@ -69,7 +70,7 @@ struct FolderStoreChange {
         static_assert(sizeof(Edge)==0x40 && sizeof(Data)==0x58 && offsetof(Data,colors)==0x48,"unsupported hierarchy ABI");
         QFile file(QFileInfo(metaPath).dir().filePath(QStringLiteral("draft_virtual_store.json")));
         if(!file.open(QIODevice::ReadOnly))throw std::runtime_error("Saved hierarchy unavailable");
-        const auto document=QJsonDocument::fromJson(file.readAll()).object();
+        const auto document=EXPLORER_SAVED_JSON(file).object();
         if(!document.value("draft_materials").toArray().isEmpty())throw std::runtime_error("Unexpected hierarchy materials");
         const auto groups=document.value("draft_virtual_store").toArray();
         if(groups.size()!=3)throw std::runtime_error("Unexpected hierarchy groups");

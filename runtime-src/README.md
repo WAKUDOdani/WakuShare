@@ -1,7 +1,7 @@
 # Frozen Explorer runtime source
 
 This directory contains the C# planner/worker, the C++ source/header closure for
-the 16 accepted product modules, Python helper closure, sealed manifests, reduced
+the 17 current product modules, Python helper closure, sealed manifests, reduced
 SDK export contract and runtime-file SHA-256 index shipped with WakuShare 1.3.x.
 The product entry is `tools/explorer_product_runtime_v6.py`. Some inherited helper
 files also contain unused laboratory CLI functions; those are not product routes.
@@ -46,3 +46,26 @@ the two exact disabled schemas with one unchanged reference per helper on the
 same clip; ordinary media IDs, clip properties, timing and active processing are
 never normalized. `tests/test_empty_library.py` and `tests/test_initial_save.py`
 cover these boundaries without an editor connection.
+
+The 1.3.14 runtime also reads encrypted saved project documents through the
+active StoreWrapper's const readJsonFile method. Plain JSON retains its direct
+read path. Reading is bound to the current SDK identity, canonical project
+directory and session lease; no drive letter or default projects directory is
+assumed. Raw-byte revisions guard reads and cache invalidation, while logical
+JSON snapshots retain full graph comparisons. Encrypted originals and key stores
+are never rewritten. The current generation uses Events/Relay V7, Catalog V10,
+Documents V1, Commands V14 and SavedRead V5. Folder V6 records the complete live
+SDK Draft before a root append and verifies every loaded Draft plus the SDK bin
+unchanged. Its saved comparison uses that complete preimage without rewriting
+the original saved snapshot. The encrypted-document tests cover
+ownership, save races, snapshots, raw revisions and drive-independent locations.
+
+Worker V9 binds destination acknowledgement to the editor connection and session
+generation. A project/home/view change invalidates those destinations and cancels
+the old execution between commands. Late replies retain their original job owner
+and cannot publish another project's status or progress. Runtime compound aliases
+may refresh only if they occur nowhere else and the full material, embedded Draft
+and clip data remain exact. Project placeholders compare only as equivalent path
+fields beneath the same project, recursively including compositions and caches.
+Traversal, other targets and subtitle text are never normalized. Session transition
+controls cover A/B/A, Home, disconnects, delayed replies and 16 drive pairs.

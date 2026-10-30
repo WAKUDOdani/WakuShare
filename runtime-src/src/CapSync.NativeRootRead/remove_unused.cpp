@@ -68,7 +68,11 @@ void perform(Request r){
           )
             throw std::runtime_error("isolated unused WAV control only");
 #endif
+        #ifdef CAPSYNC_SDK_SAVED_DOCUMENTS
+        Json meta=Json::parse(ExplorerSavedDocument::read(QString::fromStdString(job.at("metaPath").get<std::string>())).toJson().toStdString());
+#else
         std::ifstream metadata(std::filesystem::u8path(job.at("metaPath").get<std::string>()));Json meta;metadata>>meta;
+#endif
         if(meta.at("draft_id")!=job.at("projectId"))throw std::runtime_error("not lab");
 #ifdef CAPSYNC_PRODUCT_RUNTIME
         ExplorerProject::metadata(QJsonDocument::fromJson(QByteArray::fromStdString(meta.dump())).object(),QString::fromStdString(job.at("metaPath").get<std::string>()));
@@ -79,7 +83,11 @@ void perform(Request r){
         Json expectedMeta=job.at("baselineMeta"),comparable=meta;
         expectedMeta.erase("tm_draft_modified");comparable.erase("tm_draft_modified");
         if(comparable!=expectedMeta)throw std::runtime_error("saved registry changed");
+        #ifdef CAPSYNC_SDK_SAVED_DOCUMENTS
+        Json folders=Json::parse(ExplorerSavedDocument::read(QString::fromStdString(job.at("storePath").get<std::string>())).toJson().toStdString());
+#else
         std::ifstream folderFile(std::filesystem::u8path(job.at("storePath").get<std::string>()));Json folders;folderFile>>folders;
+#endif
         if(folders!=job.at("baselineStore"))throw std::runtime_error("saved folder map changed");
         const auto path=QString::fromStdString(job.at("expectedPath").get<std::string>());
         const auto diskRoot=QFileInfo(path).dir().canonicalPath();

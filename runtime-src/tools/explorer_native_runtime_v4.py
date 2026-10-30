@@ -77,18 +77,21 @@ def lab_plan_state(state,project_key,sdk_id=LAB_ID):
     return pure
 
 def template_exact(original,current,before_timeline,expected_timeline=None):
-    left,right=original/'template-2.tmp',current/'template-2.tmp'
-    if expected_timeline is None:
-        if left.exists()==right.exists() and (not left.exists() or left.read_bytes()==right.read_bytes()):return True
-        if not left.exists() or not right.exists() or left.stat().st_size>4*1024*1024 or right.stat().st_size>4*1024*1024:return False
-        from explorer_initial_save_v1 import initial_template_equivalent
-        return initial_template_equivalent(original,current,before_timeline)
+    from explorer_project_io_v2 import read_documents
     try:
-        if left.stat().st_size>4*1024*1024 or right.stat().st_size>4*1024*1024:return False
-        # StoreWrapper writes the SDK timeline and its JSON template together.
-        # Require the COMPLETE original template and the COMPLETE expected copy.
-        return json.loads(left.read_bytes())==before_timeline and json.loads(right.read_bytes())==expected_timeline
+        left=read_documents(original).get('template-2.tmp')
+        right=read_documents(current).get('template-2.tmp')
+        if expected_timeline is None:
+            if left is None or right is None:return left is right
+            if json.loads(left)==json.loads(right):return True
+            from explorer_compound_alias_v1 import equivalent
+            if equivalent(json.loads(left),json.loads(right)):return True
+            from explorer_initial_save_v1 import initial_template_equivalent
+            return initial_template_equivalent(original,current,before_timeline)
+        if left is None or right is None:return False
+        return json.loads(left)==before_timeline and json.loads(right)==expected_timeline
     except (OSError,ValueError):return False
+
 
 def normalize_stock_service(before,after):
     """Only the previously accepted empty stock row may refresh these clocks."""
@@ -101,9 +104,18 @@ def normalize_stock_service(before,after):
         new[0].clear();new[0].update(deepcopy(old[0]))
     return result
 
+def folder_rejection_stage(receipt):
+    # This sealed folder callback reports "rejected" only before Append.
+    # A revoked lease may safely try a fresh attempt when its project returns.
+    if receipt.get('status')!='rejected' or receipt.get('folderAppended') is True or receipt.get('mutationDispatched') is True:return 'Unknown'
+    return 'WaitingForSession' if receipt.get('reason') in ('runtime session lease revoked','project document unavailable') else 'RejectedBeforeMutation'
+
 def compare_folder(before,after,job):
     from explorer_initial_save_v1 import normalize_first_library
     before=normalize_first_library(before,after)
+    from explorer_compound_alias_v1 import equivalent
+    if before['timeline']!=after['timeline'] and equivalent(before['timeline'],after['timeline']):
+        before=deepcopy(before);before['timeline']=deepcopy(after['timeline'])
     left=deepcopy(before);right=normalize_stock_service(before,after)
     # A fresh stock session may recreate this one known empty service row on
     # its first write. Never admit another ID, a media path or altered payload.
@@ -364,9 +376,11 @@ def execute(data,context=None):
                 jobId=job['Id'].encode(), folderId=job['FolderId'].encode(), parentId=job['ParentFolderId'].encode(), name=job['Name'], lease=lease)
             native = issue('Folder','CapSync_FolderCommandThread',request,run/'evidence/folder.json')
             identifier = job['FolderId']
+            from explorer_folder_sdk_baseline_v1 import baseline,saved_state
+            before,sdk_folder_before=baseline(before,native,run/'evidence/folder.json.draft-before.json')
             def compare(current):
                 # The existing comparator reads the desired name from RelativePath.
-                return compare_folder(before,current,job)
+                return compare_folder(before,saved_state(current,sdk_folder_before,project_directory),job)
         else:
             source = Path(job['SourcePath']); stable = StableFile(source)
             expected_identity = job.get('FileIdentity') or data['fileIdentity']
@@ -524,8 +538,11 @@ def execute(data,context=None):
             else: raise ValueError('Unknown adapter operation')
         atomic(run/'native-receipt.json',native)
         if kind=='folder' and native.get('status')=='rejected':
-            record.update(stage='RejectedBeforeMutation',nativeMutations=0,rejectionReason='Folder creation was refused before changes; see the first guard receipt.');atomic(marker,record)
-            return reply('Waiting',reason=record['rejectionReason'])
+            rejection_stage=folder_rejection_stage(native)
+            record.update(stage=rejection_stage,rejectionReason='Folder creation was refused before changes; see the first guard receipt.')
+            if rejection_stage!='Unknown':record['nativeMutations']=0
+            atomic(marker,record)
+            return reply('Unknown' if rejection_stage=='Unknown' else 'Waiting',reason=record['rejectionReason'])
         confirmed_import=kind in ('add','restore') and native.get('status')=='dispatched-unconfirmed' and all(native.get(k) is True for k in ('enterAccepted','moveAccepted','dropAccepted'))
         if (native.get('status') not in ('created','moved','changed','submitted') and not confirmed_import) or not all(native.get(k) is True for k in ('focusUnchanged','foregroundUnchanged','navigationUnchanged')):
             return reply('Unknown',reason='Native receipt is inconclusive; no replay')
@@ -536,7 +553,11 @@ def execute(data,context=None):
                 document.pop('draft_materials',None);document.pop('tm_draft_modified',None)
             if left!=right:checked['errors'].append('Other metadata changed')
             intended=expected_timeline if kind in ('update','transfer') and p['sourceId'] else None
-            if not template_exact(run/'before',folder,before['timeline'],intended):checked['errors'].append('Template differs from the complete expected timeline')
+            if kind=='folder' and sdk_folder_before is not None:
+                from explorer_folder_sdk_baseline_v1 import template_exact as sdk_template_exact
+                matches=sdk_template_exact(folder,sdk_folder_before,project_directory)
+            else:matches=template_exact(run/'before',folder,before['timeline'],intended)
+            if not matches:checked['errors'].append('Template differs from the complete expected timeline')
             checked['accepted']=not checked['errors'];return checked
         if context and kind=='folder':
             # The stock save request queues serialization. Wait only for the

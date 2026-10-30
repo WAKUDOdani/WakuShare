@@ -1,3 +1,4 @@
+#include "../CapSync.NativeExplorerObserve/saved_document.h"
 #include "../CapSync.NativeExplorerObserve/material_limits.h"
 // Lab-only native-owned FileMetaData construction and addressed folder append.
 #include "../CapSync.NativeProbe/qt62_compat.h"
@@ -21,6 +22,10 @@
 #include <stdexcept>
 #ifdef CAPSYNC_EXPLORER_RUNTIME
 #include "../CapSync.NativeExplorerObserve/runtime_guard.h"
+#endif
+#ifdef CAPSYNC_FOLDER_SDK_BASELINE
+#include "../CapSync.NativeAdd/bin_snapshot.h"
+#include "../CapSync.NativeExplorerObserve/draft_snapshot.h"
 #endif
 
 struct Request {
@@ -108,7 +113,7 @@ void perform(Request request) {
         ExplorerRuntime::check(request.lease);
 #endif
         QFile file(QString::fromWCharArray(request.meta));if(!file.open(QIODevice::ReadOnly))throw std::runtime_error("metadata unavailable");
-        const auto meta=QJsonDocument::fromJson(file.readAll()).object();
+        const auto meta=EXPLORER_SAVED_JSON(file).object();
 #ifdef CAPSYNC_PRODUCT_RUNTIME
         ExplorerProject::metadata(meta,QString::fromWCharArray(request.meta));
 #else
@@ -161,6 +166,11 @@ void perform(Request request) {
 #endif
         const HWND foreground=GetForegroundWindow();POINT before{},after{};GetCursorPos(&before);
         auto* focus=QGuiApplication::focusObject();
+#ifdef CAPSYNC_FOLDER_SDK_BASELINE
+        BinSnapshot sdkBin(creator,meta);ExplorerDraftSnapshot::Snapshot sdkDraft;
+        QSaveFile baseline(output+QStringLiteral(".draft-before.json"));
+        if(!baseline.open(QIODevice::WriteOnly) || baseline.write(sdkDraft.text.data(),static_cast<qint64>(sdkDraft.text.size()))!=static_cast<qint64>(sdkDraft.text.size()) || !baseline.commit())throw std::runtime_error("complete SDK baseline unavailable");
+#endif
         QJsonObject result;
         {
             NativeMetadata data(creator);data.configure(creator,request.folderId,name.toUtf8());
@@ -181,6 +191,10 @@ void perform(Request request) {
                 result.insert("folderAppended",true);
             }
         } // Native destructor/control block release is exercised before receipt.
+#ifdef CAPSYNC_FOLDER_SDK_BASELINE
+        sdkBin.verify();sdkDraft.verify();
+        result.insert("sdkBinUnchanged",true);result.insert("allSdkDraftsUnchanged",true);result.insert("completeSdkBaseline",true);
+#endif
         GetCursorPos(&after);
         result.insert("status",request.action==0?"smoke-ok":"created");
         result.insert("folderId",QString::fromLatin1(request.folderId));result.insert("name",name);

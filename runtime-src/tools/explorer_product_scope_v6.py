@@ -35,7 +35,8 @@ class ProductScope:
         expected='project-v1-'+hashlib.sha256((draft+'\0'+normalized.upper()).encode('utf8')).hexdigest()
         if key['Value']!=expected:raise ValueError('Project key differs from live identity and directory')
         self.project_key=key['Value']
-        meta=json.loads((self.directory/'draft_meta_info.json').read_text(encoding='utf8'))
+        from explorer_project_io_v2 import load_project
+        meta=load_project(self.directory)['meta']
         self.sdk_id=meta['draft_id']
         if str(uuid.UUID(self.sdk_id)).upper()!=draft:raise ValueError('Live project metadata identity differs')
         state_path=Path(data['statePath']).resolve()

@@ -1,3 +1,4 @@
+#include "../CapSync.NativeExplorerObserve/saved_document.h"
 #include "../CapSync.NativeExplorerObserve/material_limits.h"
 // Isolated lab: preserve identities of explicit aliases of one exact source path.
 #include "../CapSync.NativeProbe/qt62_compat.h"
@@ -175,7 +176,7 @@ void perform(Request request){
 #endif
             throw std::runtime_error("new source changed");
         QFile file(QString::fromWCharArray(request.meta));if(!file.open(QIODevice::ReadOnly))throw std::runtime_error("metadata missing");
-        const auto meta=QJsonDocument::fromJson(file.readAll()).object();
+        const auto meta=EXPLORER_SAVED_JSON(file).object();
 #ifdef CAPSYNC_PRODUCT_RUNTIME
         ExplorerProject::metadata(meta,QString::fromWCharArray(request.meta));
 #else

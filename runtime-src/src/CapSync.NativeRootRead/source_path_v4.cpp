@@ -66,7 +66,11 @@ void perform(Request r){
 #endif
         const char* group=isAudio?"audios":"videos";
         const char* nameField=isAudio?"name":"material_name";
+        #ifdef CAPSYNC_SDK_SAVED_DOCUMENTS
+        Json meta=Json::parse(ExplorerSavedDocument::read(QString::fromStdString(job.at("metaPath").get<std::string>())).toJson().toStdString());
+#else
         std::ifstream metadata(std::filesystem::u8path(job.at("metaPath").get<std::string>()));Json meta;metadata>>meta;
+#endif
         if(meta.at("draft_id")!=job.at("projectId"))throw std::runtime_error("not lab");
 #ifdef CAPSYNC_PRODUCT_RUNTIME
         const auto metadataText=meta.dump();

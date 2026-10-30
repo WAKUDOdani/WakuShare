@@ -1,3 +1,4 @@
+#include "../CapSync.NativeExplorerObserve/saved_document.h"
 #include "../CapSync.NativeExplorerObserve/material_limits.h"
 #include "../CapSync.NativeDrop/drop_events.h"
 #include <Windows.h>
@@ -87,7 +88,7 @@ void perform(Request request) {
 #endif
         QFile file(QString::fromWCharArray(request.meta));
         if (!file.open(QIODevice::ReadOnly)) throw std::runtime_error("lab metadata unavailable");
-        const auto meta=QJsonDocument::fromJson(file.readAll()).object();
+        const auto meta=EXPLORER_SAVED_JSON(file).object();
 #ifdef CAPSYNC_PRODUCT_RUNTIME
         ExplorerProject::metadata(meta,QString::fromWCharArray(request.meta));
 #else
@@ -194,7 +195,7 @@ void perform(Request request) {
         if(read<unsigned>(destinationData+0x138)!=4)throw std::runtime_error("destination is not a folder");
         QFile hierarchyFile(QFileInfo(QString::fromWCharArray(request.meta)).dir().filePath(QStringLiteral("draft_virtual_store.json")));
         if(!hierarchyFile.open(QIODevice::ReadOnly))throw std::runtime_error("saved hierarchy absent");
-        const auto hierarchy=QJsonDocument::fromJson(hierarchyFile.readAll()).object();int folderMatches=0;
+        const auto hierarchy=EXPLORER_SAVED_JSON(hierarchyFile).object();int folderMatches=0;
         for(const auto group:hierarchy.value("draft_virtual_store").toArray())if(group.toObject().value("type").toInt(-1)==0)
             for(const auto item:group.toObject().value("value").toArray())
                 if(item.toObject().value("id").toString()==QLatin1String(request.targetId))++folderMatches;

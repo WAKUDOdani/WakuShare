@@ -1,3 +1,4 @@
+#include "saved_document.h"
 // One exact laboratory source -> the existing media DropArea, without window hit-testing.
 #include "lab_scope.h"
 #include <QtCore/QCoreApplication>
@@ -82,7 +83,7 @@ void perform(const Request request) {
             throw std::runtime_error("unverified build");
         QFile metadata(QString::fromWCharArray(request.meta));
         if(!metadata.open(QIODevice::ReadOnly) || metadata.size()>10*1024*1024)throw std::runtime_error("lab metadata unavailable");
-        const auto meta=QJsonDocument::fromJson(metadata.readAll()).object();
+        const auto meta=EXPLORER_SAVED_JSON(metadata).object();
 #ifdef CAPSYNC_PRODUCT_RUNTIME
         ExplorerProject::metadata(meta,QString::fromWCharArray(request.meta));
 #else
