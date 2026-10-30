@@ -5,7 +5,8 @@ import {
   isResourceField,
   isExternalResource
 } from '../reference-policy'
-import type { ApproveActiveContent } from '../payload-policy'
+import { effectResourceRequiresTrust, type ApproveActiveContent } from '../payload-policy'
+import { approveNewResources, type ExistingResource } from '../resource-trust'
 import { validateArchivePath, archivePathKey, ArchiveDestination } from '../archive-safety'
 import { createHash, randomUUID } from 'node:crypto'
 import { constants, existsSync } from 'node:fs'
@@ -865,12 +866,42 @@ export async function importPresets(
   try {
     const entries = new Map(allFiles.map((file) => [file.entry, file]))
     const restoredEntries = new Set(files.map((file) => file.entry))
+    const knownEffects = new Map<string, ExistingResource>()
+    const cacheRoots = new Map<string, string>()
+    for (const ref of manifest.references) {
+      if (ref.kind !== 'effect') continue
+      const cached = classifyString(ref.from)
+      if (cached.cls !== 'effect-cache' || !cached.cacheSuffix) continue
+      cacheRoots.set(ref.target, cached.cacheSuffix)
+    }
+    for (const file of files) {
+      if (file.kind !== 'effect') continue
+      let prefix = file.entry
+      while (prefix) {
+        const cached = cacheRoots.get(prefix)
+        if (cached) {
+          knownEffects.set(file.entry, {
+            relativePath: cached + file.entry.slice(prefix.length),
+            size: file.size,
+            sha256: file.sha256
+          })
+          break
+        }
+        const slash = prefix.lastIndexOf('/')
+        prefix = slash < 0 ? '' : prefix.slice(0, slash)
+      }
+    }
     const total = allFiles.reduce((sum, file) => sum + file.size, 0)
     let processed = 0
     await extractZip(path, staging, {
       signal: options.signal,
-      approveActiveContent: options.approveActiveContent,
-      activeResource: (entry) => entries.get(entry)?.kind === 'effect',
+      approveActiveContent: approveNewResources(
+        env.cacheDir,
+        knownEffects,
+        options.approveActiveContent
+      ),
+      activeResource: (entry) =>
+        entries.get(entry)?.kind === 'effect' && effectResourceRequiresTrust(entry),
       mapEntry: (entry) => (entries.has(entry) ? entry : null),
       expected: (entry) => entries.get(entry),
       verifyOnly: (entry) => !restoredEntries.has(entry),

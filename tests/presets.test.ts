@@ -601,11 +601,25 @@ describe('composition preset transfer', () => {
     const archive = join(tmp, 'trust.wakupresets')
     await exportPresets(root, ['p1'], archive, env)
     const target = join(tmp, 'untrusted-target')
+    const foreign = { ...env, cacheDir: join(tmp, 'empty-cache') }
     await expect(
-      importPresetsCore(archive, ['p1'], target, env, join(tmp, 'backups'))
+      importPresetsCore(archive, ['p1'], target, foreign, join(tmp, 'backups'))
     ).rejects.toThrow(/explicit trust/)
     expect(existsSync(join(target, STORE_PATH))).toBe(false)
     expect(readdirSync(target)).toEqual([])
+  })
+
+  it('does not ask again for effects whose bytes already exist in the local CapCut cache', async () => {
+    const archive = join(tmp, 'known.wakupresets')
+    await exportPresets(root, ['p1'], archive, env)
+    const result = await importPresetsCore(
+      archive,
+      ['p1'],
+      join(tmp, 'known-target'),
+      env,
+      join(tmp, 'backups')
+    )
+    expect(result.presets).toBe(1)
   })
 
   it('refuses to export an unrelated local secret introduced through a document', async () => {

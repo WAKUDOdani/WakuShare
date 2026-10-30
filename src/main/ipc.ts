@@ -179,16 +179,16 @@ export function registerIpcHandlers(ctx: IpcContext): void {
     return async (entries: readonly string[]): Promise<boolean> => {
       if (approved) return true
       const response = await dialog.showMessageBox(ctx.getMainWindow()!, {
-        type: 'warning',
-        title: mainT('Do you trust this package?'),
-        message: mainT('This package contains effect resources or active content.'),
+        type: 'question',
+        title: mainT('Import effect resources'),
+        message: mainT('This package includes new CapCut effect resources.'),
         detail:
           mainT(
-            'CapCut may execute effect code. Only import this package if you trust its author. Integrity checks do not prove that code is safe.'
+            'These effects may include scripts. Continue if you trust the source of this package. Resources already present on this computer were checked automatically.'
           ) +
           '\n\n' +
-          entries.slice(0, 6).join('\n'),
-        buttons: [mainT('Cancel'), mainT('Trust and import')],
+          mainT(`New effect resources: ${entries.length}`),
+        buttons: [mainT('Cancel'), mainT('Import with effects')],
         defaultId: 0,
         cancelId: 0,
         noLink: true

@@ -16,6 +16,8 @@ WakuShare runs on Windows x64. The tested editor version is CapCut International
 
 Multiple timelines and nested compositions are preserved. Original source files stay in place: the imported copy stores them under `Resources/local/Исходники` and updates references to the new files. Independent sources with identical filenames are not merged.
 
+The imported project's media library groups its resources under **ImportRes**. Nested folders, manual names and clip references are preserved.
+
 For modern projects, export includes all timelines and the nested compositions they need. Unused media-library compositions and proxy history do not add package dependencies. This only changes the exported copy; the source project is preserved.
 
 For projects with many tracks, scroll the properties and track overview inside the project dialog. Cache options and export controls stay at the bottom of the dialog, including in a small app window.
@@ -95,7 +97,7 @@ Builds do not yet have a publisher signature. Download only from the [official W
 
 ### Why do effect packages need a trust confirmation?
 
-Real effects can contain Lua/JS and other active resources. Confirming trust allows them to be passed to CapCut; it does not neutralize the code. You can cancel the import. Ordinary media and automatic sync do not require this confirmation. [Protection boundaries](security-audit-2026-10-21.md) (audit report in Russian).
+The prompt applies to new or changed effect resources that may contain Lua/JS, shaders or opaque configurations. Resources whose contents match files already present in the local CapCut cache do not require another prompt. Ordinary media and unselected presets do not trigger it. You can cancel imports of new resources; confirming trust does not neutralize code. Path, executable and integrity checks remain enabled for every package. [Protection boundaries](security-audit-2026-10-21.md) (audit report in Russian).
 
 ### Will another CapCut version work?
 

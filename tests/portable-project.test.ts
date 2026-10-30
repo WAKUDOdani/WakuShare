@@ -134,6 +134,69 @@ async function exportCase(): Promise<string> {
 }
 
 describe('complete portable multi-timeline project', () => {
+  it('places imported media under ImportRes without flattening existing library folders', async () => {
+    const metaPath = join(source, 'draft_meta_info.json')
+    const meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+    meta.draft_materials = [
+      {
+        type: 0,
+        value: [
+          { id: 'local-card', file_Path: './Resources/local/original.png', extra_info: 'My name' },
+          { id: 'external-card', file_Path: external[0].replaceAll('\\', '/') }
+        ]
+      }
+    ]
+    write(metaPath, meta)
+    write(join(source, 'draft_virtual_store.json'), {
+      draft_virtual_store: [
+        {
+          type: 0,
+          value: [
+            { id: '', display_name: '' },
+            { id: 'old-folder', display_name: 'My folder' }
+          ]
+        },
+        {
+          type: 1,
+          value: [
+            { child_id: 'old-folder', parent_id: '' },
+            { child_id: 'external-card', parent_id: 'old-folder' }
+          ]
+        }
+      ]
+    })
+    const original = readFileSync(metaPath)
+    const archive = await exportCase()
+    const imported = await importCapshare({
+      filePath: archive,
+      env,
+      resolution: 'copy',
+      backupDir: join(root, 'backups')
+    })
+    const store = JSON.parse(
+      readFileSync(join(imported.folderPath, 'draft_virtual_store.json'), 'utf8')
+    )
+    const wrapper = store.draft_virtual_store[0].value.find(
+      (item: { display_name: string }) => item.display_name === 'ImportRes'
+    )
+    expect(wrapper).toBeDefined()
+    expect(store.draft_virtual_store[1].value).toContainEqual({
+      child_id: 'old-folder',
+      parent_id: wrapper.id
+    })
+    expect(store.draft_virtual_store[1].value).toContainEqual({
+      child_id: 'external-card',
+      parent_id: 'old-folder'
+    })
+    expect(store.draft_virtual_store[1].value).toContainEqual({
+      child_id: 'local-card',
+      parent_id: wrapper.id
+    })
+    expect(readFileSync(metaPath).equals(original)).toBe(true)
+    expect(
+      validateTimelineGraph(await readProjectDocuments(imported.folderPath))!.timelines
+    ).toHaveLength(4)
+  })
   it('excludes unreachable UUID compounds and proxy history without hiding active missing media', async () => {
     const orphan = 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE'
     write(join(source, `subdraft/${orphan}/draft_content.json`), {

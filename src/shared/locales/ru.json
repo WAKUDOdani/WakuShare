@@ -361,5 +361,10 @@
   "Do you trust this package?": "Доверяете этому пакету?",
   "This package contains effect resources or active content.": "В пакете есть ресурсы эффектов или активное содержимое.",
   "CapCut may execute effect code. Only import this package if you trust its author. Integrity checks do not prove that code is safe.": "CapCut может выполнять код эффектов. Импортируйте такой пакет только от автора, которому доверяете. Проверка целостности не подтверждает безопасность кода.",
-  "Trust and import": "Доверяю, импортировать"
+  "Trust and import": "Доверяю, импортировать",
+  "Import effect resources": "Импорт ресурсов эффектов",
+  "This package includes new CapCut effect resources.": "В пакете есть новые ресурсы эффектов CapCut.",
+  "These effects may include scripts. Continue if you trust the source of this package. Resources already present on this computer were checked automatically.": "Эффекты могут содержать скрипты. Продолжайте, если доверяете источнику пакета. Уже имеющиеся на этом компьютере ресурсы проверены автоматически.",
+  "New effect resources: {0}": "Новых ресурсов эффектов: {0}",
+  "Import with effects": "Импортировать с эффектами"
 }

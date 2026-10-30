@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -66,6 +74,25 @@ function readJson(path: string): Record<string, unknown> {
 const TEST_UUIDS = ['11111111-AAAA-4AAA-8AAA-111111111111', '22222222-BBBB-4BBB-8BBB-222222222222']
 
 describe('Mac → Windows roundtrip', () => {
+  it('imports already-installed effect bytes without asking about their author', async () => {
+    const draft = createMacDraft(mac, { name: 'Known local effects' })
+    const archive = join(tmp, 'known-effects.wakushare')
+    await exportDraft({
+      draftFolder: draft.folder,
+      env: macEnv(),
+      destinationPath: archive,
+      includeCaches: true,
+      capshareVersion: 'test'
+    })
+    for await (const file of walkFiles(mac.cacheDir)) {
+      const target = join(win.cacheDir, file.relPath)
+      mkdirSync(join(target, '..'), { recursive: true })
+      copyFileSync(file.absPath, target)
+    }
+    await expect(
+      importCapshareCore({ filePath: archive, env: winEnv(), backupDir: join(tmp, 'backups') })
+    ).resolves.toHaveProperty('draftName', 'Known local effects')
+  })
   it.skipIf(process.platform !== 'win32').each([true, false])(
     'roundtrips mixed extended paths and copied compound drafts (caches: %s)',
     async (includeCaches) => {

@@ -287,8 +287,8 @@ export function ImportView({
         isDismissable
         isKeyboardDismissDisabled={false}
       >
-        <AlertDialog.Container placement="center" size="sm" className={kinematicScale.container}>
-          <AlertDialog.Dialog className="app-no-drag glass-strong rounded-3xl border-none">
+        <AlertDialog.Container placement="center" size="md" className={kinematicScale.container}>
+          <AlertDialog.Dialog className="app-no-drag glass-strong max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border-none">
             {({ close }) => (
               <>
                 <AlertDialog.CloseTrigger
@@ -299,32 +299,32 @@ export function ImportView({
                   <AlertDialog.Icon status="warning" />
                   <AlertDialog.Heading>{t('This project already exists')}</AlertDialog.Heading>
                 </AlertDialog.Header>
-                <AlertDialog.Body>
+                <AlertDialog.Body className="break-words [overflow-wrap:anywhere]">
                   {phase.state === 'preview' && phase.preview.collision
                     ? t(
                         `A project named “${phase.preview.collision.existingName}” is already in your CapCut library. Replacing it keeps a backup of the existing project.`
                       )
                     : ''}
                 </AlertDialog.Body>
-                <AlertDialog.Footer className="flex-row gap-2">
+                <AlertDialog.Footer className="grid w-full grid-cols-1 gap-2">
                   <Button
-                    variant="danger"
-                    className="flex-1 rounded-full"
-                    onPress={() => {
-                      if (phase.state === 'preview') void runImport(phase.preview, 'replace')
-                      close()
-                    }}
-                  >
-                    {t('Replace existing')}
-                  </Button>
-                  <Button
-                    className="flex-1 rounded-full"
+                    className="h-auto min-h-10 w-full min-w-0 rounded-full px-4 py-3 whitespace-normal"
                     onPress={() => {
                       if (phase.state === 'preview') void runImport(phase.preview, 'copy')
                       close()
                     }}
                   >
                     {t('Import as a copy')}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    className="h-auto min-h-10 w-full min-w-0 rounded-full px-4 py-3 whitespace-normal"
+                    onPress={() => {
+                      if (phase.state === 'preview') void runImport(phase.preview, 'replace')
+                      close()
+                    }}
+                  >
+                    {t('Replace existing')}
                   </Button>
                 </AlertDialog.Footer>
               </>

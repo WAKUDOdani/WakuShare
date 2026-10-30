@@ -328,8 +328,9 @@ export async function extractZip(
     await approveResources(
       selected
         .filter(
-          ({ entry }) =>
-            requiresContentTrust(entry.fileName) || options.activeResource?.(entry.fileName)
+          ({ entry, verify }) =>
+            !verify &&
+            (requiresContentTrust(entry.fileName) || options.activeResource?.(entry.fileName))
         )
         .map(({ entry }) => entry.fileName),
       options.approveActiveContent

@@ -5,7 +5,8 @@ import {
   isResourceField,
   isExternalResource
 } from '../reference-policy'
-import type { ApproveActiveContent } from '../payload-policy'
+import { effectResourceRequiresTrust, type ApproveActiveContent } from '../payload-policy'
+import { approveNewResources } from '../resource-trust'
 import { randomUUID } from 'node:crypto'
 import { constants, existsSync } from 'node:fs'
 import { copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
@@ -20,6 +21,7 @@ import {
   type TimelineFilename
 } from '../capcut/constants'
 import { findTimelinePath, getPlatformBlock } from '../capcut/draft'
+import { groupImportedMedia } from '../capcut/import-folder'
 import {
   cloneTimelineGraph,
   createProjectReferenceResolver,
@@ -525,6 +527,7 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
     }
 
     const probe = await probeTargetTimelineFilename(env)
+    groupImportedMedia(documents)
     validateTimelineGraph(documents)
     verifyLocalMedia(stagingDir, documents)
     await writeProjectDocuments(stagingDir, documents)
@@ -543,8 +546,21 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
     if (manifest.effectAssets.length > 0) {
       await extractZip(filePath, effectStage, {
         signal,
-        approveActiveContent: options.approveActiveContent,
-        activeResource: () => true,
+        approveActiveContent: approveNewResources(
+          env.cacheDir,
+          new Map(
+            manifest.effectAssets.map((asset) => [
+              asset.archivePath,
+              {
+                relativePath: asset.cacheSuffix,
+                size: asset.size,
+                sha256: asset.sha256
+              }
+            ])
+          ),
+          options.approveActiveContent
+        ),
+        activeResource: effectResourceRequiresTrust,
         onBytes,
         expected: (name) => effectEntries.get(name),
         mapEntry: (entryName) => {

@@ -4,6 +4,8 @@ import { archiveError, validateArchivePath } from './archive-safety'
 const LAUNCHABLE =
   /\.(?:exe|dll|com|scr|cpl|gadget|msu|inf|application|appref-ms|library-ms|search-ms|searchconnector-ms|settingcontent-ms|msc|sys|drv|ocx|msi|msp|msix|appx|bat|cmd|ps1|psm1|psd1|vbs|vbe|wsf|wsh|hta|lnk|url|scf|reg|jar|class|py|pyc|pyd|sh|bash|dylib|so|app|command|desktop)$/i
 const ACTIVE = /\.(?:lua|luac|js|mjs|cjs|jse|html?|xhtml|svg|wasm|zip|7z|rar|tar|gz|effect)$/i
+const PASSIVE_MEDIA =
+  /\.(?:png|jpe?g|webp|gif|bmp|tiff?|heic|avif|mp4|mov|mkv|avi|webm|m4v|mpg|mpeg|wav|mp3|m4a|aac|flac|ogg|aiff?|wma|opus|ttf|otf|ttc|woff2?)$/i
 
 export type ApproveActiveContent = (entries: readonly string[]) => Promise<boolean>
 
@@ -16,6 +18,11 @@ export function assertDataFilename(name: string): void {
 
 export function requiresContentTrust(name: string): boolean {
   return ACTIVE.test(name)
+}
+
+/** Opaque configurations and shader resources remain gated; plain media does not. */
+export function effectResourceRequiresTrust(name: string): boolean {
+  return !PASSIVE_MEDIA.test(name)
 }
 
 /** Inspect only the first bytes as they already flow through the importer. */
