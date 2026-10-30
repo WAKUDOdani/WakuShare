@@ -359,7 +359,13 @@ export function ExplorerView(): JSX.Element {
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               {t(
                 enabled
-                  ? 'Watching for changes'
+                  ? ['Error', 'Conflict', 'WaitingForRuntime', 'SourceUnavailable'].includes(
+                      snapshot.status
+                    )
+                    ? 'Synchronization needs attention'
+                    : snapshot.status === 'WaitingForProject'
+                      ? 'Waiting for CapCut project'
+                      : 'Watching for changes'
                   : 'Choose folders once and reuse them in your CapCut projects.'
               )}
             </p>

@@ -17,7 +17,9 @@ inline void check(const ExplorerRuntimeLease& lease) {
        !std::wmemchr(lease.location,0,1024) || !std::memchr(lease.draftId,0,37) || !std::memchr(lease.token,0,65))
         throw std::runtime_error("invalid runtime lease");
 #ifdef CAPSYNC_PRODUCT_RUNTIME
-#if CAPSYNC_PRODUCT_GENERATION >= 5
+#if CAPSYNC_PRODUCT_GENERATION >= 6
+        const auto host=GetModuleHandleW(L"CapSync.ExplorerProductEventsV6.dll");
+#elif CAPSYNC_PRODUCT_GENERATION >= 5
         const auto host=GetModuleHandleW(L"CapSync.ExplorerProductEventsV5.dll");
 #elif CAPSYNC_PRODUCT_GENERATION >= 4
     const auto host=GetModuleHandleW(L"CapSync.ExplorerProductEventsV4.dll");

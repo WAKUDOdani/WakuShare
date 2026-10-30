@@ -2,8 +2,8 @@
 import ctypes as C,json,time,uuid
 from pathlib import Path
 from copy import deepcopy
-from explorer_product_scope_v3 import ProductScope
-from explorer_transient_dispatch_v1 import invoke_command,rejected_output,rejected_before_mutation
+from explorer_product_scope_v6 import ProductScope
+from explorer_transient_dispatch_v3 import invoke_command,rejected_output,rejected_before_mutation
 from explorer_native_runtime_v3 import Lease,normalize_stock_service,template_exact
 from explorer_project_io_v2 import load_project,snapshot_project
 from live_add import atomic,rows,parent_edges,require_folder
@@ -39,6 +39,9 @@ def execute(data):
     context=ProductScope({**data,'action':'execute','kind':'folder','job':jobs[0]})
     for job in jobs[1:]:context.validate_job({**data,'action':'execute','kind':'folder','job':job})
     if len({(j['ProjectId'],j['RootPath']) for j in jobs})!=1:raise ValueError('Forest crosses selected root ownership')
+    # Resolve the complete current runtime before any dispatch marker is written.
+    from explorer_product_bridge_v5 import prepare_commands
+    prepare_commands()
     run=context.private/'native-forests'/batch;run.mkdir(parents=True,exist_ok=True);marker=run/'journal.json'
     answer=lambda status,reason=None:{'Replies':[{'JobId':j['Id'],'Status':status,'MaterialId':j['FolderId'] if status=='Verified' else None,'Reason':reason} for j in jobs],'NativeCommands':0}
     known=None
@@ -51,7 +54,8 @@ def execute(data):
                 if require_folder(current,j['FolderId']).get('display_name')!=j['Name'] or parent_edges(current,j['FolderId'])!=[{'child_id':j['FolderId'],'parent_id':j['ParentFolderId']}]:return answer('Conflict','Verified forest changed independently')
             return answer('Verified')
         proof=run/record.get('attemptDirectory','.')/'evidence/forest.json'
-        if not rejected_output(proof):return answer('Unknown','Prior forest dispatch is never repeated')
+        from explorer_preparation_failure_v1 import proven
+        if not rejected_output(proof) and not proven(data,context,run,record):return answer('Unknown','Prior forest dispatch is never repeated')
         # The old callback explicitly reported zero changes. Keep its receipt,
         # IDs and membership; a fresh preimage owns the next permitted attempt.
         known=record;record['stage']='RejectedBeforeMutation';atomic(marker,record)

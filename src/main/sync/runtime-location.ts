@@ -30,8 +30,9 @@ export function explorerRuntimeLocation(options: {
     const executable = join(root, 'artifacts', 'ExplorerProductWorkerV8', 'CapSync.Observer.exe')
     const required = [
       executable,
-      join(root, 'artifacts', 'ExplorerProductCommandsV10', 'manifest.json'),
-      join(root, 'artifacts', 'ExplorerProductObserveV6', 'manifest.json'),
+      join(root, 'artifacts', 'ExplorerProductCommandsV12', 'manifest.json'),
+      join(root, 'artifacts', 'ExplorerProductObserveV9', 'manifest.json'),
+      join(root, 'artifacts', 'ExplorerSavedReadV4', 'manifest.json'),
       join(root, 'tools', 'explorer_product_runtime_v6.py'),
       ...(!options.localPreview && options.packaged
         ? [

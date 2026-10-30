@@ -90,7 +90,8 @@ def read_locked(data,stamps,context=None):
         sidecar=case/'evidence/catalog.json.draft.json'
         if canonical(receipt.get('liveDraftSidecar',''))!=canonical(sidecar) or sidecar.stat().st_size>64*1024*1024:raise ValueError('Complete live SDK sidecar required for source observations')
         draft=json.loads(sidecar.read_bytes())
-        ids=[row['id'] for group in ('videos','audios') for row in draft['materials'].get(group,[])]
+        from explorer_draft_compare_v1 import unique_source_ids
+        ids=unique_source_ids(draft)
         from explorer_source_observations_v5 import observe as observe_sources
         learned=observe_sources(private,state,key['Value'],materials,result['LiveSourceNames'],ids,stamps,str(case/'evidence/catalog.json'))
         atomic(case/'source-ownership-observation.json',learned)

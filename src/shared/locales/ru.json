@@ -367,5 +367,7 @@
   "These effects may include scripts. Continue if you trust the source of this package. Resources already present on this computer were checked automatically.": "Эффекты могут содержать скрипты. Продолжайте, если доверяете источнику пакета. Уже имеющиеся на этом компьютере ресурсы проверены автоматически.",
   "New effect resources: {0}": "Новых ресурсов эффектов: {0}",
   "Import with effects": "Импортировать с эффектами",
-  "{0} source file(s) were already unavailable. Their library entries and clips were preserved as missing media.": "Исходников, отсутствовавших ещё до экспорта: {0}. Их карточки и клипы сохранены как потерянные медиа."
+  "{0} source file(s) were already unavailable. Their library entries and clips were preserved as missing media.": "Исходников, отсутствовавших ещё до экспорта: {0}. Их карточки и клипы сохранены как потерянные медиа.",
+  "CapCut connection failed. Folder synchronization is paused.": "Не удалось подключиться к CapCut. Синхронизация папок приостановлена.",
+  "Waiting for CapCut project": "Ожидаем открытия проекта CapCut"
 }

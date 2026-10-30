@@ -58,7 +58,9 @@ void perform(Request request) {
         // Subscribe to the actual model signal. No recurring catalog reads or
         // timers; the observer's existing queued snapshot wakes the worker.
 #ifdef CAPSYNC_PRODUCT_RUNTIME
-#if CAPSYNC_PRODUCT_GENERATION >= 5
+#if CAPSYNC_PRODUCT_GENERATION >= 6
+        const auto host=GetModuleHandleW(L"CapSync.ExplorerProductEventsV6.dll");
+#elif CAPSYNC_PRODUCT_GENERATION >= 5
         const auto host=GetModuleHandleW(L"CapSync.ExplorerProductEventsV5.dll");
 #elif CAPSYNC_PRODUCT_GENERATION >= 4
         const auto host=GetModuleHandleW(L"CapSync.ExplorerProductEventsV4.dll");
@@ -174,9 +176,20 @@ void perform(Request request) {
 #endif
 #ifdef CAPSYNC_LIVE_SOURCE_NAMES
         QJsonArray sourceNames;QSet<QString> sourceIds;
+#ifdef CAPSYNC_IDENTICAL_SOURCE_ROWS
+        QMap<QString,QJsonObject> sourceRows;
+#endif
         for(const auto& group:{QStringLiteral("videos"),QStringLiteral("audios")})for(const auto entry:live.value("materials").toObject().value(group).toArray()){
             const auto row=entry.toObject();const auto id=row.value("id").toString(),path=row.value("path").toString();if(path.isEmpty())continue;
             const auto nameField=group==QStringLiteral("audios")?QStringLiteral("name"):QStringLiteral("material_name");const auto name=row.value(nameField).toString();
+#ifdef CAPSYNC_IDENTICAL_SOURCE_ROWS
+            const QJsonObject complete{{"group",group},{"row",row}};
+            if(sourceRows.contains(id)){
+                if(sourceRows.value(id)!=complete)throw std::runtime_error("conflicting duplicate SDK source identity");
+                continue;
+            }
+            sourceRows.insert(id,complete);
+#endif
             if(static_cast<std::size_t>(sourceNames.size())>=ExplorerLimits::materialCount || id.isEmpty() || sourceIds.contains(id) || path.size()>1024 || name.size()>4096)throw std::runtime_error("live source-name bounds changed");sourceIds.insert(id);
             sourceNames.append(QJsonObject{{"id",id},{"path",path},{"name",name},{"group",group},{"field",nameField},{"type",row.value("type")},{"localMaterialId",row.value("local_material_id")}});
         }

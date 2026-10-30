@@ -10,16 +10,16 @@ from live_add import atomic
 from load_native_lab import ROOT,digest,modules
 
 BUILD=ROOT/'artifacts/NativeExplorerObserveBuild'
-OBSERVER_BINARIES={key:BUILD/f'CapSync.ExplorerProduct{name}V5.dll' for key,name in [('Events','Events'),('SessionRelay','Relay'),('Catalog','Catalog')]}
-OBSERVER_MANIFEST=ROOT/'artifacts/ExplorerProductObserveV5/manifest.json'
+OBSERVER_BINARIES={key:BUILD/f'CapSync.ExplorerProduct{name}V6.dll' for key,name in [('Events','Events'),('SessionRelay','Relay'),('Catalog','Catalog')]}
+OBSERVER_MANIFEST=ROOT/'artifacts/ExplorerProductObserveV9/manifest.json'
 STAGING=ROOT/'artifacts/ExplorerProductModules'
-COMMAND_BINARIES={key:BUILD/f'CapSync.ExplorerProduct{name}V3.dll' for key,name in [('Import','Import'),('Folder','Folder'),('Tree','Tree'),('BinMedia','Bin'),('Source','Source'),('Save','Save'),('Remove','Remove')]}
-COMMAND_BINARIES['View']=BUILD/'CapSync.ExplorerProductMediaViewV1.dll'
-COMMAND_BINARIES['PromoteRoot']=BUILD/'CapSync.ExplorerProductPromoteRootV1.dll'
-COMMAND_BINARIES['BatchImport']=BUILD/'CapSync.ExplorerProductWholeImportV1.dll'
-COMMAND_BINARIES['BatchMove']=BUILD/'CapSync.ExplorerProductWholeMoveV1.dll'
-COMMAND_BINARIES['FolderBatch']=BUILD/'CapSync.ExplorerProductFolderBatchV2.dll'
-COMMAND_MANIFEST=ROOT/'artifacts/ExplorerProductCommandsV9/manifest.json'
+COMMAND_BINARIES={key:BUILD/f'CapSync.ExplorerProduct{name}V4.dll' for key,name in [('Import','Import'),('Folder','Folder'),('Tree','Tree'),('BinMedia','Bin'),('Source','Source'),('Save','Save'),('Remove','Remove')]}
+COMMAND_BINARIES['View']=BUILD/'CapSync.ExplorerProductMediaViewV2.dll'
+COMMAND_BINARIES['PromoteRoot']=BUILD/'CapSync.ExplorerProductPromoteRootV3.dll'
+COMMAND_BINARIES['BatchImport']=BUILD/'CapSync.ExplorerProductWholeImportV2.dll'
+COMMAND_BINARIES['BatchMove']=BUILD/'CapSync.ExplorerProductWholeMoveV3.dll'
+COMMAND_BINARIES['FolderBatch']=BUILD/'CapSync.ExplorerProductFolderBatchV4.dll'
+COMMAND_MANIFEST=ROOT/'artifacts/ExplorerProductCommandsV12/manifest.json'
 ALIASES={'Import':'Import','Folder':'Folder','TreeMove':'Tree','TreeLinked':'Tree','BinPath':'BinMedia','BinAliases':'BinMedia','SourceWindows':'Source','StoreSave':'Save','Remove':'Remove','ViewRebuild':'View','PromoteRoot':'PromoteRoot','BatchImport':'BatchImport','BatchMove':'BatchMove','FolderBatch':'FolderBatch'}
 
 class ProductBin(C.Structure):

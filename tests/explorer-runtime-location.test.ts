@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { explorerRuntimeLocation } from '../src/main/sync/runtime-location'
+import runtimeIndex from '../runtime-src/runtime-files.json'
 
 const workspace = join(process.cwd(), '..', '..')
 const base = {
@@ -10,6 +11,21 @@ const base = {
   localPreview: false,
   exists: () => true
 }
+it('resolves a product installation containing exactly the files in the pinned runtime index', () => {
+  const root = join(base.resourcesPath, 'explorer')
+  const installed = new Set(Object.keys(runtimeIndex.files).map((name) => join(root, name)))
+  expect(
+    explorerRuntimeLocation({
+      ...base,
+      productRuntime: true,
+      exists: (file) => installed.has(file)
+    })
+  ).toEqual({
+    executable: join(root, 'artifacts', 'ExplorerProductWorkerV8', 'CapSync.Observer.exe'),
+    nativeRoot: root,
+    nativeMode: 'product'
+  })
+})
 it('keeps ordinary packaged releases on their bundled runtime', () => {
   expect(explorerRuntimeLocation(base)).toEqual({
     executable: join(base.resourcesPath, 'explorer', 'CapSync.Observer.exe'),

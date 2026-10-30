@@ -91,7 +91,7 @@ def normalize_stock_service(before,after):
     """Only the previously accepted empty stock row may refresh these clocks."""
     result=deepcopy(after);identifier='cd484075-d92a-4bc9-b45c-d093d2f9e71b'
     old=[r for r in rows(before) if r['id']==identifier];new=[r for r in rows(result) if r['id']==identifier]
-    template=next(r for r in rows(load(ROOT/'research/evidence/native-stock-capture-1791880114470205300/after')) if r['id']==identifier)
+    template=__import__('explorer_stock_service_v1').template()
     clocks={'create_time','import_time','import_time_ms'}
     stable=lambda row:{key:value for key,value in row.items() if key not in clocks}
     if len(old)==len(new)==1 and not template.get('file_Path') and template.get('metetype')=='none' and stable(old[0])==stable(new[0])==stable(template):
@@ -105,7 +105,7 @@ def compare_folder(before,after,job):
     service='cd484075-d92a-4bc9-b45c-d093d2f9e71b';added=None
     old=[r for r in rows(left) if r['id']==service];new=[r for r in rows(right) if r['id']==service]
     if not old and len(new)==1:
-        template=next(r for r in rows(load(ROOT/'research/evidence/native-stock-capture-1791880114470205300/after')) if r['id']==service)
+        template=__import__('explorer_stock_service_v1').template()
         clocks={'create_time','import_time','import_time_ms'};stable=lambda row:{k:v for k,v in row.items() if k not in clocks}
         if not new[0].get('file_Path') and new[0].get('metetype')=='none' and stable(new[0])==stable(template) and all(isinstance(new[0].get(k),int) and new[0][k]>=0 for k in clocks):
             added={'id':service,'stockClocks':{k:new[0][k] for k in clocks}}

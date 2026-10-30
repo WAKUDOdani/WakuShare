@@ -7,6 +7,9 @@
 #include <QtCore/QSet>
 #include "stock_service_scope.h"
 #include "material_limits.h"
+#ifdef CAPSYNC_TREE_SCOPE_V2
+#include "registry_tree_scope.h"
+#endif
 
 // A project is owned by its live SDK identity and complete tree, never its name.
 namespace ExplorerProject {
@@ -46,10 +49,19 @@ inline QObject* grid(){
     const bool implicitStore=!QFileInfo::exists(identity.location+QStringLiteral("/draft_virtual_store.json"));
     const auto store=implicitStore?QJsonObject():document(identity.location,QStringLiteral("draft_virtual_store.json"));
     QSet<QString> expected,optional;
+#ifdef CAPSYNC_TREE_SCOPE_V2
+    QSet<QString> linked;
+    for(const auto group:store.value("draft_virtual_store").toArray())if(group.toObject().value("type").toInt(-1)==1)
+        for(const auto entry:group.toObject().value("value").toArray())linked.insert(entry.toObject().value("child_id").toString());
+#endif
     for(const auto group:meta.value("draft_materials").toArray())for(const auto entry:group.toObject().value("value").toArray()){
         const auto row=entry.toObject();const auto id=row.value("id").toString();
         if(id.isEmpty() || expected.contains(id) || optional.contains(id))throw std::runtime_error("project registry identity duplicated");
-        if(row.value("metetype").toString()==QStringLiteral("none") && row.value("file_Path").toString().isEmpty())optional.insert(id);else expected.insert(id);
+        bool registryOnly=false;
+#ifdef CAPSYNC_TREE_SCOPE_V2
+        registryOnly=ExplorerRegistryTree::registryOnly(group.toObject().value("type").toInt(-1),row,linked.contains(id));
+#endif
+        if(registryOnly || (row.value("metetype").toString()==QStringLiteral("none") && row.value("file_Path").toString().isEmpty()))optional.insert(id);else expected.insert(id);
     }
     bool rootSeen=false;
     for(const auto group:store.value("draft_virtual_store").toArray())if(group.toObject().value("type").toInt(-1)==0)for(const auto entry:group.toObject().value("value").toArray()){

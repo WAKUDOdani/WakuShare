@@ -66,7 +66,13 @@ void perform(Request request){
     try{
 #ifdef CAPSYNC_PRODUCT_RUNTIME
 #if CAPSYNC_PRODUCT_GENERATION >= 5
-        const auto host=GetModuleHandleW(L"CapSync.ExplorerProductEventsV5.dll");
+        const auto host=GetModuleHandleW(
+#if CAPSYNC_PRODUCT_GENERATION >= 6
+L"CapSync.ExplorerProductEventsV6.dll"
+#else
+L"CapSync.ExplorerProductEventsV5.dll"
+#endif
+);
 #elif CAPSYNC_PRODUCT_GENERATION >= 4
         const auto host=GetModuleHandleW(L"CapSync.ExplorerProductEventsV4.dll");
 #elif CAPSYNC_PRODUCT_GENERATION >= 3

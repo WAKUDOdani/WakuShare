@@ -56,6 +56,15 @@ for (const name of files.filter(
 const result = {
   version: pkg.version,
   hardenedRuntime: Boolean(await verifySecurityRuntime(join(unpacked, 'resources/explorer'))),
+  explorerRuntimePathsReady: [
+    'ExplorerProductCommandsV12',
+    'ExplorerProductObserveV9',
+    'ExplorerSavedReadV4'
+  ].every(
+    (generation) =>
+      code.includes(generation) &&
+      existsSync(join(unpacked, 'resources/explorer/artifacts', generation, 'manifest.json'))
+  ),
   hardenedElectron:
     [
       FuseV1Options.RunAsNode,

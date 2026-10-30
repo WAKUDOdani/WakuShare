@@ -284,6 +284,12 @@ export class ExplorerSupervisor {
       this.status = 'SourceUnavailable'
       this.reason = 'EXPLORER_SOURCE_UNAVAILABLE'
     } else if (this.workerState.planningOnly === false) {
+      const editor = this.workerState.editor
+      if (editor && ['Disconnected', 'Faulted'].includes(editor.Status)) {
+        this.status = 'Error'
+        this.reason = 'CapCut connection failed. Folder synchronization is paused.'
+        return
+      }
       this.reason = this.workerState.nativeReason
       this.status =
         this.workerState.nativeStatus === 'Conflict' || this.workerState.nativeStatus === 'Unknown'

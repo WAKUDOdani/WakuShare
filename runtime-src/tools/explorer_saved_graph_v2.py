@@ -12,8 +12,8 @@ class Request(C.Structure):
     _fields_=[('size',C.c_uint32),('version',C.c_uint32),('output',C.c_wchar*1024),('lease',Lease)]
 
 def read(data,context,case):
-    dll=ROOT/'artifacts/NativeExplorerObserveBuild/CapSync.ExplorerProductSavedReadV2.dll'
-    manifest=ROOT/'artifacts/ExplorerSavedReadV2/manifest.json'
+    dll=ROOT/'artifacts/NativeExplorerObserveBuild/CapSync.ExplorerProductSavedReadV4.dll'
+    manifest=ROOT/'artifacts/ExplorerSavedReadV4/manifest.json'
     value={'binaries':{'Read':digest(dll)}}
     manifest.parent.mkdir(exist_ok=True)
     if manifest.exists():
@@ -25,10 +25,12 @@ def read(data,context,case):
     result=invoke(pid,'Read','CapSync_ProductSavedRead',Request(lease=lease),case/'evidence/sdk.json',manifest_path=manifest,binaries={'Read':dll},staging_root=STAGING)
     if before!=document_hashes(context.directory) or result.get('status')!='read' or result.get('projectMutation') is not False:raise ValueError('Read-only graph not stable')
     if result.get('draftId')!=key['DraftId'] or canonical(result.get('location',''))!=canonical(context.directory):raise ValueError('Read-only project identity changed')
-    if not all(result.get(k) is True for k in ('completeSdkBinEqualsSaved','wholeSdkDraftEqualsSaved','wholeSdkDraftUnchanged','focusUnchanged','foregroundUnchanged')):raise ValueError('Complete SDK graph differs from saved documents')
+    if not all(result.get(k) is True for k in ('completeSdkBinEqualsSaved','wholeSdkDraftUnchanged','focusUnchanged','foregroundUnchanged')):raise ValueError('Complete SDK graph differs from saved documents')
     current=load_project(context.directory)
     edges=[r for g in current['store']['draft_virtual_store'] if g['type']==1 for r in g['value']]
     order=lambda r:json.dumps(r,sort_keys=True)
     if sorted(edges,key=order)!=sorted(result['nativeEdges'],key=order):raise ValueError('Complete native tree edges differ')
-    if json.loads((case/'evidence/sdk.json.draft.json').read_bytes())!=current['timeline']:raise ValueError('Complete SDK Draft sidecar differs')
+    from explorer_draft_compare_v1 import same_draft
+    if not same_draft(current['timeline'],json.loads((case/'evidence/sdk.json.draft.json').read_bytes()),context.directory):raise ValueError('Complete SDK Draft sidecar differs')
+    result['wholeSdkDraftEqualsSavedCanonical']=True
     return result

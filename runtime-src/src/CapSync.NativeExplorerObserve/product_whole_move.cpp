@@ -36,7 +36,13 @@ try{
  // The same callback has just queued the stock serializer. Validate the
  // live lease/SDK owner/tree directly; the serializer may hold its own files.
  // Complete durable documents are independently checked after it settles.
- using Check=bool(__cdecl*)(const ExplorerRuntimeLease*);const auto host=GetModuleHandleW(L"CapSync.ExplorerProductEventsV5.dll");const auto check=host?reinterpret_cast<Check>(GetProcAddress(host,"CapSync_ExplorerCheckLease")):nullptr;
+ using Check=bool(__cdecl*)(const ExplorerRuntimeLease*);const auto host=GetModuleHandleW(
+#if CAPSYNC_PRODUCT_GENERATION >= 6
+L"CapSync.ExplorerProductEventsV6.dll"
+#else
+L"CapSync.ExplorerProductEventsV5.dll"
+#endif
+);const auto check=host?reinterpret_cast<Check>(GetProcAddress(host,"CapSync_ExplorerCheckLease")):nullptr;
  const auto after=ExplorerSession::current();if(!check || !check(&r.lease) || after.project!=identity.project || after.store!=identity.store || after.draftId!=identity.draftId || after.location!=identity.location || ExplorerProject::read<quintptr>(current+0x30)!=reinterpret_cast<quintptr>(tree) || tree->parent()!=grid)throw std::runtime_error("post-move live project lease changed");
 #else
  ExplorerRuntime::check(r.lease);

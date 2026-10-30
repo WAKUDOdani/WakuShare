@@ -234,3 +234,29 @@ it('reports a missing packaged runtime while keeping the selected roots', async 
   expect(snapshot.status).toBe('WaitingForRuntime')
   expect(snapshot.configuration.sources).toHaveLength(1)
 })
+it('exposes a rejected native connection without pretending that an open project is connected', async () => {
+  await enable()
+  worker.emit({
+    ...worker.snapshot,
+    planningOnly: false,
+    nativeMode: 'product',
+    nativeStatus: 'Waiting',
+    editor: {
+      Status: 'Disconnected',
+      ProcessId: 123,
+      ConnectionId: '11111111-1111-4111-8111-111111111111',
+      Generation: 1,
+      Sequence: 0,
+      ViewEpoch: 0,
+      Project: null,
+      Reason: 'NativeBootstrapFailed'
+    }
+  })
+  const snapshot = await owner.snapshot()
+  expect(snapshot.status).toBe('Error')
+  expect(snapshot.reason).toBe('CapCut connection failed. Folder synchronization is paused.')
+  expect(snapshot.currentProject).toBeNull()
+  expect(snapshot.configuration.sources).toHaveLength(1)
+  worker.emit({ ...worker.snapshot, editor: null })
+  expect((await owner.snapshot()).status).toBe('WaitingForProject')
+})

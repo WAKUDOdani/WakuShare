@@ -1,0 +1,23 @@
+{
+  "build": "9.6.0.4097",
+  "productRuntime": true,
+  "observer": {
+    "Events": "75894f09200a264bcde520b073b89096041825cb4f234edae9751f04dfc974c2",
+    "SessionRelay": "4df741b2b6aa2b4ccffbde7a74b02f6dccbffc24d0f1e8d5c315d2cbbe08b950",
+    "Catalog": "11cb850a5d0bd40cd35f88367fcca94329dea44e1650783f361d9db8ece1626f"
+  },
+  "binaries": {
+    "Import": "ed06ae58a314854ba34fb7528d7247411c0a065766bee36fc389b21618de31e2",
+    "Folder": "e0912e150b751f1b4e3b06648e3282a760b846fcd9db6904623483b4ce86b5aa",
+    "Tree": "d748a8f0e862a8de35082625f67767faffcbbc1e9fede391b7eba53cded1789b",
+    "BinMedia": "a884fca8a60b6a7460ea0a236c9727e907b4213cf5ef38284ab148b9eee58b9a",
+    "Source": "e60a65fd0ac350d8ec03f0cf0b82aa64c6b5b36a6ccf248d35809355a5a29438",
+    "Save": "a7b1b70241daf1c0ce4442b37b673bd63a00e1fe2288c7f09bbe0c8336137090",
+    "Remove": "f930cc6e761f95a33e6622ab5e0890b7e9de26b88cfa35f44c919acfdd07961f",
+    "View": "ecbc1a10bf87831120323aa646c6fa3da61b49ca5678c8ffba47123b002160f2",
+    "PromoteRoot": "c85b5416119b1012b142752ad12832eceedd7f2e5ad164b0cfad0290deaa6bda",
+    "BatchImport": "46c1c8217f5c405e849e5c1c1139224afc31d256faf7167abc0644ee4f238a5f",
+    "BatchMove": "a86897c2134c55ec7a880d404da10cd92681b7cccb49425d4df10e434484e2ca",
+    "FolderBatch": "42d3c2769a79faf1864113fda3451b85159bc269b0a3df0174fb71e430a0a68d"
+  }
+}

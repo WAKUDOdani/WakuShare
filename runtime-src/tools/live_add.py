@@ -101,8 +101,7 @@ def preservation(before,after,job,identifier):
     old={v['id']:v for v in old_rows}; new={v['id']:v for v in new_rows}
     if len(old)!=len(old_rows) or len(new)!=len(new_rows): errors.append('Duplicate registry IDs')
     service_id='cd484075-d92a-4bc9-b45c-d093d2f9e71b'
-    stock=load(ROOT/'research/evidence/native-stock-capture-1791880114470205300/after')
-    template=next(v for v in rows(stock) if v['id']==service_id)
+    template=__import__('explorer_stock_service_v1').template()
     time_fields={'create_time','import_time','import_time_ms'}
     stable=lambda value:{k:v for k,v in value.items() if k not in time_fields}
     service_time_change=(service_id in old and service_id in new and not template.get('file_Path') and
