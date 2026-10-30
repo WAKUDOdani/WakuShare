@@ -52,10 +52,13 @@ export function PresetsView({
   const [missingOwners, setMissingOwners] = useState<Record<string, string[]>>({})
   const [overrides, setOverrides] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
+  // Listing/previewing is read-only. Lock navigation only for a tracked transfer
+  // or import review, not every time this view loads its library.
+  const navigationLocked = task !== null
   useEffect(() => {
-    onBusyChange(busy)
+    onBusyChange(navigationLocked)
     return () => onBusyChange(false)
-  }, [busy, onBusyChange])
+  }, [navigationLocked, onBusyChange])
 
   const showLibrary = useCallback((next: PresetLibrary): void => {
     setLibrary(next)
