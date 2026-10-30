@@ -106,7 +106,11 @@ export function relocatedInternalPath(
 }
 
 /** Do not let an incomplete old archive pass merely because originals still exist. */
-export function verifyLocalMedia(folder: string, documents: Map<string, ProjectDocument>): void {
+export function verifyLocalMedia(
+  folder: string,
+  documents: Map<string, ProjectDocument>,
+  allowedMissing: ReadonlySet<string> = new Set()
+): void {
   const missing: string[] = []
   for (const doc of documents.values()) {
     walkJsonStrings(doc.value, (value, pointer) => {
@@ -121,7 +125,11 @@ export function verifyLocalMedia(folder: string, documents: Map<string, ProjectD
       else if (normalized.startsWith('./')) relative = normalized.slice(2)
       else if (!/^(?:[A-Za-z]:|\/|[a-z]+:\/\/)/i.test(normalized)) relative = normalized
       const target = relative === null ? null : resolve(folder, relative)
-      if (target === null || !target.startsWith(resolve(folder) + sep) || !existsSync(target)) {
+      if (
+        target === null ||
+        !target.startsWith(resolve(folder) + sep) ||
+        (!existsSync(target) && !allowedMissing.has(relative!))
+      ) {
         missing.push(`${doc.relativePath}${pointer}: ${value}`)
       }
       return undefined

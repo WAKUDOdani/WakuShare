@@ -21,7 +21,6 @@ import {
   type TimelineFilename
 } from '../capcut/constants'
 import { findTimelinePath, getPlatformBlock } from '../capcut/draft'
-import { groupImportedMedia } from '../capcut/import-folder'
 import {
   cloneTimelineGraph,
   createProjectReferenceResolver,
@@ -46,6 +45,7 @@ import {
 import { CapShareError } from '../errors'
 import { dirSize, ensureDir, hashFile, sanitizeFolderName, uniqueName } from '../fsx'
 import { extractZip, readZipEntries } from '../zip'
+import { assertUnavailableReference, unavailableTarget } from './unavailable-media'
 import {
   COVER_ENTRY_NAME,
   DRAFT_ENTRY_PREFIX,
@@ -412,6 +412,10 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
 
     const looseByOriginal = new Map<string, string>()
     const declaredFiles = new Set(Object.keys(manifest.integrity))
+    const unavailable = new Map(
+      (manifest.unavailableMedia ?? []).map((ref) => [ref.document + '\0' + ref.pointer, ref])
+    )
+    const allowedMissing = new Set<string>()
     const internalReference = createProjectReferenceResolver(
       documents,
       [...documents.values()].flatMap((doc) => collectPaths(doc.value)),
@@ -426,6 +430,13 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
       (value: string, pointer: string): string | undefined => {
         if (pointer.includes('draft_materials_copied_info')) return undefined
         assertResourceScheme(value, pointer)
+        const absent = unavailable.get(document + '\0' + pointer)
+        if (absent && normalizeResourcePath(absent.originalPath) === normalizeResourcePath(value)) {
+          assertUnavailableReference(value, pointer, document, sourceFolderJson ?? undefined)
+          const relative = unavailableTarget(value)
+          allowedMissing.add(relative)
+          return style === 'placeholder' ? `${DRAFT_PATH_PLACEHOLDER}/${relative}` : `./${relative}`
+        }
         const packaged = internalReference(value, pointer)
         if (packaged !== undefined) {
           if (!packaged) return ''
@@ -527,9 +538,12 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
     }
 
     const probe = await probeTargetTimelineFilename(env)
-    groupImportedMedia(documents)
     validateTimelineGraph(documents)
-    verifyLocalMedia(stagingDir, documents)
+    verifyLocalMedia(stagingDir, documents, allowedMissing)
+    if (allowedMissing.size)
+      warnings.push(
+        `${allowedMissing.size} source file(s) were already unavailable. Their library entries and clips were preserved as missing media.`
+      )
     await writeProjectDocuments(stagingDir, documents)
     const timelineJson = JSON.stringify(timeline)
     await writeFile(join(stagingDir, probe.primary), timelineJson)

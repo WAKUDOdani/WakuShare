@@ -134,15 +134,23 @@ async function exportCase(): Promise<string> {
 }
 
 describe('complete portable multi-timeline project', () => {
-  it('places imported media under ImportRes without flattening existing library folders', async () => {
+  it('preserves the exact library hierarchy, root cards and unused media without a wrapper', async () => {
     const metaPath = join(source, 'draft_meta_info.json')
     const meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+    const unused = join(root, 'external/unused.wav')
+    writeFileSync(unused, 'not used on any timeline')
     meta.draft_materials = [
       {
         type: 0,
         value: [
           { id: 'local-card', file_Path: './Resources/local/original.png', extra_info: 'My name' },
-          { id: 'external-card', file_Path: external[0].replaceAll('\\', '/') }
+          { id: 'external-card', file_Path: external[0].replaceAll('\\', '/') },
+          {
+            id: 'unused-card',
+            file_Path: unused.replaceAll('\\', '/'),
+            extra_info: 'Unused manual name',
+            custom: { untouched: 7 }
+          }
         ]
       }
     ]
@@ -166,6 +174,7 @@ describe('complete portable multi-timeline project', () => {
       ]
     })
     const original = readFileSync(metaPath)
+    const originalStore = readFileSync(join(source, 'draft_virtual_store.json'))
     const archive = await exportCase()
     const imported = await importCapshare({
       filePath: archive,
@@ -176,28 +185,27 @@ describe('complete portable multi-timeline project', () => {
     const store = JSON.parse(
       readFileSync(join(imported.folderPath, 'draft_virtual_store.json'), 'utf8')
     )
-    const wrapper = store.draft_virtual_store[0].value.find(
-      (item: { display_name: string }) => item.display_name === 'ImportRes'
+    expect(store).toEqual(JSON.parse(originalStore.toString()))
+    const importedMeta = JSON.parse(
+      readFileSync(join(imported.folderPath, 'draft_meta_info.json'), 'utf8')
     )
-    expect(wrapper).toBeDefined()
-    expect(store.draft_virtual_store[1].value).toContainEqual({
-      child_id: 'old-folder',
-      parent_id: wrapper.id
-    })
-    expect(store.draft_virtual_store[1].value).toContainEqual({
-      child_id: 'external-card',
-      parent_id: 'old-folder'
-    })
-    expect(store.draft_virtual_store[1].value).toContainEqual({
-      child_id: 'local-card',
-      parent_id: wrapper.id
-    })
+    const records = importedMeta.draft_materials[0].value
+    expect(records.map((item: { id: string }) => item.id)).toEqual([
+      'local-card',
+      'external-card',
+      'unused-card'
+    ])
+    expect(records[2].extra_info).toBe('Unused manual name')
+    expect(records[2].custom).toEqual({ untouched: 7 })
+    expect(readFileSync(join(imported.folderPath, records[2].file_Path.slice(2)), 'utf8')).toBe(
+      'not used on any timeline'
+    )
     expect(readFileSync(metaPath).equals(original)).toBe(true)
     expect(
       validateTimelineGraph(await readProjectDocuments(imported.folderPath))!.timelines
     ).toHaveLength(4)
   })
-  it('excludes unreachable UUID compounds and proxy history without hiding active missing media', async () => {
+  it('preserves unused compounds and missing library cards while excluding proxy provenance', async () => {
     const orphan = 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE'
     write(join(source, `subdraft/${orphan}/draft_content.json`), {
       id: orphan,
@@ -228,17 +236,22 @@ describe('complete portable multi-timeline project', () => {
     const archive = await exportCase()
     const metadata = await readZipEntries(archive, ['manifest.json', 'draft/draft_meta_info.json'])
     const manifest = JSON.parse(metadata.get('manifest.json')!.toString())
-    expect(manifest.missingAtExport).toEqual([])
+    expect(manifest.missingAtExport).toEqual([
+      'X:/unavailable/library-only.mp4',
+      'X:/unavailable/old.wav'
+    ])
     expect(manifest.warnings).toEqual([])
     expect(
       Object.keys(manifest.integrity).some((name) => name.startsWith(`subdraft/${orphan}/`))
-    ).toBe(false)
+    ).toBe(true)
     expect(manifest.integrity['draft_agency_config.json']).toBeUndefined()
     expect(manifest.integrity['subdraft/independent/draft_content.json']).toBeDefined()
     expect(manifest.integrity[`Timelines/${ids[3]}/draft_content.json`]).toBeDefined()
     const packagedMeta = JSON.parse(metadata.get('draft/draft_meta_info.json')!.toString())
     expect(packagedMeta.draft_materials[0].value.map((item: { id: string }) => item.id)).toEqual([
       'used',
+      'compound',
+      'unused',
       'local'
     ])
     expect(JSON.parse(readFileSync(metaPath, 'utf8'))).toEqual(originalMeta)
@@ -248,7 +261,47 @@ describe('complete portable multi-timeline project', () => {
       resolution: 'copy',
       backupDir: join(root, 'backups')
     })
-    expect(imported.warnings).toEqual([])
+    expect(imported.warnings.some((warning) => warning.includes('already unavailable'))).toBe(true)
+    const restored = JSON.parse(
+      readFileSync(join(imported.folderPath, 'draft_meta_info.json'), 'utf8')
+    )
+    expect(restored.draft_materials[0].value.map((item: { id: string }) => item.id)).toEqual([
+      'used',
+      'compound',
+      'unused',
+      'local'
+    ])
+    const absentPath = restored.draft_materials[0].value[2].file_Path.slice(2)
+    expect(absentPath).toContain('Resources/unavailable/')
+    expect(existsSync(join(imported.folderPath, absentPath))).toBe(false)
+    const names = [
+      'manifest.json',
+      ...Object.keys(manifest.integrity).map((name) => 'draft/' + name),
+      ...manifest.looseMedia.map((item: { archivePath: string }) => item.archivePath),
+      ...manifest.effectAssets.map((item: { archivePath: string }) => item.archivePath)
+    ]
+    const bytes = await readZipEntries(archive, names)
+    // A warning string or a wrong pointer cannot exempt unrelated missing media.
+    for (const wrongPointer of [false, true]) {
+      const old = structuredClone(manifest)
+      if (wrongPointer) for (const ref of old.unavailableMedia) ref.pointer = '/wrong'
+      else delete old.unavailableMedia
+      const filePath = join(
+        root,
+        wrongPointer ? 'wrong-pointer.wakushare' : 'no-declaration.wakushare'
+      )
+      const writer = new ZipWriter(filePath)
+      for (const [name, data] of bytes)
+        await writer.add({
+          kind: 'buffer',
+          zipPath: name,
+          data: name === 'manifest.json' ? Buffer.from(JSON.stringify(old)) : data
+        })
+      await writer.finish()
+      await expect(
+        importCapshare({ filePath, env, resolution: 'copy', backupDir: join(root, 'backups') })
+      ).rejects.toThrow()
+    }
     expect(
       validateTimelineGraph(await readProjectDocuments(imported.folderPath))!.timelines
     ).toHaveLength(4)

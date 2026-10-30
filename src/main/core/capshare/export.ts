@@ -29,12 +29,14 @@ import {
   collectPaths,
   normalizeResourcePath,
   normalizeSlashes,
-  classifyString,
   walkJsonStrings
 } from '../capcut/scanner'
 import { CapShareError } from '../errors'
 import { sanitizeFolderName, walkFiles } from '../fsx'
 import { ZipWriter } from '../zip'
+import { isLibraryResource, projectResourcePath } from './unavailable-media'
+import { classifyString } from '../capcut/scanner'
+import { MEDIA_RESOURCE } from '../reference-policy'
 import {
   CAPSHARE_FORMAT_VERSION,
   COVER_ENTRY_NAME,
@@ -131,53 +133,28 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
   }
 
   const draftFolderJson = toJsonPath(draftFolder)
-  const scanned = [...documents.values()].flatMap((doc) =>
-    collectPaths(doc.value, { draftFolderJson }).map((item) => ({
+  const scanned = [...documents.values()].flatMap((doc) => {
+    const references = collectPaths(doc.value, { draftFolderJson })
+    walkJsonStrings(doc.value, (value, pointer) => {
+      const item = classifyString(value, { draftFolderJson })
+      if (item.cls === 'relative' && isLibraryResource(value, pointer))
+        references.push({ ...item, value, pointer })
+      return undefined
+    })
+    return references.map((item) => ({
       ...item,
       document: doc.relativePath
     }))
-  )
+  })
 
   const effectPlans = new Map<string, EffectPlan>()
   const resourceNames = new Set<string>()
   for await (const file of walkFiles(draftFolder))
     if (!portable.excludes(file.relPath)) resourceNames.add(file.relPath)
   const internalReference = createProjectReferenceResolver(documents, scanned, resourceNames)
-  const resourceKey = (value: string): string => {
-    const item = classifyString(value, { draftFolderJson })
-    if (item.cls === 'draft-internal') return `internal:${item.draftRelative!.toLowerCase()}`
-    if (item.cls === 'placeholder')
-      return `internal:${item.normalized.slice(DRAFT_PATH_PLACEHOLDER.length).replace(/^\//, '').toLowerCase()}`
-    if (item.cls === 'relative' && item.normalized.startsWith('./'))
-      return `internal:${item.normalized.slice(2).toLowerCase()}`
-    return item.normalized.toLowerCase()
-  }
-  const usedResources = new Set<string>()
-  for (const item of scanned) {
-    if (item.document === DRAFT_META_FILENAME && item.pointer.startsWith('/draft_materials/'))
-      continue
-    usedResources.add(resourceKey(item.value))
-    const relative = internalReference(item.value, item.pointer)
-    if (relative) usedResources.add(`internal:${relative.toLowerCase()}`)
-  }
   const snapshots = new Map<string, Buffer>()
   for (const doc of documents.values()) {
     const value = structuredClone(doc.value)
-    let trimmed = false
-    const meta = value as Record<string, unknown>
-    if (doc.relativePath === DRAFT_META_FILENAME && Array.isArray(meta['draft_materials'])) {
-      meta['draft_materials'] = meta['draft_materials'].map((group) => {
-        if (!group || typeof group !== 'object' || !Array.isArray(group.value)) return group
-        const entries = group.value.filter(
-          (entry) =>
-            typeof entry?.file_Path !== 'string' ||
-            !entry.file_Path ||
-            usedResources.has(resourceKey(entry.file_Path))
-        )
-        if (entries.length !== group.value.length) trimmed = true
-        return { ...group, value: entries }
-      })
-    }
     const changed = walkJsonStrings(value, (value, pointer) => {
       const relative = internalReference(value, pointer)
       if (relative === undefined) return undefined
@@ -185,18 +162,15 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
       assertRelativeResource(relative)
       return `${DRAFT_PATH_PLACEHOLDER}/${relative}`
     })
-    if (changed || trimmed) snapshots.set(doc.relativePath, Buffer.from(JSON.stringify(value)))
+    if (changed) snapshots.set(doc.relativePath, Buffer.from(JSON.stringify(value)))
   }
   const effectRootsSeen = new Set<string>()
   const loosePlans = new Map<string, LoosePlan>()
   const missingSeen = new Set<string>()
+  const unavailableMedia: NonNullable<CapShareManifest['unavailableMedia']> = []
   let looseIndex = 0
 
   for (const item of scanned) {
-    // This is CapCut's media-library index, not the edit. Its retained entries
-    // are covered by the timeline dependencies above; old entries add no sources.
-    if (item.document === DRAFT_META_FILENAME && item.pointer.startsWith('/draft_materials/'))
-      continue
     // Provenance-only fields: where media was imported FROM originally. The
     // copies already live in Resources/local — bundling these would duplicate
     // gigabytes and rewrite fields CapCut treats as informational.
@@ -210,6 +184,31 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
     if (packaged !== undefined) {
       if (packaged) assertRelativeResource(packaged)
       continue
+    }
+
+    if (
+      isLibraryResource(item.value, item.pointer) &&
+      item.cls !== 'effect-cache' &&
+      item.cls !== 'url'
+    ) {
+      if (item.cls === 'unc') assertExportResource(item.normalized)
+      const relative = projectResourcePath(item.value, item.document, draftFolderJson)
+      if (relative === null && MEDIA_RESOURCE.test(item.normalized))
+        assertExportResource(item.normalized)
+      const sourcePath = relative === null ? item.normalized : join(draftFolder, relative)
+      if (!existsSync(sourcePath) && !overrides.has(item.normalized.toLowerCase())) {
+        unavailableMedia.push({
+          document: item.document,
+          pointer: item.pointer,
+          originalPath: item.value
+        })
+        const key = item.normalized.toLowerCase()
+        if (!missingSeen.has(key)) {
+          missingSeen.add(key)
+          missingAtExport.push(item.normalized)
+        }
+        continue
+      }
     }
 
     if (item.cls === 'effect-cache' && item.cacheSuffix) {
@@ -481,6 +480,7 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
       })),
       integrity,
       missingAtExport,
+      ...(unavailableMedia.length ? { unavailableMedia } : {}),
       warnings
     }
     if (overrides.size)

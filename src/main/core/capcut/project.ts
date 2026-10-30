@@ -8,7 +8,6 @@ import {
   walkJsonStrings,
   normalizeSlashes,
   normalizeResourcePath,
-  classifyString,
   type ScannedString
 } from './scanner'
 
@@ -24,52 +23,16 @@ export interface TimelineGraph {
   timelines: { id: string; name: string; relativePath: string }[]
 }
 
-/** Keep every named timeline and recursively linked UUID compound. Old UUID
- * subdrafts left by previous edits and machine-local proxy history are not inputs. */
+/** Preserve the complete library and every compound, including unused media.
+ * Proxy provenance is machine-local and is not part of the media library. */
 export function portableProjectDocuments(all: Map<string, ProjectDocument>): {
   documents: Map<string, ProjectDocument>
   excludes: (relative: string) => boolean
 } {
   const proxy = new Set(['draft_agency_config.json', 'draft_agency_info.json'])
-  const compound = /^subdraft\/([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12})(?:\/|$)/i
-  const reachable = new Set<string>()
-  const documents = new Map<string, ProjectDocument>()
-  const queue: ProjectDocument[] = []
-  const add = (name: string, doc: ProjectDocument): void => {
-    if (documents.has(name)) return
-    documents.set(name, doc)
-    queue.push(doc)
-  }
-  // An authoritative modern graph is required before discarding old compounds.
-  const modern = validateTimelineGraph(all) !== null
-  for (const [name, doc] of all) {
-    if (!proxy.has(name) && (!modern || !compound.test(name))) add(name, doc)
-  }
-  for (let index = 0; index < queue.length; index++) {
-    walkJsonStrings(queue[index].value, (value, pointer) => {
-      if (!/\/materials\/drafts\/\d+\/(?:draft_file_path|draft_config_path)$/.test(pointer))
-        return undefined
-      const ref = classifyString(value)
-      if (ref.cls === 'url' || ref.cls === 'unc') return undefined
-      const match =
-        /(?:^|\/)(subdraft\/[a-f\d-]+)\/(?:draft_content|draft_info|sub_draft_config)\.json$/i.exec(
-          ref.normalized
-        )
-      if (!match || !compound.test(match[1])) return undefined
-      const prefix = match[1].toLowerCase()
-      if (reachable.has(prefix)) return undefined
-      reachable.add(prefix)
-      for (const [name, doc] of all) if (name.toLowerCase().startsWith(prefix + '/')) add(name, doc)
-      return undefined
-    })
-  }
   return {
-    documents,
-    excludes: (relative) => {
-      if (proxy.has(relative)) return true
-      const match = compound.exec(relative)
-      return modern && match !== null && !reachable.has(`subdraft/${match[1]}`.toLowerCase())
-    }
+    documents: new Map([...all].filter(([name]) => !proxy.has(name))),
+    excludes: (relative) => proxy.has(relative)
   }
 }
 
@@ -84,7 +47,8 @@ export function createProjectReferenceResolver(
   const roots = new Set<string>()
   const paths = new Map<string, string>()
   const packedNames = new Map([...resources].map((name) => [name.toLowerCase(), name]))
-  const documentField = /\/materials\/drafts\/\d+\/(?:draft_file_path|draft_config_path)$/
+  const documentField =
+    /\/(?:materials\/drafts\/\d+\/(?:draft_file_path|draft_config_path)|draft_materials\/\d+\/value\/\d+\/file_Path)$/
   const uuid = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
   const documentPath = new RegExp(
     `^(.+)/(subdraft/${uuid}/(?:draft_content|draft_info|sub_draft_config)\\.json)$`,

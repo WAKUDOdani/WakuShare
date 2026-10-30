@@ -84,6 +84,17 @@ export const manifestSchema = z.object({
     })
   ),
   missingAtExport: z.array(z.string()),
+  /** Exact references already absent in the source, retained as missing cards. */
+  unavailableMedia: z
+    .array(
+      z.object({
+        document: z.string().max(4096),
+        pointer: z.string().max(4096).startsWith('/'),
+        originalPath: z.string().max(16384)
+      })
+    )
+    .max(250000)
+    .optional(),
   resolvedSources: z
     .array(
       z.object({
@@ -119,6 +130,11 @@ export function parseManifest(raw: string): CapShareManifest {
   for (const path of Object.keys(result.data.integrity)) {
     validateArchivePath(path)
     declare(DRAFT_ENTRY_PREFIX + path)
+  }
+  for (const ref of result.data.unavailableMedia ?? []) {
+    validateArchivePath(ref.document)
+    if (!result.data.integrity[ref.document])
+      throw new Error('Undeclared unavailable media document')
   }
   for (const file of result.data.looseMedia) {
     if (!file.archivePath.startsWith(LOOSE_MEDIA_PREFIX))

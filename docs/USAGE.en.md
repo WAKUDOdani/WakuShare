@@ -16,13 +16,13 @@ WakuShare runs on Windows x64. The tested editor version is CapCut International
 
 Multiple timelines and nested compositions are preserved. Original source files stay in place: the imported copy stores them under `Resources/local/Исходники` and updates references to the new files. Independent sources with identical filenames are not merged.
 
-The imported project's media library groups its resources under **ImportRes**. Nested folders, manual names and clip references are preserved.
+The complete media library retains its root files, folders, hierarchy, record order, manual names and clip references. No wrapper folder is added. Media not used on any timeline is included too.
 
-For modern projects, export includes all timelines and the nested compositions they need. Unused media-library compositions and proxy history do not add package dependencies. This only changes the exported copy; the source project is preserved.
+Export preserves every timeline and nested composition, including unused media-library compositions. Machine-local proxy history is excluded. The source project is unchanged. To transfer the complete library from an older project, export a new package with this version: an older archive may contain only timeline dependencies.
 
 For projects with many tracks, scroll the properties and track overview inside the project dialog. Cache options and export controls stay at the bottom of the dialog, including in a small app window.
 
-A package cannot restore files that were already missing during export. System fonts and cloud or account-specific effects may need to be installed or downloaded again on the destination computer.
+A package cannot restore files that were already missing during export. Their library entries and clips remain as missing media, with a warning; no substitute files are created. System fonts and cloud or account-specific effects may need to be installed or downloaded again on the destination computer.
 
 ## Move presets
 
