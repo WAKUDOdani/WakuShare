@@ -1064,13 +1064,13 @@
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .welcome-telegram:not(:disabled, [aria-disabled='true']):not(
-      :hover,
-      [data-hovered='true'],
-      [data-focus-visible='true']
-    )
+  .welcome-telegram[data-shine-ready='true']:not(:disabled, [aria-disabled='true'])
     .welcome-telegram__invite::before {
-    animation: welcome-telegram-invite 8s linear 3s infinite;
+    animation: welcome-telegram-invite 8s linear infinite;
+  }
+  .welcome-telegram:is(:hover, [data-hovered='true'], [data-focus-visible='true'])
+    .welcome-telegram__invite {
+    visibility: hidden;
   }
   .welcome-telegram__label > svg {
     transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -1093,7 +1093,7 @@
     > svg:last-child {
     transform: translate(2px, -2px);
   }
-  .welcome-telegram:not(:disabled, [aria-disabled='true']):is(
+  .welcome-telegram[data-shine-ready='true']:not(:disabled, [aria-disabled='true']):is(
       :hover,
       [data-hovered='true'],
       [data-focus-visible='true']

@@ -1,4 +1,4 @@
-import { useRef, useState, type JSX } from 'react'
+import { useEffect, useRef, useState, type JSX } from 'react'
 import { ArrowUpRight, Send } from 'lucide-react'
 import { Button, Checkbox, Modal } from '@heroui/react'
 import type { AppSettings } from '@shared/types'
@@ -24,6 +24,16 @@ export function WelcomeDialog({ settings, version, onSaved }: WelcomeDialogProps
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
   const open = Boolean(settings && version && !dismissed && !settings.welcomeHidden)
+  const [shineReady, setShineReady] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    const timer = window.setTimeout(() => setShineReady(true), 2000)
+    return () => {
+      window.clearTimeout(timer)
+      setShineReady(false)
+    }
+  }, [open])
 
   const dismiss = async (): Promise<void> => {
     if (!open || savingRef.current) return
@@ -97,6 +107,7 @@ export function WelcomeDialog({ settings, version, onSaved }: WelcomeDialogProps
           <Modal.Footer className="flex-col items-stretch gap-3">
             <Button
               className="welcome-telegram h-11 w-full rounded-2xl text-sm font-semibold text-white"
+              data-shine-ready={shineReady ? 'true' : undefined}
               isDisabled={saving}
               onPointerMove={(event) => {
                 if (event.pointerType === 'touch') return
