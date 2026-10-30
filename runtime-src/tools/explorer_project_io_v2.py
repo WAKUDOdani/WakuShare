@@ -24,11 +24,14 @@ def _read_documents(directory):
     data={name:(directory/name).read_bytes() for name in NAMES if exists[name]}
     parsed={name:json.loads(value) for name,value in data.items()}
     if not exists['draft_virtual_store.json']:
-        meta=parsed['draft_meta_info.json'];timeline=parsed['draft_content.json']
+        meta=parsed['draft_meta_info.json']
         if not isinstance(meta.get('draft_materials'),list) or any(g.get('value') for g in meta['draft_materials']):
             raise SaveInProgress('Nonempty project hierarchy unavailable')
-        if any(t.get('segments') for t in timeline.get('tracks',[])):
-            raise SaveInProgress('Used project hierarchy unavailable')
+        # Clips (including text, shapes and generated content) do not imply
+        # imported library cards. CapCut may leave its library tree unsaved
+        # while such a timeline is already populated. Only the empty registry
+        # permits this in-memory model; every native operation independently
+        # verifies the actual SDK owner and complete live library tree.
     if exists!={name:(directory/name).exists() for name in NAMES} or any((directory/name).read_bytes()!=value for name,value in data.items()):
         raise SaveInProgress('Project is being saved')
     return data

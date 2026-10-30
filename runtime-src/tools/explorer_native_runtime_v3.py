@@ -79,7 +79,10 @@ def lab_plan_state(state,project_key,sdk_id=LAB_ID):
 def template_exact(original,current,before_timeline,expected_timeline=None):
     left,right=original/'template-2.tmp',current/'template-2.tmp'
     if expected_timeline is None:
-        return left.exists()==right.exists() and (not left.exists() or left.read_bytes()==right.read_bytes())
+        if left.exists()==right.exists() and (not left.exists() or left.read_bytes()==right.read_bytes()):return True
+        if not left.exists() or not right.exists() or left.stat().st_size>4*1024*1024 or right.stat().st_size>4*1024*1024:return False
+        from explorer_initial_save_v1 import initial_template_equivalent
+        return initial_template_equivalent(original,current,before_timeline)
     try:
         if left.stat().st_size>4*1024*1024 or right.stat().st_size>4*1024*1024:return False
         # StoreWrapper writes the SDK timeline and its JSON template together.
@@ -99,6 +102,8 @@ def normalize_stock_service(before,after):
     return result
 
 def compare_folder(before,after,job):
+    from explorer_initial_save_v1 import normalize_first_library
+    before=normalize_first_library(before,after)
     left=deepcopy(before);right=normalize_stock_service(before,after)
     # A fresh stock session may recreate this one known empty service row on
     # its first write. Never admit another ID, a media path or altered payload.

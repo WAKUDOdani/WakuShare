@@ -37,3 +37,12 @@ ID. Identical duplicate source rows are folded only for observations; conflictin
 duplicates are rejected. The empty stock service schema is shipped as code rather
 than read from a private test fixture. Forest operations use the current product
 bridge and validate runtime dependencies before recording dispatch.
+
+The 1.3.13 Python-only update also accepts an unsaved library tree when the saved
+library registry is empty even if the timeline has clips. Missing trees with any
+registered media still fail closed. On the very first library save only, CapCut
+may rekey disabled loudness/vocal-separation helpers. The comparator accepts only
+the two exact disabled schemas with one unchanged reference per helper on the
+same clip; ordinary media IDs, clip properties, timing and active processing are
+never normalized. `tests/test_empty_library.py` and `tests/test_initial_save.py`
+cover these boundaries without an editor connection.
