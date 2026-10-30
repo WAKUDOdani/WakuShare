@@ -40,6 +40,28 @@ export const explorerEditSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('detach'), sourceId: z.uuid() }).strict(),
   z
     .object({
+      type: z.enum(['replaceConnection', 'relocateConnection']),
+      sourceId: z.uuid(),
+      rootPath: z.string().min(1).max(8192),
+      label: z.string().trim().min(1).max(80),
+      projectKey: z
+        .string()
+        .regex(/^project-v1-[a-f0-9]{64}$/)
+        .optional()
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('deleteConnection'),
+      sourceId: z.uuid(),
+      projectKey: z
+        .string()
+        .regex(/^project-v1-[a-f0-9]{64}$/)
+        .optional()
+    })
+    .strict(),
+  z
+    .object({
       type: z.literal('projectEnabled'),
       sourceId: z.uuid(),
       enabled: z.boolean(),
@@ -67,6 +89,7 @@ export const explorerEditSchema = z.discriminatedUnion('type', [
     .strict()
 ])
 const MESSAGES: Record<string, string> = {
+  EXPLORER_RELOCATION_HISTORY_FULL: 'This connection has reached its relocation history limit.',
   EXPLORER_SOURCE_OVERLAP: 'This folder overlaps an existing source. Use its existing connection.',
   EXPLORER_SOURCE_UNAVAILABLE:
     'The source folder is unavailable. Check the path and access permissions.',

@@ -311,7 +311,7 @@ internal sealed class EventWorker
                     return new(false, Error: "ProjectNotConfirmed");
                 if (!payload.TryGetProperty("bindings", out var bindingList) || bindingList.ValueKind != JsonValueKind.Array || bindingList.GetArrayLength() > 256)
                     return new(false, Error: "InvalidProjectBindings");
-                foreach (var item in bindingList.EnumerateArray()) Fields(item, "Id", "RootPath", "MediaFolderId", "ContainerFolderId", "Name");
+                foreach (var item in bindingList.EnumerateArray()) Fields(item, "Id", "RootPath", "MediaFolderId", "ContainerFolderId", "Name", "PreviousRoots");
                 var destinations = bindingList.Deserialize<ExplorerNativeAdapter.Destination[]>(Json)!;
                 if (destinations.Any(binding => binding.Id == Guid.Empty || !Guid.TryParse(binding.MediaFolderId, out _) ||
                     (!(_productRuntime && binding.ContainerFolderId == "") && !Guid.TryParse(binding.ContainerFolderId, out _)) ||
@@ -320,7 +320,10 @@ internal sealed class EventWorker
                     return new(false, Error: "InvalidProjectBindings");
                 foreach (var destination in destinations) {
                     var priorBinding = _state.Bindings.SingleOrDefault(b => b.Id == destination.Id);
-                    if (priorBinding != null && (priorBinding.ProjectId != projectKey || priorBinding.MediaFolderId != destination.MediaFolderId || !SourcePaths.Comparer.Equals(priorBinding.RootPath, destination.RootPath)))
+                    var history=destination.PreviousRoots ?? [];
+                    if(history.Length>64 || history.Any(r=>!Path.IsPathFullyQualified(r) || r.Length>8192))return new(false,Error:"InvalidRootRelocation");
+                    if (priorBinding != null && (priorBinding.ProjectId != projectKey || priorBinding.MediaFolderId != destination.MediaFolderId ||
+                        (!SourcePaths.Comparer.Equals(priorBinding.RootPath, destination.RootPath) && !history.Contains(priorBinding.RootPath,SourcePaths.Comparer))))
                         return new(false, Error: "BindingOwnershipConflict");
                 }
                 var running = _phase == "Running"; await Pause();
@@ -388,7 +391,7 @@ internal sealed class EventWorker
             Emit("event", null, new { name = "stateChanged", state = Snapshot() });
             var transferReady = _native?.RemainderEnabled == true && _editor?.State.Project is { } currentProject && result.Transfers.Count > 0 &&
                 _state.Bindings.Where(b => b.ProjectId == currentProject.Value && b.Status != "Suspended").All(b => b.Status is "Ready" or "WaitingForCrossBindingAdapter");
-            if (restart && _native != null && _native.CanDispatch && _editor?.State.Status == "Project" && (!result.EditorBlocked || transferReady))
+            if (restart && _native != null && _native.CanDispatch && _editor?.State.Status == "Project" && (!result.EditorBlocked || transferReady || _native.HasRootMoves(_state)))
             { _importStage=null; _nativeCancellation = new(); _execution = ExecuteNative(_nativeCancellation.Token); }
         }
         catch (OperationCanceledException) when (_planningCancellation!.IsCancellationRequested) { }
@@ -397,7 +400,9 @@ internal sealed class EventWorker
     }
     private async Task ExecuteNative(CancellationToken cancellation)
     {
+        var relocating=_native!.HasRootMoves(_state);
         if (!await _native!.EnsureRoots(_state, () => _store.Save(_state), cancellation) || cancellation.IsCancellationRequested) return;
+        if(relocating){_engine?.SessionChanged("RootRelocated");return;}
         var project = _editor!.State.Project;
         if (project == null) return;
         if (_native.RemainderEnabled && _last?.Transfers.Count > 0)

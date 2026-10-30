@@ -23,8 +23,9 @@ public sealed class StateStore(string path)
         if (!File.Exists(_path)) { _loadedHash = null; return new SyncState(); }
         var bytes = File.ReadAllBytes(_path);
         var state = JsonSerializer.Deserialize<SyncState>(bytes, JsonOptions) ?? throw new InvalidDataException("Empty state.");
-        if (state.SchemaVersion is not (1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9)) throw new InvalidDataException("Unsupported state version.");
+        if (state.SchemaVersion is not (1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10)) throw new InvalidDataException("Unsupported state version.");
         WatchConfigurationRules.Validate(state, _path);
+        foreach(var binding in state.Bindings) RootOwnership.Validate(binding);
         ValidateTransfers(state);
         if (state.Bindings == null || state.Sources == null || state.Pending == null || state.AddAttempts==null || state.ManagedFolders==null || state.UpdateAttempts==null || state.DeleteAttempts==null ||
             state.Bindings.Any(b=>b==null || b.Id==Guid.Empty || string.IsNullOrWhiteSpace(b.ProjectId) || string.IsNullOrWhiteSpace(b.MediaFolderId) || !Path.IsPathFullyQualified(b.RootPath)) ||
@@ -40,20 +41,20 @@ public sealed class StateStore(string path)
             state.AddAttempts.GroupBy(a=>a.Job.Id).Any(g=>g.Count()>1) ||
             state.AddAttempts.Where(a=>a.Status is not ("Completed" or "Abandoned")).GroupBy(a=>a.Job.SourceId).Any(g=>g.Count()>1) ||
             state.ManagedFolders.Any(f=>f==null || f.Job==null || f.Job.Id==Guid.Empty || string.IsNullOrWhiteSpace(f.Job.FolderId) ||
-                !state.Bindings.Any(b=>b.Id==f.Job.BindingId && b.ProjectId==f.Job.ProjectId && SourcePaths.Comparer.Equals(b.RootPath,f.Job.RootPath))) ||
+                !state.Bindings.Any(b=>b.Id==f.Job.BindingId && b.ProjectId==f.Job.ProjectId && RootOwnership.Contains(b,f.Job.RootPath))) ||
             state.ManagedFolders.GroupBy(f=>f.Job.Id).Any(g=>g.Count()>1) ||
             state.ManagedFolders.GroupBy(f=>f.Job.BindingId+"/"+f.Job.RelativePath,SourcePaths.Comparer).Any(g=>g.Count()>1) ||
             state.ManagedFolders.GroupBy(f=>f.Job.ProjectId+"/"+f.Job.FolderId).Any(g=>g.Count()>1) ||
             state.UpdateAttempts.Any(a=>a==null || a.Job==null || a.Job.Id==Guid.Empty || a.Job.SourceVersion<1 ||
                 !state.Sources.Any(s=>s.Id==a.Job.SourceId && MaterialOwnership.InBinding(state,s,a.Job.BindingId,a.Status) && MaterialOwnership.Historical(s,a.Job.MaterialId,a.Status)) ||
-                !state.Bindings.Any(b=>b.Id==a.Job.BindingId && b.ProjectId==a.Job.ProjectId && SourcePaths.Comparer.Equals(b.RootPath,a.Job.RootPath)) ||
+                !state.Bindings.Any(b=>b.Id==a.Job.BindingId && b.ProjectId==a.Job.ProjectId && RootOwnership.Contains(b,a.Job.RootPath)) ||
                 !Path.IsPathFullyQualified(a.Job.SourcePath) || !SourcePaths.Within(a.Job.RootPath,a.Job.SourcePath)) ||
             state.UpdateAttempts.GroupBy(a=>a.Job.Id).Any(g=>g.Count()>1) ||
             state.UpdateAttempts.Where(a=>a.Status is not ("Completed" or "Abandoned")).GroupBy(a=>a.Job.SourceId).Any(g=>g.Count()>1) ||
             state.Sources.Any(s=>s.MaterialRemoved && (s.MaterialId==null || s.AppliedPath==null || s.AppliedPresence!=Presence.Missing)) ||
             state.DeleteAttempts.Any(a=>a==null || a.Job==null || a.Job.Id==Guid.Empty || a.Job.SourceVersion<1 || a.Job.Flags!=ChangeFlags.Missing ||
                 !state.Sources.Any(s=>s.Id==a.Job.SourceId && MaterialOwnership.InBinding(state,s,a.Job.BindingId,a.Status) && MaterialOwnership.Historical(s,a.Job.MaterialId,a.Status)) ||
-                !state.Bindings.Any(b=>b.Id==a.Job.BindingId && b.ProjectId==a.Job.ProjectId && SourcePaths.Comparer.Equals(b.RootPath,a.Job.RootPath)) ||
+                !state.Bindings.Any(b=>b.Id==a.Job.BindingId && b.ProjectId==a.Job.ProjectId && RootOwnership.Contains(b,a.Job.RootPath)) ||
                 !Path.IsPathFullyQualified(a.Job.SourcePath) || !SourcePaths.Within(a.Job.RootPath,a.Job.SourcePath)) ||
             state.DeleteAttempts.GroupBy(a=>a.Job.Id).Any(g=>g.Count()>1) ||
             state.DeleteAttempts.Where(a=>a.Status is not ("Completed" or "Abandoned")).GroupBy(a=>a.Job.SourceId).Any(g=>g.Count()>1))
@@ -93,6 +94,7 @@ public sealed class StateStore(string path)
         if (state.UpdateAttempts.Any(a=>a.Job.DestinationFolderId!=null)) state.SchemaVersion=7;
         if (state.TransferAttempts.Count>0) state.SchemaVersion=8;
         if (state.WatchConfiguration != null || state.RootInventories.Count > 0) state.SchemaVersion=9;
+        if (state.Bindings.Any(b=>b.RootMoves.Count>0)) state.SchemaVersion=10;
         var bytes = JsonSerializer.SerializeToUtf8Bytes(state, JsonOptions);
         if (current != null && bytes.AsSpan().SequenceEqual(current)) return;
         var temporary = _path + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -125,7 +127,7 @@ public sealed class StateStore(string path)
             if(job==null || job.Id==Guid.Empty || job.SourceVersion<1 || string.IsNullOrWhiteSpace(attempt!.Job.PreviousMaterialId))
                 throw new InvalidDataException("Invalid restore job");
             var source=state.Sources.SingleOrDefault(s=>s.Id==job.SourceId && MaterialOwnership.InBinding(state,s,job.BindingId,attempt.Status));
-            var binding=state.Bindings.SingleOrDefault(b=>b.Id==job.BindingId && b.ProjectId==job.ProjectId && SourcePaths.Comparer.Equals(b.RootPath,job.RootPath));
+            var binding=state.Bindings.SingleOrDefault(b=>b.Id==job.BindingId && b.ProjectId==job.ProjectId && RootOwnership.Contains(b,job.RootPath));
             if(source==null || binding==null || !MaterialOwnership.Historical(source,attempt.Job.PreviousMaterialId,attempt.Status) ||
                 !Path.IsPathFullyQualified(job.SourcePath) || !SourcePaths.Within(job.RootPath,job.SourcePath) ||
                 !SourcePaths.Comparer.Equals(Path.GetFullPath(Path.Combine(job.RootPath,SourcePaths.Relative(job.RelativePath))),job.SourcePath) ||
@@ -155,7 +157,7 @@ public sealed class StateStore(string path)
             var destination=state.Bindings.SingleOrDefault(b=>b.Id==job.DestinationBindingId);
             if(source==null || old==null || destination==null || old.ProjectId!=job.ProjectId || destination.ProjectId!=job.ProjectId ||
                 !MaterialOwnership.Has(source,job.MaterialId) || source.Version<job.SourceVersion ||
-                !SourcePaths.Comparer.Equals(old.RootPath,job.RootPath) || !SourcePaths.Comparer.Equals(destination.RootPath,job.DestinationRootPath) ||
+                !RootOwnership.Contains(old,job.RootPath) || !RootOwnership.Contains(destination,job.DestinationRootPath) ||
                 old.MediaFolderId!=job.MediaFolderId || destination.MediaFolderId!=job.DestinationMediaFolderId ||
                 !Path.IsPathFullyQualified(job.SourcePath) || !SourcePaths.Within(job.DestinationRootPath,job.SourcePath) ||
                 !SourcePaths.Comparer.Equals(Path.GetFullPath(Path.Combine(job.DestinationRootPath,SourcePaths.Relative(job.RelativePath))),job.SourcePath) ||

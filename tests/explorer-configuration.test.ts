@@ -38,6 +38,104 @@ afterEach(async () => {
 })
 
 describe('Explorer durable configuration', () => {
+  it('queues explicit same-folder moves for every project while retaining attachment identities and pause preferences', async () => {
+    const target = join(root, 'moved')
+    const final = join(root, 'moved-again')
+    await mkdir(target)
+    await mkdir(final)
+    const a = project('a', join(root, 'a'))
+    const b = project('b', join(root, 'b'))
+    let config = await store.add(0, { rootPath: sources, projectKey: a.key, project: a })
+    config = await store.projectFolder(config.revision, b, config.sources[0].id, true)
+    config = await store.source(config.revision, config.sources[1].id, { enabled: false })
+    const before = structuredClone(config)
+    config = await store.relocateSource(config.revision, config.sources[0].id, {
+      rootPath: target,
+      label: 'Moved'
+    })
+    expect(config.attachments).toEqual(before.attachments)
+    expect(config.sources.map((s) => s.id)).toEqual(before.sources.map((s) => s.id))
+    expect(config.sources.map((s) => s.enabled)).toEqual([true, false])
+    expect(
+      config.sources.every((s) => s.rootPath === target && s.previousRoots?.[0] === sources)
+    ).toBe(true)
+    config = await store.relocateSource(config.revision, config.sources[0].id, {
+      rootPath: final,
+      label: 'Moved again'
+    })
+    expect(
+      config.sources.every(
+        (s) => JSON.stringify(s.previousRoots) === JSON.stringify([sources, target])
+      )
+    ).toBe(true)
+    expect((await new ExplorerConfigurationStore(file, async (p) => p).read()).sources).toEqual(
+      config.sources
+    )
+    config = await store.replaceSource(config.revision, config.sources[0].id, {
+      rootPath: target,
+      label: 'Different folder'
+    })
+    expect(config.sources.at(-1)?.previousRoots).toBeUndefined()
+    expect(config.sources.at(-1)?.id).not.toBe(before.sources[0].id)
+  })
+  it('rejects a relocation overlapping another connected root without altering configuration', async () => {
+    const target = join(root, 'other')
+    await mkdir(target)
+    let config = await store.add(0, { rootPath: sources })
+    config = await store.add(config.revision, { rootPath: target })
+    const before = await readFile(file)
+    await expect(
+      store.relocateSource(config.revision, config.sources[0].id, {
+        rootPath: target,
+        label: 'Move'
+      })
+    ).rejects.toMatchObject({ code: 'EXPLORER_SOURCE_OVERLAP' })
+    expect(await readFile(file)).toEqual(before)
+  })
+  it('replaces a folder with an independent connection while retaining historical attachments', async () => {
+    const target = join(root, 'replacement')
+    await mkdir(target)
+    await store.registerProject(project('a', join(root, 'project-a')))
+    const before = await store.add((await store.read()).revision, { rootPath: sources })
+    const source = before.sources[0]
+    const after = await store.replaceSource(before.revision, source.id, {
+      rootPath: target,
+      label: 'Other'
+    })
+    expect(after.sources.find((value) => value.id === source.id)).toEqual({
+      ...source,
+      detached: true
+    })
+    expect(after.attachments.filter((value) => value.sourceId === source.id)).toEqual(
+      before.attachments
+    )
+    const replacement = after.sources.find((value) => !value.detached)!
+    expect(replacement.id).not.toBe(source.id)
+    expect(replacement.rootPath).toBe(await realpath(target))
+    expect(
+      after.attachments.find((value) => value.sourceId === replacement.id)?.destinationFolderId
+    ).not.toBe(before.attachments[0].destinationFolderId)
+    const returned = await store.replaceSource(after.revision, replacement.id, {
+      rootPath: sources,
+      label: 'Back'
+    })
+    expect(returned.sources.find((value) => !value.detached)?.id).toBe(source.id)
+    expect(returned.attachments.filter((value) => value.sourceId === source.id)).toEqual(
+      before.attachments
+    )
+  })
+  it('preserves the complete connection configuration when a replacement root is invalid', async () => {
+    const before = await store.add(0, { rootPath: sources })
+    const bytes = await readFile(file)
+    await expect(
+      store.replaceSource(before.revision, before.sources[0].id, {
+        rootPath: privateRoot,
+        label: 'Bad'
+      })
+    ).rejects.toMatchObject({ code: 'EXPLORER_PROTECTED_SOURCE' })
+    expect(await readFile(file)).toEqual(bytes)
+    expect(await store.read()).toEqual(before)
+  })
   it('starts disabled without creating state or watchers', async () => {
     expect(await store.read()).toMatchObject({ enabled: false, revision: 0, sources: [] })
     await expect(readFile(file)).rejects.toMatchObject({ code: 'ENOENT' })

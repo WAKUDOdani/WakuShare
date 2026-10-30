@@ -18,6 +18,7 @@ import { folderPathKey, projectFolderChoices } from '@shared/explorer-folders'
 import { t } from '@/lib/i18n'
 import { errorMessage, unwrap } from '@/lib/ipc'
 import { ExplorerButton as Button } from './ExplorerButton'
+import { ConnectionActions } from './ConnectionActions'
 
 export function ProjectFolders({
   snapshot,
@@ -400,7 +401,7 @@ export function ProjectFolders({
                     <span className="explorer-folder-icon">
                       <FolderOpen size={18} />
                     </span>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 basis-40">
                       <p className="truncate text-[13px] font-medium">{source.label}</p>
                       <p
                         className="mt-1 truncate text-[11px] text-muted-foreground"
@@ -416,6 +417,9 @@ export function ProjectFolders({
                     >
                       <FolderOpen size={15} />
                     </Button>
+                    {source.projectKey === selected.key && (
+                      <ConnectionActions source={source} busy={busy} edit={edit} />
+                    )}
                     <Switch
                       className="explorer-switch"
                       aria-label={t('Enable {0} for {1}', [source.label, selected.name])}

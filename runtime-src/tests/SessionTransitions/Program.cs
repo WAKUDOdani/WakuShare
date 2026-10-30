@@ -36,4 +36,5 @@ using(var channel=new EditorEventChannel(Environment.ProcessId)){
  channel.Apply(new(2,"Project",b,"S:\\B",2));adapter.InvalidateSession();adapter.ConfigureProject(channel.State.Project!.Value,Destination());pending.SetException(new IOException("late failure"));
  Check((await task).Status=="Unknown"&&adapter.Status=="Waiting"&&adapter.Reason==null,"Late process failure belongs to old session");++checks;
 }
+checks+=await RootRelocationTests.Run();
 Console.WriteLine(JsonSerializer.Serialize(new{accepted=true,checks,drivePairs=16,sequence="A-B-A-Home-B-Disconnected",nativeCalls=0}));

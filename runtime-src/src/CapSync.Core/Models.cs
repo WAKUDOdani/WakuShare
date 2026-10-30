@@ -11,6 +11,27 @@ public sealed class Binding
     public string Status { get; set; } = "Ready";
     // Explicitly adopted imports in the selected target folder, keyed by relative path.
     public Dictionary<string, string> InitialImports { get; set; } = [];
+    // Only appended after the explicit relocation adapter verifies native and saved state.
+    public List<RootMove> RootMoves { get; set; } = [];
+}
+public sealed record RootMove(string FromRoot, string ToRoot, Guid ReceiptId);
+public static class RootOwnership
+{
+    public static bool Contains(Binding binding,string root) => SourcePaths.Comparer.Equals(binding.RootPath,root) ||
+        binding.RootMoves.Any(move=>SourcePaths.Comparer.Equals(move.FromRoot,root));
+    public static void Validate(Binding binding)
+    {
+        if(binding.RootMoves==null || binding.RootMoves.Count>64)throw new InvalidDataException("Invalid root relocation history");
+        for(var i=0;i<binding.RootMoves.Count;i++) {
+            var move=binding.RootMoves[i];
+            if(move.ReceiptId==Guid.Empty || !Path.IsPathFullyQualified(move.FromRoot) || !Path.IsPathFullyQualified(move.ToRoot) ||
+                SourcePaths.Within(move.FromRoot,move.ToRoot) || SourcePaths.Within(move.ToRoot,move.FromRoot) ||
+                (i>0 && !SourcePaths.Comparer.Equals(binding.RootMoves[i-1].ToRoot,move.FromRoot)))
+                throw new InvalidDataException("Disconnected root relocation history");
+        }
+        if(binding.RootMoves.Count>0 && !SourcePaths.Comparer.Equals(binding.RootMoves[^1].ToRoot,binding.RootPath))
+            throw new InvalidDataException("Current root differs from verified relocation");
+    }
 }
 public sealed class Source
 {

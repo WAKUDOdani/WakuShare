@@ -16,6 +16,8 @@ export interface ExplorerSource {
   projectKey: string | null
   enabled: boolean
   detached: boolean
+  /** Explicit user-authorized root moves; a replacement uses a different source id. */
+  previousRoots?: string[]
 }
 export interface ExplorerAttachment {
   id: string
@@ -44,6 +46,14 @@ export type ExplorerEdit =
   | { type: 'sourceEnabled'; sourceId: string; enabled: boolean }
   | { type: 'rename'; sourceId: string; label: string }
   | { type: 'detach'; sourceId: string }
+  | {
+      type: 'replaceConnection' | 'relocateConnection'
+      sourceId: string
+      rootPath: string
+      label: string
+      projectKey?: string
+    }
+  | { type: 'deleteConnection'; sourceId: string; projectKey?: string }
   | { type: 'projectEnabled'; sourceId: string; enabled: boolean; expectedProjectKey: string }
   | { type: 'projectFolder'; sourceId: string; projectKey: string; enabled: boolean }
   | { type: 'copyProjectFolders'; projectKey: string; targetProjectKeys: string[] }

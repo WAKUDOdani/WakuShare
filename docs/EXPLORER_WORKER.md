@@ -27,8 +27,8 @@ Lines, unique request IDs, strict schema/sequence validation and bounded message
 and deadlines. The renderer receives presentation snapshots, never bootstrap
 credentials or arbitrary execution capabilities.
 
-Ordinary Windows builds use resources/explorer, including frozen WorkerV9,
-ObserveV10/CommandsV14/SavedReadV5, product DLLs and interpreters. Main sets
+Ordinary Windows builds use resources/explorer, including frozen WorkerV10,
+ObserveV10/CommandsV14/SavedReadV5/RootRelinkV2, product DLLs and interpreters. Main sets
 the private PATH and DOTNET_ROOT. Native staging uses userData/explorer/native-modules.
 A product DLL already loaded from an earlier app location is reused only when
 its unique name and loaded/staged file hashes agree with the sealed generation.
@@ -62,3 +62,22 @@ Normal tests cover protocol, configuration, lifecycle, scope, progress, archive
 compatibility and preset transfers without accessing CapCut. Native integrations
 are opt-in and must not replay accepted jobs. New runtime generations require
 independent full preservation and normal-save acceptance.
+
+Connection editing offers two distinct operations. Replacing a folder creates an
+independent source and destination; detaching keeps the previous ownership history,
+Windows files, CapCut media and clips. Explicitly relocating the same folder retains
+source, attachment, material and clip identities. All matching connections receive
+a durable previous-root chain. Each enabled project repairs its paths under its own
+live lease when opened; paused connections wait until re-enabled. Closed project
+files are never rewritten behind the editor.
+
+Root repair requires the same relative paths and byte contents. Streaming hashes
+run in the helper process under Windows read leases, permitting a physical identity
+change when the user explicitly moves the folder across drives. A single native
+batch validates the complete bin alias set and all loaded SDK Drafts, changes only
+owned source paths, preserves manual names, and requests stock saves. Whole-project
+and template comparisons repeat after normal save. Conflicts stop the operation;
+uncertain mutations are never replayed. Completed add/update/folder receipts remain
+immutable, and only verified root history permits their old roots. State schema 10
+prevents older workers from interpreting this history. Ordinary sync/import does
+not take the root-relocation hashing or save-verification path.

@@ -1,5 +1,5 @@
 {
-  "version": "1.3.14-session-paths",
+  "version": "1.3.19-explicit-root-relocation",
   "files": {
     "artifacts/ExplorerProductCommandsV12/manifest.json": "2763281bc5493674477f91f2690e253711138735f7e98d33a63dd7e648ee894a",
     "artifacts/ExplorerProductObserveV9/manifest.json": "b92bd13ed7da847f0677500512210f4aa3f6c7ac4c7756f1a99a3bc06b5c12fc",
@@ -983,10 +983,10 @@
     "tools/explorer_product_bridge_v3.py": "75510500f5c074469649fe2123cece0c92c57bf595850a747ba9adf78bf321c1",
     "tools/explorer_product_bridge_v4.py": "adddc984a9bb8b97b91e48bfca0ace4e2e9a377ab57c07698b39436faf1bb509",
     "tools/explorer_product_bridge_v5.py": "2900782372079a4684e59dda7fa69fc69dd5cd7b0706936cdc9f0cf00e1b15b8",
-    "tools/explorer_product_runtime_v6.py": "492e2bb7cdf0a9f5eb2d1ec84739021994d224f89fc77dfc04b2ec3b423a134a",
+    "tools/explorer_product_runtime_v6.py": "2faa7d34e8020fd388480cab9b362f4731a9150e0f2571c9d0bb4720ebcda09f",
     "tools/explorer_product_scope_v2.py": "83d88b1f06833d61b87443d14310193852cdb8e269084769619fd85c9671804c",
     "tools/explorer_product_scope_v3.py": "dd997b3a4d4ee3ebe8ec87404e171db324b14da4e58071ea46b86c77dceedecd",
-    "tools/explorer_product_scope_v6.py": "69369994a331cfdce11c6bbdc1b3f69b6599e204a3a5c87e51a77d4ebef3d21b",
+    "tools/explorer_product_scope_v6.py": "78260aabe3f56375e5bf6a309cc51647ae1c22112b7cdfa3c38cf549387ecbda",
     "tools/explorer_project_io.py": "4b36aaaab0e9851a4ea65dfc4a5d124064104806f13b7e65026c0390c62704f0",
     "tools/explorer_project_io_v2.py": "015d56a2070d3036ddc6e595772f6c1f4d109a17732e0e0c117c1f17cf6a48e2",
     "tools/explorer_project_observations_v1.py": "9e45e5880c231f52c427e49585053c13d06fd6946ea9ba542da10ea28785d816",
@@ -1050,6 +1050,14 @@
     "artifacts/ExplorerProductWorkerV9/CapSync.Observer.dll": "07114b3f4b2a1548d703c74110d450104566d5f5a1a6203e09053f346f35f9c8",
     "artifacts/ExplorerProductWorkerV9/CapSync.Observer.exe": "3f46f16123b7ebb64efe0b1e26700d17b64f39758fed7eba508d1f710e1f33ca",
     "artifacts/ExplorerProductWorkerV9/CapSync.Observer.runtimeconfig.json": "c230a317a54dd960bcbeb5f347f52e18dc665a26f7efda2159fced9a5ac7e097",
-    "artifacts/ExplorerProductCommandsV14/manifest.json": "58d482884ee5088418e8ee6b2b913d7f394f82a07b03df77ddbe9d009b3a31ab"
+    "artifacts/ExplorerProductCommandsV14/manifest.json": "58d482884ee5088418e8ee6b2b913d7f394f82a07b03df77ddbe9d009b3a31ab",
+    "tools/explorer_root_relocation_v1.py": "5dbc420ad51d84afe638e6d566ee0a256ae9a4cc731d5b73fed97763f66eb2e9",
+    "artifacts/NativeExplorerObserveBuild/CapSync.ExplorerProductRootRelinkV2.dll": "fa13c5b261ad77469f8b23af151da8a6dddf96c8047df9c28cf50d3c7533e73d",
+    "artifacts/ExplorerProductWorkerV10/CapSync.Core.dll": "0b76e4f3c80b8eab14b547dce0bcb3feeac4e438c8091fdbc5ee0bf91723506e",
+    "artifacts/ExplorerProductWorkerV10/CapSync.Observer.deps.json": "179ab452349227e01f917e147b19e3583b1addf9c70ab52aa6b2e3e5adf5e5bc",
+    "artifacts/ExplorerProductWorkerV10/CapSync.Observer.dll": "06b9b4993791293020f72b7f9e2dd702a8b9c98d002469141427779b67e3f556",
+    "artifacts/ExplorerProductWorkerV10/CapSync.Observer.exe": "a1aeab7d40455f697a3b7d30b63ce771cb9f8e2d65146fd9a315262e3554b696",
+    "artifacts/ExplorerProductWorkerV10/CapSync.Observer.runtimeconfig.json": "c230a317a54dd960bcbeb5f347f52e18dc665a26f7efda2159fced9a5ac7e097",
+    "artifacts/ExplorerRootRelinkV2/manifest.json": "b2a0cc2a26c21ed6ad9064ec0ab8c0edb42592820745807e02c54402cdca6d01"
   }
 }

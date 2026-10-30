@@ -42,7 +42,8 @@ const sourceSchema = z
     scope: z.enum(['global', 'project']),
     projectKey: key.nullable(),
     enabled: z.boolean(),
-    detached: z.boolean()
+    detached: z.boolean(),
+    previousRoots: z.array(rootPath).max(64).optional()
   })
   .strict()
 export const configurationSchema = z
@@ -258,6 +259,91 @@ export class ExplorerConfigurationStore {
       if (update.label !== undefined) source.label = label.parse(update.label)
       if (update.enabled !== undefined) source.enabled = update.enabled
       if (update.detached !== undefined) source.detached = update.detached
+    })
+  }
+  /** Replacing a connection never reassigns its imported materials to new files. */
+  async replaceSource(
+    expected: number,
+    id: string,
+    input: { rootPath: string; label: string }
+  ): Promise<ExplorerConfiguration> {
+    return this.edit(expected, async (config) => {
+      const old = config.sources.find((source) => source.id === id && !source.detached)
+      if (!old) throw new ExplorerConfigurationError('EXPLORER_SOURCE_NOT_FOUND')
+      const path = await this.resolveSource(input.rootPath)
+      const name = label.parse(input.label)
+      if (normalized(path) === normalized(old.rootPath)) {
+        old.label = name
+        return
+      }
+      const conflict = config.sources.find(
+        (source) =>
+          source.id !== old.id &&
+          !source.detached &&
+          sameScope(source, old) &&
+          overlaps(source.rootPath, path)
+      )
+      if (conflict) throw new ExplorerConfigurationError('EXPLORER_SOURCE_OVERLAP', conflict.id)
+      old.detached = true
+      const historical = config.sources.find(
+        (source) =>
+          source.id !== old.id &&
+          source.detached &&
+          source.projectKey === old.projectKey &&
+          normalized(source.rootPath) === normalized(path)
+      )
+      if (historical) {
+        historical.detached = false
+        historical.enabled = old.enabled
+        historical.label = name
+      } else
+        config.sources.push({
+          ...old,
+          previousRoots: undefined,
+          id: randomUUID(),
+          rootPath: path,
+          label: name,
+          detached: false
+        })
+    })
+  }
+  /** Explicit relocation keeps identities and queues repair for every connected project. */
+  async relocateSource(
+    expected: number,
+    id: string,
+    input: { rootPath: string; label: string }
+  ): Promise<ExplorerConfiguration> {
+    return this.edit(expected, async (config) => {
+      const selected = config.sources.find((source) => source.id === id && !source.detached)
+      if (!selected) throw new ExplorerConfigurationError('EXPLORER_SOURCE_NOT_FOUND')
+      const target = await this.resolveSource(input.rootPath)
+      const name = label.parse(input.label)
+      if (normalized(target) === normalized(selected.rootPath)) {
+        selected.label = name
+        return
+      }
+      const related = config.sources.filter(
+        (source) => normalized(source.rootPath) === normalized(selected.rootPath)
+      )
+      if (overlaps(selected.rootPath, target))
+        throw new ExplorerConfigurationError('EXPLORER_SOURCE_OVERLAP')
+      for (const source of related) {
+        if ((source.previousRoots?.length ?? 0) >= 64)
+          throw new ExplorerConfigurationError('EXPLORER_RELOCATION_HISTORY_FULL')
+        const conflict = config.sources.find(
+          (other) =>
+            !related.includes(other) &&
+            !other.detached &&
+            sameScope(source, other) &&
+            overlaps(other.rootPath, target)
+        )
+        if (conflict) throw new ExplorerConfigurationError('EXPLORER_SOURCE_OVERLAP', conflict.id)
+      }
+      for (const source of related) {
+        source.previousRoots = [...(source.previousRoots ?? []), source.rootPath]
+        source.rootPath = target
+      }
+      selected.label = name
     })
   }
   async projectOverride(

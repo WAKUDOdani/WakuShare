@@ -1,7 +1,7 @@
 # Frozen Explorer runtime source
 
 This directory contains the C# planner/worker, the C++ source/header closure for
-the 17 current product modules, Python helper closure, sealed manifests, reduced
+the current product modules, Python helper closure, sealed manifests, reduced
 SDK export contract and runtime-file SHA-256 index shipped with WakuShare 1.3.x.
 The product entry is `tools/explorer_product_runtime_v6.py`. Some inherited helper
 files also contain unused laboratory CLI functions; those are not product routes.
@@ -69,3 +69,11 @@ and clip data remain exact. Project placeholders compare only as equivalent path
 fields beneath the same project, recursively including compositions and caches.
 Traversal, other targets and subtitle text are never normalized. Session transition
 controls cover A/B/A, Home, disconnects, delayed replies and 16 drive pairs.
+
+Worker V10 and `explorer_root_relocation_v1.py` add explicit root relocation.
+`CapSync.ExplorerProductRootRelinkV2` uses a read-only preflight, a single guarded
+path batch and read-only completion checks. Its original V1 laboratory module is
+kept as reproducible source, but is not a product route. Existing native module
+generations are unchanged. `tests/test_root_relocation.py` and the SessionTransitions
+controls cover byte mismatch, unresolved jobs, retained source/material identities,
+immutable old receipts, historical nested-folder ownership and state restarts.

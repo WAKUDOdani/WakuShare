@@ -27,12 +27,20 @@ export function explorerRuntimeLocation(options: {
         ? join(options.resourcesPath, 'explorer')
         : workspace
     if (!root) return null
-    const executable = join(root, 'artifacts', 'ExplorerProductWorkerV9', 'CapSync.Observer.exe')
+    const executable = join(root, 'artifacts', 'ExplorerProductWorkerV10', 'CapSync.Observer.exe')
     const required = [
       executable,
       join(root, 'artifacts', 'ExplorerProductCommandsV14', 'manifest.json'),
       join(root, 'artifacts', 'ExplorerProductObserveV10', 'manifest.json'),
       join(root, 'artifacts', 'ExplorerSavedReadV5', 'manifest.json'),
+      join(root, 'artifacts', 'ExplorerRootRelinkV2', 'manifest.json'),
+      join(
+        root,
+        'artifacts',
+        'NativeExplorerObserveBuild',
+        'CapSync.ExplorerProductRootRelinkV2.dll'
+      ),
+      join(root, 'tools', 'explorer_root_relocation_v1.py'),
       join(root, 'tools', 'explorer_product_runtime_v6.py'),
       ...(!options.localPreview && options.packaged
         ? [

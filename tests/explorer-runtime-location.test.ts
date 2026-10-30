@@ -21,7 +21,7 @@ it('resolves a product installation containing exactly the files in the pinned r
       exists: (file) => installed.has(file)
     })
   ).toEqual({
-    executable: join(root, 'artifacts', 'ExplorerProductWorkerV9', 'CapSync.Observer.exe'),
+    executable: join(root, 'artifacts', 'ExplorerProductWorkerV10', 'CapSync.Observer.exe'),
     nativeRoot: root,
     nativeMode: 'product'
   })
@@ -39,7 +39,7 @@ it('ships the frozen product worker with its interpreters in ordinary releases',
   const root = join(base.resourcesPath, 'explorer')
   const options = { ...base, productRuntime: true }
   expect(explorerRuntimeLocation(options)).toEqual({
-    executable: join(root, 'artifacts', 'ExplorerProductWorkerV9', 'CapSync.Observer.exe'),
+    executable: join(root, 'artifacts', 'ExplorerProductWorkerV10', 'CapSync.Observer.exe'),
     nativeRoot: root,
     nativeMode: 'product'
   })
@@ -87,7 +87,7 @@ it('rejects relative paths and does not manufacture a missing packaged runtime',
 it('selects the separate product worker only for an explicit local product preview', () => {
   const options = { ...base, localPreview: true, previewWorkspace: workspace, productRuntime: true }
   expect(explorerRuntimeLocation(options)).toEqual({
-    executable: join(workspace, 'artifacts', 'ExplorerProductWorkerV9', 'CapSync.Observer.exe'),
+    executable: join(workspace, 'artifacts', 'ExplorerProductWorkerV10', 'CapSync.Observer.exe'),
     nativeRoot: workspace,
     nativeMode: 'product'
   })

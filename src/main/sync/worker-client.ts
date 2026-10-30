@@ -174,6 +174,7 @@ export class ExplorerWorkerClient {
       MediaFolderId: string
       ContainerFolderId: string
       Name: string
+      PreviousRoots?: string[]
     }[]
   ): Promise<WorkerState> {
     return workerStateSchema.parse(await this.request('project', { projectKey, bindings }))

@@ -25,7 +25,7 @@ public static class FolderResolver
         var folder=state.ManagedFolders.SingleOrDefault(f=>f.Job.BindingId==binding.Id &&
             SourcePaths.Comparer.Equals(f.Job.RelativePath,directory));
         return folder is { Status: "Completed" } && folder.Job.FolderId==destination &&
-            folder.Job.ProjectId==binding.ProjectId && SourcePaths.Comparer.Equals(folder.Job.RootPath,binding.RootPath);
+            folder.Job.ProjectId==binding.ProjectId && RootOwnership.Contains(binding,folder.Job.RootPath);
     }
 
     public static async Task<string?> EnsureAsync(SyncState state, Binding binding, string relativeFile,
@@ -49,7 +49,7 @@ public static class FolderResolver
                 persist(); // Assigned UUID/parent are durable before creation.
             }
             if (folder.Job.ParentFolderId!=parent || folder.Job.ProjectId!=binding.ProjectId ||
-                !SourcePaths.Comparer.Equals(folder.Job.RootPath,binding.RootPath))
+                !RootOwnership.Contains(binding,folder.Job.RootPath))
             {
                 folder.Status="Conflict";folder.Reason="Folder ownership/parent changed";persist();return null;
             }
@@ -101,7 +101,7 @@ public static class FolderResolver
                     folder=new(){BatchId=forestId,Job=new(Guid.NewGuid(),binding.Id,binding.ProjectId,Path.GetFullPath(projectDirectory),binding.RootPath,prefix,Guid.NewGuid().ToString(),parent)};
                     lookup.Add(prefix,folder);fresh.Add(folder);state.ManagedFolders.Add(folder);
                 }
-                if(folder.Job.ParentFolderId!=parent || folder.Job.ProjectId!=binding.ProjectId || !SourcePaths.Comparer.Equals(folder.Job.RootPath,binding.RootPath))
+                if(folder.Job.ParentFolderId!=parent || folder.Job.ProjectId!=binding.ProjectId || !RootOwnership.Contains(binding,folder.Job.RootPath))
                 {folder.Status="Conflict";folder.Reason="Directory forest ownership changed";persist();return null;}
                 parent=folder.Job.FolderId;
             }

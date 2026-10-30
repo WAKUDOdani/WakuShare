@@ -1,18 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
-import { Input, Label, Switch, TextField } from '@heroui/react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import {
-  AlertCircle,
-  Check,
-  FolderOpen,
-  FolderPlus,
-  FolderSync,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Unplug,
-  X
-} from 'lucide-react'
+import { Switch } from '@heroui/react'
+import { motion, useReducedMotion } from 'motion/react'
+import { AlertCircle, FolderOpen, FolderPlus, FolderSync, Plus, RefreshCw } from 'lucide-react'
 import { ExplorerButton as Button } from './ExplorerButton'
 import { AnimatedHeight } from '@/components/AnimatedHeight'
 import { t, useLanguage } from '@/lib/i18n'
@@ -20,6 +9,7 @@ import { unwrap, errorMessage } from '@/lib/ipc'
 import type { ExplorerEdit, ExplorerSnapshot, ExplorerSource } from '@shared/explorer'
 import { ImportProgress } from './ImportProgress'
 import { ProjectFolders } from './ProjectFolders'
+import { ConnectionActions } from './ConnectionActions'
 
 const samePath = (a: string, b: string): boolean =>
   a.replaceAll('\\', '/').toLowerCase() === b.replaceAll('\\', '/').toLowerCase()
@@ -38,9 +28,6 @@ function SourceCard({
   rescan: (id: string) => Promise<void>
 }): JSX.Element {
   const reducedMotion = useReducedMotion()
-  const [renaming, setRenaming] = useState(false)
-  const [name, setName] = useState(source.label)
-  const [disconnecting, setDisconnecting] = useState(false)
   const paused = !source.enabled
   const root = snapshot.roots.find((root) => samePath(root.rootPath, source.rootPath))
   const runtimeMissing = snapshot.status === 'WaitingForRuntime' || snapshot.status === 'Error'
@@ -120,107 +107,13 @@ function SourceCard({
           <RefreshCw size={14} />
           {t('Check now')}
         </Button>
-        <>
-          <Button
-            isIconOnly
-            isDisabled={busy}
-            onPress={() => {
-              setName(source.label)
-              setRenaming(!renaming)
-              setDisconnecting(false)
-            }}
-            aria-label={t('Rename connection')}
-          >
-            <Pencil size={14} />
-          </Button>
-          <Button
-            isIconOnly
-            isDisabled={busy}
-            onPress={() => {
-              setDisconnecting(!disconnecting)
-              setRenaming(false)
-            }}
-            aria-label={t('Disconnect folder')}
-          >
-            <Unplug size={14} />
-          </Button>
-        </>
+        <ConnectionActions source={source} busy={busy} edit={edit} />
       </div>
       {root?.warnings.length && !paused ? (
         <p className="mt-2 truncate pl-[52px] text-xs text-warning" title={root.warnings[0]}>
           {root.warnings[0]}
         </p>
       ) : null}
-      <AnimatePresence initial={false}>
-        {renaming && (
-          <motion.div
-            key="rename"
-            className="overflow-hidden"
-            initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            exit={{ height: 0, pointerEvents: 'none' }}
-            transition={{ duration: reducedMotion ? 0 : 0.2 }}
-          >
-            <form
-              className="mt-3 flex items-end gap-2 pl-[52px]"
-              onSubmit={(event) => {
-                event.preventDefault()
-                void edit({ type: 'rename', sourceId: source.id, label: name }).then((saved) => {
-                  if (saved) setRenaming(false)
-                })
-              }}
-            >
-              <TextField
-                className="min-w-0 flex-1"
-                value={name}
-                onChange={setName}
-                isDisabled={busy}
-              >
-                <Label>{t('Connection name')}</Label>
-                <Input maxLength={80} />
-              </TextField>
-              <Button
-                isIconOnly
-                type="submit"
-                isDisabled={busy || !name.trim()}
-                aria-label={t('Save')}
-              >
-                <Check size={16} />
-              </Button>
-              <Button isIconOnly onPress={() => setRenaming(false)} aria-label={t('Cancel')}>
-                <X size={16} />
-              </Button>
-            </form>
-          </motion.div>
-        )}
-        {disconnecting && (
-          <motion.div
-            key="disconnect"
-            className="overflow-hidden"
-            initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            exit={{ height: 0, pointerEvents: 'none' }}
-            transition={{ duration: reducedMotion ? 0 : 0.2 }}
-          >
-            <div className="mt-3 ml-[52px] rounded-xl bg-foreground/5 p-3">
-              <p className="text-xs text-muted-foreground">
-                {t('Disconnect this folder? Existing CapCut materials and clips will remain.')}
-              </p>
-              <div className="mt-2 flex gap-2">
-                <Button
-                  isDisabled={busy}
-                  onPress={() => {
-                    void edit({ type: 'detach', sourceId: source.id })
-                  }}
-                >
-                  {t('Disconnect')}
-                </Button>
-                <Button onPress={() => setDisconnecting(false)}>{t('Cancel')}</Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.article>
   )
 }

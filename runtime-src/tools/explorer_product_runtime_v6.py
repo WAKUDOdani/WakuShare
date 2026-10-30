@@ -14,6 +14,9 @@ def run(data):
     if data['action']=='bootstrap':return bootstrap(data)
     from explorer_saved_documents_v1 import bind
     bind(data)
+    if data['action']=='relocateRoot':
+        from explorer_root_relocation_v1 import execute
+        return execute(data)
     if data['action']=='batch':
         from explorer_batch_import_v6 import execute
         return execute(data)
@@ -22,6 +25,9 @@ def run(data):
         return execute(data)
     context=ProductScope(data)
     if data['action']=='execute':
+        from explorer_root_relocation_v1 import relocated_folder
+        restored=relocated_folder(data,context)
+        if restored is not None:return restored
         from explorer_folder_completion_v1 import complete
         complete(data,context)
         from explorer_native_runtime_v4 import execute

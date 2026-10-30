@@ -92,7 +92,8 @@ class ProductScope:
                 prefix=prefix+'/'+part if prefix else part
                 owned=unique(self.folder_index.get((binding['Id'],prefix),[]),lambda f:True,'Import folder lacks durable ownership')
                 folder_job=owned['Job']
-                if folder_job['ProjectId']!=self.project_key or canonical(folder_job['RootPath'])!=canonical(binding['RootPath']) or folder_job['ParentFolderId']!=target:raise ValueError('Import folder ancestry changed')
+                from explorer_root_relocation_v1 import historical_root
+                if folder_job['ProjectId']!=self.project_key or not historical_root(binding,folder_job['RootPath']) or folder_job['ParentFolderId']!=target:raise ValueError('Import folder ancestry changed')
                 target=folder_job['FolderId']
         if target!=job['MediaFolderId']:raise ValueError('Owned media folder changed')
         owner=unique(self.source_index.get((job['SourceId'],binding['Id']),[]),lambda s:True,'Logical source owner absent')

@@ -46,7 +46,32 @@ internal sealed class ExplorerNativeAdapter(string root, string statePath, Edito
         }catch(Exception error) when(error is IOException or JsonException or InvalidDataException){var reason="Directory forest completion is unknown; no replay.";if(lease != null && editor.Matches(lease)){Status="Unknown";Reason=reason;}return folders.Select(j=>new AddReply(j.Id,"Unknown",Reason:reason)).ToArray();}
     }
     public bool RemainderEnabled => productRuntime || Environment.GetEnvironmentVariable("WAKUSHARE_LAB_REMAINDER") == "1";
-    public sealed record Destination(Guid Id, string RootPath, string MediaFolderId, string ContainerFolderId, string Name);
+    public sealed record Destination(Guid Id, string RootPath, string MediaFolderId, string ContainerFolderId, string Name, string[]? PreviousRoots = null);
+    public bool HasRootMoves(SyncState state) => Destinations.Any(d=>state.Bindings.Any(b=>b.Id==d.Id && !SourcePaths.Comparer.Equals(b.RootPath,d.RootPath)));
+    private sealed record RelocatedSource(Guid Id,string Identity,long LastWriteTicks);
+    private sealed record RelocationReply(string Status,Guid ReceiptId,RelocatedSource[] Sources,string? Reason=null,int NativeCommands=0);
+    private async Task<bool> RelocateRoot(SyncState state,Binding binding,Destination destination,Action persist)
+    {
+        var lease=editor.Lease();if(lease==null || !CanDispatch)return false;
+        Status="Applying";Reason=null;progress?.Invoke(binding.ProjectId,editor.State.Generation,"preparing");
+        try {
+            var value=await Invoke(new {action="relocateRoot",bindingId=binding.Id,newRoot=destination.RootPath,
+                previousRoots=destination.PreviousRoots ?? [],statePath,editor=editor.State,token=editor.Token});
+            var reply=value.Deserialize<RelocationReply>(StateStore.JsonOptions) ?? throw new InvalidDataException("Missing root relocation proof");
+            if(reply.NativeCommands is <0 or >1)throw new InvalidDataException("Invalid relocation command count");Commands+=reply.NativeCommands;
+            if(reply.Status!="Verified") {if(editor.Matches(lease)){Status=reply.Status;Reason=reply.Reason;}return false;}
+            var sources=state.Sources.Where(s=>s.BindingId==binding.Id).ToArray();
+            if(reply.ReceiptId==Guid.Empty || reply.Sources==null || reply.Sources.Length!=sources.Length ||
+                reply.Sources.Select(s=>s.Id).Distinct().Count()!=sources.Length || reply.Sources.Any(p=>!sources.Any(s=>s.Id==p.Id) || string.IsNullOrWhiteSpace(p.Identity) || p.LastWriteTicks<0))
+                throw new InvalidDataException("Relocation source membership differs");
+            binding.RootMoves.Add(new(binding.RootPath,destination.RootPath,reply.ReceiptId));binding.RootPath=destination.RootPath;
+            binding.Status="WaitingForRootFolder";
+            foreach(var proof in reply.Sources){var source=sources.Single(s=>s.Id==proof.Id);source.FileIdentity=proof.Identity;source.LastWriteTicks=proof.LastWriteTicks;}
+            // Desired events are recomputed from the now verified physical sources.
+            state.Pending.RemoveAll(p=>p.BindingId==binding.Id);persist();
+            if(editor.Matches(lease)){Status="Verified";Reason=null;}return true;
+        }catch(Exception error) when(error is IOException or JsonException or InvalidDataException){if(editor.Matches(lease)){Status="Unknown";Reason="Root relocation completion is unknown; automatic replay is disabled.";}return false;}
+    }
     public Destination[] Destinations { get; private set; } = [];
     public long Commands { get; private set; }
     public string? Reason { get; private set; }
@@ -133,6 +158,11 @@ internal sealed class ExplorerNativeAdapter(string root, string statePath, Edito
         var destinations=Destinations.ToArray();
         foreach (var destination in destinations)
         {
+            var owned=state.Bindings.Single(b=>b.Id==destination.Id && b.ProjectId==current.Value);
+            if(!SourcePaths.Comparer.Equals(owned.RootPath,destination.RootPath)) {
+                if(cancellation.IsCancellationRequested || !await RelocateRoot(state,owned,destination,persist))return false;
+                if(!editor.Matches(lease) || cancellation.IsCancellationRequested)return false;
+            }
             foreach (var folder in new[] {
                 (Id: destination.ContainerFolderId, Parent: "", Name: "WakuShare"),
                 (Id: destination.MediaFolderId, Parent: destination.ContainerFolderId, Name: destination.Name) }.Where(folder => folder.Id.Length > 0))

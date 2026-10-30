@@ -104,7 +104,19 @@ export class ExplorerSupervisor {
       const store = this.options.store
       const config = await store.read()
       const project = this.currentProject(config.projects)
-      if ('sourceId' in edit && edit.type !== 'projectFolder') {
+      if (
+        edit.type === 'replaceConnection' ||
+        edit.type === 'relocateConnection' ||
+        edit.type === 'deleteConnection'
+      ) {
+        const source = config.sources.find(
+          (source) => source.id === edit.sourceId && !source.detached
+        )
+        if (!source) throw new ExplorerConfigurationError('EXPLORER_SOURCE_NOT_FOUND')
+        if (source.projectKey !== (edit.projectKey ?? null))
+          throw new ExplorerConfigurationError('EXPLORER_NO_PROJECT')
+        if (edit.projectKey) await this.selectedProject(edit.projectKey)
+      } else if ('sourceId' in edit && edit.type !== 'projectFolder') {
         const source = config.sources.find((source) => source.id === edit.sourceId)
         if (source?.scope === 'project' && source.projectKey !== project?.key)
           throw new ExplorerConfigurationError('EXPLORER_NO_PROJECT')
@@ -132,6 +144,15 @@ export class ExplorerSupervisor {
           break
         case 'detach':
           await store.source(expected, edit.sourceId, { detached: true })
+          break
+        case 'deleteConnection':
+          await store.source(expected, edit.sourceId, { detached: true })
+          break
+        case 'replaceConnection':
+          await store.replaceSource(expected, edit.sourceId, edit)
+          break
+        case 'relocateConnection':
+          await store.relocateSource(expected, edit.sourceId, edit)
           break
         case 'projectEnabled':
           if (!project || edit.expectedProjectKey !== project.key)
@@ -206,7 +227,8 @@ export class ExplorerSupervisor {
         MediaFolderId: attachment.destinationFolderId,
         ContainerFolderId:
           this.workerState?.nativeMode === 'product' ? '' : project.containerFolderId,
-        Name: basename(source.rootPath).slice(0, 80)
+        Name: basename(source.previousRoots?.[0] ?? source.rootPath).slice(0, 80),
+        PreviousRoots: source.previousRoots ?? []
       }
     })
   }
