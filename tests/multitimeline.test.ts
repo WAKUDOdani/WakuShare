@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { DRAFT_PATH_PLACEHOLDER } from '../src/main/core/capcut/constants'
 import {
   cloneTimelineGraph,
   createProjectReferenceResolver,
@@ -58,6 +59,88 @@ beforeEach(() => {
 afterEach(() => rmSync(folder, { recursive: true, force: true }))
 
 describe('modern timeline graph', () => {
+  it('resolves generated covers consistently across native path spellings while preserving real resources', () => {
+    const document = `Timelines/${ids[1]}/draft_content.json`
+    const oldRoot = 'C:/old/Project'
+    const references = [
+      {
+        value: `${oldRoot}/subdraft/${ids[0]}/draft_content.json`,
+        pointer: '/materials/drafts/0/draft_file_path'
+      }
+    ]
+    const documents = new Map([
+      [
+        `subdraft/${ids[0]}/draft_content.json`,
+        { relativePath: `subdraft/${ids[0]}/draft_content.json`, raw: Buffer.from('{}'), value: {} }
+      ]
+    ])
+    for (const extension of ['jpg', 'jpeg', 'png'])
+      for (const prefix of ['', `subdraft/${ids[0]}/`, `Timelines/${ids[1]}/`]) {
+        const cover = `${prefix}draft_cover.${extension}`
+        const variants = [
+          `${DRAFT_PATH_PLACEHOLDER}/${cover}`,
+          cover,
+          `../../${cover}`,
+          `D:/Current/${cover}`,
+          `${oldRoot}/${cover}`
+        ]
+        for (const present of [false, true]) {
+          const resolve = createProjectReferenceResolver(
+            documents,
+            references,
+            new Set(present ? [cover] : []),
+            'D:/Current'
+          )
+          for (const variant of variants)
+            for (const backslash of [false, true])
+              for (const field of ['cover_path', 'draft_cover_path', 'draft_cover']) {
+                const value = backslash ? variant.replaceAll('/', '\\') : variant
+                expect(resolve(value, `/materials/drafts/0/${field}`, document)).toBe(
+                  present ? cover : ''
+                )
+                expect(resolve(value, '/materials/videos/0/path', document)).toBeUndefined()
+                expect(resolve(value, '/materials/audios/0/path', document)).toBeUndefined()
+              }
+        }
+      }
+    const resolve = createProjectReferenceResolver(documents, references, new Set(), 'D:/Current')
+    for (const value of [
+      `${DRAFT_PATH_PLACEHOLDER}/../draft_cover.jpg`,
+      `${DRAFT_PATH_PLACEHOLDER}Xdraft_cover.jpg`,
+      `${DRAFT_PATH_PLACEHOLDER}/draft_cover.jpg:code`,
+      '../../../../../draft_cover.jpg',
+      '//server/share/draft_cover.jpg',
+      'https://example.com/draft_cover.jpg',
+      'C:/other/draft_cover.jpg',
+      'Resources/local/draft_cover.jpg'
+    ])
+      expect(resolve(value, '/cover_path', document)).toBeUndefined()
+  })
+
+  it('handles optional placeholder compound covers without requiring an old absolute root', () => {
+    const cover = `subdraft/${ids[0]}/draft_cover.jpg`
+    const pointer = '/materials/drafts/1/draft_cover_path'
+    const missing = createProjectReferenceResolver(new Map(), [])
+    const packed = createProjectReferenceResolver(new Map(), [], new Set([cover]))
+    const value = `${DRAFT_PATH_PLACEHOLDER}/${cover}`
+    expect(missing(value.replaceAll('/', '\\'), pointer)).toBe('')
+    expect(
+      packed(
+        value.toLowerCase().replace(DRAFT_PATH_PLACEHOLDER.toLowerCase(), DRAFT_PATH_PLACEHOLDER),
+        pointer
+      )
+    ).toBe(cover)
+    expect(missing(value, '/materials/videos/0/path')).toBeUndefined()
+    expect(missing(value.replace('draft_cover.jpg', 'source.jpg'), pointer)).toBeUndefined()
+    expect(missing(value.replace('/subdraft/', '/../subdraft/'), pointer)).toBeUndefined()
+    expect(
+      missing(value.replace('draft_cover.jpg', 'draft_cover.jpg:code'), pointer)
+    ).toBeUndefined()
+    expect(
+      missing(`${DRAFT_PATH_PLACEHOLDER}/Resources/local/draft_cover.jpg`, pointer)
+    ).toBeUndefined()
+  })
+
   it('keeps compounds linked from another timeline with relative, embedded and cyclic links', async () => {
     const first = ids[0],
       second = ids[1],

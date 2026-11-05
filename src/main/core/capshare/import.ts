@@ -419,7 +419,8 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
     const internalReference = createProjectReferenceResolver(
       documents,
       [...documents.values()].flatMap((doc) => collectPaths(doc.value)),
-      declaredFiles
+      declaredFiles,
+      sourceFolderJson ?? undefined
     )
     for (const { newRel, originalPath } of looseTargets.values()) {
       looseByOriginal.set(normalizeResourcePath(originalPath).toLowerCase(), newRel)
@@ -437,7 +438,7 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
           allowedMissing.add(relative)
           return style === 'placeholder' ? `${DRAFT_PATH_PLACEHOLDER}/${relative}` : `./${relative}`
         }
-        const packaged = internalReference(value, pointer)
+        const packaged = internalReference(value, pointer, document)
         if (packaged !== undefined) {
           if (!packaged) return ''
           assertRelativeResource(packaged)

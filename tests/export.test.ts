@@ -54,12 +54,21 @@ describe('exportDraft', () => {
     expect(result.capsharePath).toBe(dest)
     expect(result.sizeBytes).toBeGreaterThan(0)
     expect(progress.length).toBeGreaterThan(0)
-    expect(progress[progress.length - 1]).toBeLessThanOrEqual(1)
+    expect(progress[progress.length - 1]).toBe(1)
+    expect(progress.every((p, i) => p >= 0 && p <= 1 && (i === 0 || p >= progress[i - 1]))).toBe(
+      true
+    )
 
     const entries = await readZipEntries(dest, ['manifest.json', 'cover.jpg'])
     expect(entries.has('cover.jpg')).toBe(true)
 
     const manifest = parseManifest(entries.get('manifest.json')!.toString('utf8'))
+    expect(manifest.contents.totalBytes).toBe(
+      Object.values(manifest.integrity).reduce((sum, file) => sum + file.size, 0) +
+        manifest.looseMedia.reduce((sum, file) => sum + file.size, 0) +
+        manifest.effectAssets.reduce((sum, file) => sum + file.size, 0) +
+        entries.get('cover.jpg')!.length
+    )
     expect(manifest.formatVersion).toBe(1)
     expect(manifest.source).toMatchObject({
       os: 'mac',

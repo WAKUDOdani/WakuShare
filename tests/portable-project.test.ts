@@ -134,6 +134,145 @@ async function exportCase(): Promise<string> {
 }
 
 describe('complete portable multi-timeline project', () => {
+  it.each(
+    [false, true].flatMap((present) =>
+      ['placeholder', 'relative', 'absolute'].map((style) => ({ present, style }))
+    )
+  )('handles optional project covers ($style, present: $present)', async ({ present, style }) => {
+    const file = join(source, 'draft_meta_info.json')
+    const meta = JSON.parse(readFileSync(file, 'utf8'))
+    meta.draft_cover =
+      style === 'placeholder'
+        ? `${DRAFT_PATH_PLACEHOLDER}/draft_cover.jpg`
+        : style === 'absolute'
+          ? join(source, 'draft_cover.jpg')
+          : './draft_cover.jpg'
+    write(file, meta)
+    if (present) writeFileSync(join(source, 'draft_cover.jpg'), 'project generated cover')
+    const before = readFileSync(file)
+    const archive = await exportCase()
+    const entries = await readZipEntries(archive, ['manifest.json', 'draft/draft_meta_info.json'])
+    const manifest = parseManifest(entries.get('manifest.json')!.toString())
+    expect(manifest.missingAtExport).toEqual([])
+    expect(manifest.unavailableMedia).toBeUndefined()
+    expect(JSON.parse(entries.get('draft/draft_meta_info.json')!.toString()).draft_cover).toBe(
+      present ? `${DRAFT_PATH_PLACEHOLDER}/draft_cover.jpg` : ''
+    )
+    expect(readFileSync(file)).toEqual(before)
+  })
+
+  it('keeps real missing media and fonts visible alongside an optional cover', async () => {
+    const file = join(source, `Timelines/${ids[1]}/draft_content.json`)
+    const value = JSON.parse(readFileSync(file, 'utf8'))
+    value.materials.drafts = [
+      { draft_cover_path: `${DRAFT_PATH_PLACEHOLDER}/subdraft/${ids[0]}/draft_cover.jpg` }
+    ]
+    const missing = ['video.mp4', 'audio.wav', 'image.png', 'Onest-Black.ttf'].map(
+      (name) => `${DRAFT_PATH_PLACEHOLDER}/Resources/local/${name}`
+    )
+    value.materials.videos[0].path = missing[0]
+    value.materials.audios = [{ path: missing[1] }]
+    value.materials.images = [{ path: missing[2] }]
+    value.materials.texts = [{ font_path: missing[3] }]
+    write(file, value)
+    const archive = await exportCase()
+    const manifest = parseManifest(
+      (await readZipEntries(archive, ['manifest.json'])).get('manifest.json')!.toString()
+    )
+    expect(manifest.missingAtExport.sort()).toEqual(missing.sort())
+    expect(manifest.unavailableMedia).toHaveLength(4)
+  })
+
+  it.each(
+    [false, true].flatMap((present) =>
+      ['placeholder', 'project-relative', 'document-relative', 'absolute', 'old-absolute'].map(
+        (style) => ({ present, style })
+      )
+    )
+  )(
+    'round trips optional compound covers ($style, present: $present) without changing the source',
+    async ({ present, style }) => {
+      const compound = randomUUID().toUpperCase()
+      const cover = `subdraft/${compound}/draft_cover.jpg`
+      write(join(source, `subdraft/${compound}/draft_content.json`), { id: compound, tracks: [] })
+      if (present) writeFileSync(join(source, cover), 'generated cover bytes')
+      const relative = `Timelines/${ids[1]}/draft_content.json`
+      const value = JSON.parse(readFileSync(join(source, relative), 'utf8'))
+      value.materials.drafts = [
+        {
+          draft_file_path: `${style === 'old-absolute' ? 'C:/old/Project' : DRAFT_PATH_PLACEHOLDER}/subdraft/${compound}/draft_content.json`,
+          draft_cover_path: (style === 'placeholder'
+            ? `${DRAFT_PATH_PLACEHOLDER}/${cover}`
+            : style === 'absolute'
+              ? `${source.replaceAll('\\', '/')}/${cover}`
+              : style === 'old-absolute'
+                ? `C:/old/Project/${cover}`
+                : style === 'document-relative'
+                  ? `../../${cover}`
+                  : cover
+          ).replaceAll('/', '\\')
+        }
+      ]
+      write(join(source, relative), value)
+      const mirror = `Timelines/${ids[1]}/template-2.tmp`
+      write(join(source, mirror), value)
+      const before = readFileSync(join(source, relative))
+      const archive = await exportCase()
+      const entries = await readZipEntries(archive, [
+        'manifest.json',
+        `draft/${relative}`,
+        `draft/${mirror}`
+      ])
+      const manifest = parseManifest(entries.get('manifest.json')!.toString())
+      expect(manifest.missingAtExport).toEqual([])
+      expect(manifest.unavailableMedia).toBeUndefined()
+      expect(Boolean(manifest.integrity[cover])).toBe(present)
+      const exported = JSON.parse(entries.get(`draft/${relative}`)!.toString())
+      expect(exported.materials.drafts[0].draft_cover_path).toBe(
+        present ? `${DRAFT_PATH_PLACEHOLDER}/${cover}` : ''
+      )
+      expect(entries.get(`draft/${mirror}`)).toEqual(entries.get(`draft/${relative}`))
+      const restored = await importCapshare({
+        filePath: archive,
+        env,
+        resolution: 'copy',
+        backupDir: join(root, 'backups')
+      })
+      const docs = await readProjectDocuments(restored.folderPath)
+      const graph = validateTimelineGraph(docs)!
+      expect(graph.timelines.map((t) => t.name)).toEqual(['13', '14', '15', '16'])
+      const imported = docs.get(graph.timelines[1].relativePath)!.value as typeof exported
+      expect(imported.tracks).toEqual(value.tracks)
+      expect(imported.materials.drafts[0].draft_cover_path).toBe(
+        present ? `${DRAFT_PATH_PLACEHOLDER}/${cover}` : ''
+      )
+      if (present)
+        expect(readFileSync(join(restored.folderPath, cover), 'utf8')).toBe('generated cover bytes')
+      expect(readFileSync(join(source, relative))).toEqual(before)
+      expect(readFileSync(join(source, mirror))).toEqual(before)
+    }
+  )
+
+  it('still reports a missing image used as media even when it has the native cover filename', async () => {
+    const cover = `${DRAFT_PATH_PLACEHOLDER}/subdraft/${ids[1]}/draft_cover.jpg`
+    const file = join(source, `Timelines/${ids[1]}/draft_content.json`)
+    const value = JSON.parse(readFileSync(file, 'utf8'))
+    value.materials.videos[0].path = cover
+    write(file, value)
+    const archive = await exportCase()
+    const manifest = parseManifest(
+      (await readZipEntries(archive, ['manifest.json'])).get('manifest.json')!.toString()
+    )
+    expect(manifest.missingAtExport).toEqual([cover])
+    expect(manifest.unavailableMedia).toEqual([
+      {
+        document: `Timelines/${ids[1]}/draft_content.json`,
+        pointer: '/materials/videos/0/path',
+        originalPath: cover
+      }
+    ])
+  })
+
   it('ignores detached UUID draft leftovers without dropping library-only compositions or their nested dependencies', async () => {
     const detached = randomUUID().toUpperCase()
     const library = randomUUID().toUpperCase()

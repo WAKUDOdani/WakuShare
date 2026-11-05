@@ -1,11 +1,12 @@
 import { existsSync } from 'node:fs'
 import { readFile, rename, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, posix } from 'node:path'
 import { CapShareError } from '../errors'
 import { walkFiles } from '../fsx'
-import { TIMELINE_FILENAMES, VOLATILE_FILE_PATTERNS } from './constants'
+import { DRAFT_PATH_PLACEHOLDER, TIMELINE_FILENAMES, VOLATILE_FILE_PATTERNS } from './constants'
 import {
   walkJsonStrings,
+  classifyString,
   normalizeSlashes,
   normalizeResourcePath,
   type ScannedString
@@ -88,8 +89,9 @@ export function portableProjectDocuments(all: Map<string, ProjectDocument>): {
 export function createProjectReferenceResolver(
   documents: Map<string, ProjectDocument>,
   references: Pick<ScannedString, 'value' | 'pointer'>[],
-  resources: ReadonlySet<string> = new Set()
-): (value: string, pointer: string) => string | undefined {
+  resources: ReadonlySet<string> = new Set(),
+  projectFolder?: string
+): (value: string, pointer: string, document?: string) => string | undefined {
   const names = new Map([...documents.keys()].map((name) => [name.toLowerCase(), name]))
   const roots = new Set<string>()
   const paths = new Map<string, string>()
@@ -102,7 +104,11 @@ export function createProjectReferenceResolver(
     'i'
   )
   const cachePath = new RegExp(`^smart_crop/${uuid}/[^<>:"|?*]+$`, 'i')
-  const coverPath = new RegExp(`^subdraft/${uuid}/draft_cover\\.(?:jpg|jpeg|png)$`, 'i')
+  const coverPath = new RegExp(
+    `^(?:(?:subdraft|Timelines)/${uuid}/)?draft_cover\\.(?:jpg|jpeg|png)$`,
+    'i'
+  )
+  const coverField = /\/(?:draft_cover_path|cover_path|draft_cover)$/
   const combinedMedia = new RegExp(
     `^Resources/combination/${uuid}_(?:audio|video)\\.(?:aac|mp4|mov)$`,
     'i'
@@ -117,18 +123,33 @@ export function createProjectReferenceResolver(
     roots.add(match[1].toLowerCase())
     paths.set(normalized.toLowerCase(), relative)
   }
-  return (value, pointer) => {
+  return (value, pointer, document = '') => {
     const normalized = normalizeResourcePath(value),
       key = normalized.toLowerCase()
     if (documentField.test(pointer)) return paths.get(key)
+    // Generated project/compound/timeline thumbnails are optional, regardless
+    // of the native local path spelling. Real media paths never use this rule.
+    if (coverField.test(pointer)) {
+      const item = classifyString(value, { draftFolderJson: projectFolder })
+      const relative =
+        item.cls === 'placeholder' && normalized.startsWith(DRAFT_PATH_PLACEHOLDER + '/')
+          ? normalized.slice(DRAFT_PATH_PLACEHOLDER.length + 1)
+          : item.cls === 'draft-internal'
+            ? item.draftRelative
+            : item.cls === 'relative'
+              ? /^\.{1,2}\//.test(normalized)
+                ? posix.normalize(posix.join(posix.dirname(document), normalized))
+                : normalized
+              : undefined
+      if (relative && coverPath.test(relative)) return packedNames.get(relative.toLowerCase()) ?? ''
+    }
     for (const root of roots) {
       if (!key.startsWith(root + '/')) continue
       const relative = normalized.slice(root.length + 1)
       const packaged = packedNames.get(relative.toLowerCase())
       if (/\/materials\/smart_crops\/\d+\/cache_path$/.test(pointer) && cachePath.test(relative))
         return relative
-      if (/\/(?:draft_cover_path|cover_path)$/.test(pointer) && coverPath.test(relative))
-        return packaged ?? ''
+      if (coverField.test(pointer) && coverPath.test(relative)) return packaged ?? ''
       if (
         /\/materials\/(?:audios|videos)\/\d+\/path$/.test(pointer) &&
         combinedMedia.test(relative) &&

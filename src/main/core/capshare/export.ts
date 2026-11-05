@@ -151,12 +151,17 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
   const resourceNames = new Set<string>()
   for await (const file of walkFiles(draftFolder))
     if (!portable.excludes(file.relPath)) resourceNames.add(file.relPath)
-  const internalReference = createProjectReferenceResolver(documents, scanned, resourceNames)
+  const internalReference = createProjectReferenceResolver(
+    documents,
+    scanned,
+    resourceNames,
+    draftFolderJson
+  )
   const snapshots = new Map<string, Buffer>()
   for (const doc of documents.values()) {
     const value = structuredClone(doc.value)
     const changed = walkJsonStrings(value, (value, pointer) => {
-      const relative = internalReference(value, pointer)
+      const relative = internalReference(value, pointer, doc.relativePath)
       if (relative === undefined) return undefined
       if (!relative) return '' // A missing generated compound cover is optional.
       assertRelativeResource(relative)
@@ -180,7 +185,7 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
     )
       continue
 
-    const packaged = internalReference(item.value, item.pointer)
+    const packaged = internalReference(item.value, item.pointer, item.document)
     if (packaged !== undefined) {
       if (packaged) assertRelativeResource(packaged)
       continue
@@ -308,9 +313,9 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
   }
 
   const totalBytes =
-    timelineRaw.length +
-    (metaRaw?.length ?? 0) +
-    draftFiles.reduce((sum, f) => sum + f.size, 0) +
+    (snapshots.get(paths.timelineFilename) ?? timelineRaw).length +
+    (metaRaw ? (snapshots.get(DRAFT_META_FILENAME) ?? metaRaw).length : 0) +
+    draftFiles.reduce((sum, f) => sum + (snapshots.get(f.relPath)?.length ?? f.size), 0) +
     [...effectPlans.values()].reduce((sum, e) => sum + e.size, 0) +
     [...loosePlans.values()].reduce((sum, l) => sum + l.size, 0) +
     (coverBuffer?.length ?? 0)
