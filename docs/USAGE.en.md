@@ -110,3 +110,9 @@ The tested target is CapCut International Windows 9.6.0.4097, x64. Other version
 ### How do I report a problem?
 
 Create an [Issue](https://github.com/WAKUDOdani/WakuShare/issues) with your WakuShare and CapCut versions, the action you took, and the error message. Do not publish private projects, source files, passwords, or your full configuration. For a potential vulnerability, contact the author through [Telegram](https://t.me/WAKUDOdani) first, without posting a malicious package publicly.
+
+## Import and export details
+
+If a project already exists, Replace or Import as copy choices appear in the same project card. Replacing keeps a backup of the previous project. When opening CapCut, wait for the button to report the result; repeated clicks are unnecessary. If the editor does not appear, the app reports it; a hidden running process is not terminated automatically.
+
+Missing generated covers do not require source-media repair. Warnings about unavailable video, audio, images, or fonts remain significant: check the listed paths before transferring to another computer. Export an older project again to use the corrected handling; an existing package is not changed automatically.

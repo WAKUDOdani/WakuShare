@@ -12,8 +12,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.22/WakuShare-1.3.22-setup-x64.exe"><img src="docs/assets/download-windows.svg" width="232" height="44" alt="Скачать установщик WakuShare 1.3.22 для Windows x64"></a>
-  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.22/WakuShare-1.3.22-portable-x64.exe"><img src="docs/assets/download-portable.svg" width="190" height="44" alt="Скачать WakuShare 1.3.22 Portable без установки"></a>
+  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.27/WakuShare-1.3.27-setup-x64.exe"><img src="docs/assets/download-windows.svg" width="232" height="44" alt="Скачать установщик WakuShare 1.3.27 для Windows x64"></a>
+  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.27/WakuShare-1.3.27-portable-x64.exe"><img src="docs/assets/download-portable.svg" width="190" height="44" alt="Скачать WakuShare 1.3.27 Portable без установки"></a>
 </p>
 
 <p align="center">
@@ -31,8 +31,8 @@
 </p>
 
 <p align="center">
-  <a href="docs/assets/explorer-1.3.22.png"><img src="docs/assets/explorer-1.3.22.png" width="1080" alt="Проводник WakuShare: подключённая папка, выбор области синхронизации и завершённый импорт"></a>
-  <br><sub>Настоящий интерфейс WakuShare 1.3.22. Демонстрационные данные. Нажми на изображение, чтобы открыть полный размер.</sub>
+  <a href="docs/assets/explorer-1.3.27.png"><img src="docs/assets/explorer-1.3.27.png" width="1080" alt="Проводник WakuShare: подключённая папка, выбор области синхронизации и завершённый импорт"></a>
+  <br><sub>Настоящий интерфейс WakuShare 1.3.27. Демонстрационные данные. Нажми на изображение, чтобы открыть полный размер.</sub>
 </p>
 
 ## Возможности
@@ -48,7 +48,7 @@
 <details>
 <summary><strong>Посмотреть раздел «Пресеты»</strong></summary>
 
-<a href="docs/assets/presets-1.3.22.png"><img src="docs/assets/presets-1.3.22.png" width="1080" alt="Пресеты WakuShare: выбор папок и экспорт выбранного"></a>
+<a href="docs/assets/presets-1.3.27.png"><img src="docs/assets/presets-1.3.27.png" width="1080" alt="Пресеты WakuShare: выбор папок и экспорт выбранного"></a>
 
 Можно открыть чужой пакет, выбрать нужное и импортировать в свою библиотеку. Исходники и доступные файлы шрифтов переносятся вместе с пресетами.
 
@@ -57,7 +57,7 @@
 <details>
 <summary><strong>Папки для отдельных проектов</strong></summary>
 
-<a href="docs/assets/explorer-projects-1.3.22.png"><img src="docs/assets/explorer-projects-1.3.22.png" width="1080" alt="WakuShare: общие папки и дополнительные материалы для выбранного проекта"></a>
+<a href="docs/assets/explorer-projects-1.3.27.png"><img src="docs/assets/explorer-projects-1.3.27.png" width="1080" alt="WakuShare: общие папки и дополнительные материалы для выбранного проекта"></a>
 
 Подготовь папки клиента заранее и примени набор к нескольким проектам. Общая медиатека остаётся включённой для всех. Карандаш позволяет заменить подключение или восстановить пути после переезда прежней папки; удаление подключения сохраняет исходники и клипы.
 
@@ -69,8 +69,8 @@
 
 | Вариант                                                                                                                    | Для кого                               | Обновления                                                                   |
 | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------- |
-| [**Установщик 1.3.22**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.22/WakuShare-1.3.22-setup-x64.exe)  | Обычная установка приложения в Windows | Приложение проверяет обновления; установку скачанного выпуска запускаешь сам |
-| [**Portable 1.3.22**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.22/WakuShare-1.3.22-portable-x64.exe) | Запуск без установки                   | Скачать новую Portable-версию и заменить старый EXE                          |
+| [**Установщик 1.3.27**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.27/WakuShare-1.3.27-setup-x64.exe)  | Обычная установка приложения в Windows | Приложение проверяет обновления; установку скачанного выпуска запускаешь сам |
+| [**Portable 1.3.27**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.27/WakuShare-1.3.27-portable-x64.exe) | Запуск без установки                   | Скачать новую Portable-версию и заменить старый EXE                          |
 
 [Все выпуски и контрольные суммы](https://github.com/WAKUDOdani/WakuShare/releases). Для работы нужен один EXE. `latest.yml`, `.blockmap` и runtime-архив скачивать вручную не требуется. `Source code` содержит исходники, а не готовое приложение.
 

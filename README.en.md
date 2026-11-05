@@ -12,8 +12,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.22/WakuShare-1.3.22-setup-x64.exe"><img src="docs/assets/download-windows-en.svg" width="232" height="44" alt="Download the WakuShare 1.3.22 installer for Windows x64"></a>
-  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.22/WakuShare-1.3.22-portable-x64.exe"><img src="docs/assets/download-portable.svg" width="190" height="44" alt="Download WakuShare 1.3.22 Portable, no installation needed"></a>
+  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.27/WakuShare-1.3.27-setup-x64.exe"><img src="docs/assets/download-windows-en.svg" width="232" height="44" alt="Download the WakuShare 1.3.27 installer for Windows x64"></a>
+  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.27/WakuShare-1.3.27-portable-x64.exe"><img src="docs/assets/download-portable.svg" width="190" height="44" alt="Download WakuShare 1.3.27 Portable, no installation needed"></a>
 </p>
 
 <p align="center">
@@ -31,8 +31,8 @@
 </p>
 
 <p align="center">
-  <a href="docs/assets/explorer-1.3.22-en.png"><img src="docs/assets/explorer-1.3.22-en.png" width="1080" alt="WakuShare Explorer: a connected folder, sync scope controls, and a completed import"></a>
-  <br><sub>The actual WakuShare 1.3.22 interface. Screenshots use demo data. Click an image to open it at full resolution.</sub>
+  <a href="docs/assets/explorer-1.3.27-en.png"><img src="docs/assets/explorer-1.3.27-en.png" width="1080" alt="WakuShare Explorer: a connected folder, sync scope controls, and a completed import"></a>
+  <br><sub>The actual WakuShare 1.3.27 interface. Screenshots use demo data. Click an image to open it at full resolution.</sub>
 </p>
 
 ## Features
@@ -48,7 +48,7 @@ Bulk import sends new files as a single list, and the progress bar shows confirm
 <details>
 <summary><strong>Take a look at Presets</strong></summary>
 
-<a href="docs/assets/presets-1.3.22-en.png"><img src="docs/assets/presets-1.3.22-en.png" width="1080" alt="WakuShare Presets: folder selection and export controls"></a>
+<a href="docs/assets/presets-1.3.27-en.png"><img src="docs/assets/presets-1.3.27-en.png" width="1080" alt="WakuShare Presets: folder selection and export controls"></a>
 
 Open a shared package, choose what you need, and import it into your library. Source files and available font files travel with the presets.
 
@@ -57,7 +57,7 @@ Open a shared package, choose what you need, and import it into your library. So
 <details>
 <summary><strong>Folders for individual projects</strong></summary>
 
-<a href="docs/assets/explorer-projects-1.3.22-en.png"><img src="docs/assets/explorer-projects-1.3.22-en.png" width="1080" alt="WakuShare: common folders and additional assets for a selected project"></a>
+<a href="docs/assets/explorer-projects-1.3.27-en.png"><img src="docs/assets/explorer-projects-1.3.27-en.png" width="1080" alt="WakuShare: common folders and additional assets for a selected project"></a>
 
 Prepare client folders ahead of time and apply a set to several projects. Common folders remain enabled for everyone. Edit a connection to replace it or restore paths after moving the same folder; removing a connection keeps source files and clips.
 
@@ -69,8 +69,8 @@ Prepare client folders ahead of time and apply a set to several projects. Common
 
 | Edition                                                                                                                    | Best for                       | Updates                                                                       |
 | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------- |
-| [**Installer 1.3.22**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.22/WakuShare-1.3.22-setup-x64.exe)   | A regular Windows installation | The app checks for updates; you choose when to install the downloaded release |
-| [**Portable 1.3.22**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.22/WakuShare-1.3.22-portable-x64.exe) | Running without installation   | Download the new Portable release and replace the old EXE                     |
+| [**Installer 1.3.27**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.27/WakuShare-1.3.27-setup-x64.exe)   | A regular Windows installation | The app checks for updates; you choose when to install the downloaded release |
+| [**Portable 1.3.27**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.27/WakuShare-1.3.27-portable-x64.exe) | Running without installation   | Download the new Portable release and replace the old EXE                     |
 
 [All releases and checksums](https://github.com/WAKUDOdani/WakuShare/releases). You only need one EXE. There is no need to download `latest.yml`, `.blockmap`, or the runtime archive manually. `Source code` contains the source, not a ready-to-run app. Each release includes an expandable **English release notes** section at the top.
 
