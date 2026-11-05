@@ -1,6 +1,6 @@
 import { toast } from '@/lib/notifications'
 import { t, useLanguage } from '@/lib/i18n'
-import { useCallback, useEffect, useState, type DragEvent, type JSX } from 'react'
+import { useCallback, useEffect, useRef, useState, type DragEvent, type JSX } from 'react'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -51,6 +51,8 @@ export function ImportView({
   const [phase, setPhase] = useState<ImportPhase>({ state: 'idle' })
   const [dragging, setDragging] = useState(false)
   const [collisionOpen, setCollisionOpen] = useState(false)
+  const [launching, setLaunching] = useState(false)
+  const launchRequested = useRef(false)
 
   useTaskProgress(setPhase)
 
@@ -124,8 +126,18 @@ export function ImportView({
   }
 
   const launchCapCut = async (): Promise<void> => {
-    const launched = unwrap(await window.capshare.launchCapCut())
-    if (!launched) toast.danger(t('Could not find a CapCut installation to launch.'))
+    if (launchRequested.current) return
+    launchRequested.current = true
+    setLaunching(true)
+    try {
+      const launched = unwrap(await window.capshare.launchCapCut())
+      if (!launched) toast.danger(t('Could not find a CapCut installation to launch.'))
+    } catch (error) {
+      toast.danger(t(errorMessage(error)))
+    } finally {
+      launchRequested.current = false
+      setLaunching(false)
+    }
   }
 
   return (
@@ -262,8 +274,18 @@ export function ImportView({
                 >
                   <FolderOpen className="size-4" /> {t('Reveal folder')}{' '}
                 </Button>
-                <Button className="rounded-full" onPress={() => void launchCapCut()}>
-                  <Rocket className="size-4" /> {t('Open CapCut')}{' '}
+                <Button
+                  className="min-w-41 rounded-full"
+                  isDisabled={launching}
+                  isPending={launching}
+                  onPress={() => void launchCapCut()}
+                >
+                  {launching ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Rocket className="size-4" />
+                  )}
+                  {t(launching ? 'Launching CapCut…' : 'Open CapCut')}
                 </Button>
               </div>
               <Button

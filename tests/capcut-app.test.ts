@@ -2,7 +2,8 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({ run: vi.fn() }))
 vi.mock('node:child_process', () => ({
-  execFile: Object.assign(vi.fn(), { [Symbol.for('nodejs.util.promisify.custom')]: mocks.run })
+  execFile: Object.assign(vi.fn(), { [Symbol.for('nodejs.util.promisify.custom')]: mocks.run }),
+  spawn: vi.fn()
 }))
 vi.mock('electron', () => ({ shell: { openPath: vi.fn() } }))
 import { isCapCutRunning, requireClosedCapCut } from '../src/main/capcut-app'

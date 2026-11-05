@@ -1,6 +1,7 @@
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { shell } from 'electron'
 import { CapShareError } from './core/errors'
@@ -47,8 +48,63 @@ export async function requireClosedCapCut(): Promise<void> {
     )
 }
 
-/** Launches CapCut, returning false when no installation could be found. */
-export async function launchCapCut(): Promise<boolean> {
+let launchInFlight: Promise<boolean> | null = null
+
+/** Coalesce overlapping requests; never require a second click to finish one. */
+export function launchCapCut(): Promise<boolean> {
+  if (launchInFlight) return launchInFlight
+  const request = launchInstalledCapCut().finally(() => {
+    if (launchInFlight === request) launchInFlight = null
+  })
+  launchInFlight = request
+  return request
+}
+
+async function windowsCandidates(local: string): Promise<string[]> {
+  const apps = join(local, 'CapCut', 'Apps')
+  const versionPattern = /^\d{1,6}(?:\.\d{1,6}){3}$/
+  let version = ''
+  try {
+    const config = await readFile(join(apps, 'Configure.ini'), 'utf8')
+    const configured = /^\s*last_version\s*=\s*([^\r\n]*)/im.exec(config)?.[1].trim() ?? ''
+    if (versionPattern.test(configured) && existsSync(join(apps, configured, 'CapCut.exe')))
+      version = configured
+  } catch {
+    /* Older installations need not have Configure.ini. */
+  }
+  if (!version) {
+    // Use the installed version, not whichever old beta folder sorts first.
+    const registryRoots = [
+      'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\CapCut',
+      'HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\CapCut',
+      'HKLM\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\CapCut'
+    ]
+    for (const key of registryRoots) {
+      try {
+        const { stdout } = await execAsync(
+          join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'reg.exe'),
+          ['query', key, '/v', 'DisplayVersion'],
+          { windowsHide: true, timeout: 3000 }
+        )
+        const installed = /^\s*DisplayVersion\s+REG_SZ\s+(\S+)\s*$/im.exec(stdout)?.[1] ?? ''
+        if (versionPattern.test(installed) && existsSync(join(apps, installed, 'CapCut.exe'))) {
+          version = installed
+          break
+        }
+      } catch {
+        /* Keep the original bootstrapper fallback for other installation layouts. */
+      }
+    }
+  }
+  return [
+    ...(version ? [join(apps, version, 'CapCut.exe')] : []),
+    join(apps, 'CapCut.exe'),
+    join(local, 'CapCut', 'CapCut.exe')
+  ].filter((path) => existsSync(path))
+}
+
+/** A successful OS spawn is an accepted launch request, not editor readiness. */
+async function launchInstalledCapCut(): Promise<boolean> {
   if (process.platform === 'darwin') {
     const appPath = '/Applications/CapCut.app'
     if (existsSync(appPath)) {
@@ -59,16 +115,34 @@ export async function launchCapCut(): Promise<boolean> {
   }
   if (process.platform === 'win32') {
     const local = process.env['LOCALAPPDATA']
-    const candidates = [
-      local ? join(local, 'CapCut', 'Apps', 'CapCut.exe') : null,
-      local ? join(local, 'CapCut', 'CapCut.exe') : null
-    ].filter((p): p is string => p !== null)
+    if (!local) return false
+    const candidates = await windowsCandidates(local)
+    let failure: unknown
     for (const candidate of candidates) {
-      if (existsSync(candidate)) {
-        const error = await shell.openPath(candidate)
-        return error === ''
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const child = spawn(candidate, ['--src1'], {
+            cwd: dirname(candidate),
+            detached: true,
+            stdio: 'ignore',
+            windowsHide: false
+          })
+          child.once('error', reject)
+          child.once('spawn', () => {
+            child.unref()
+            resolve()
+          })
+        })
+        return true
+      } catch (error) {
+        failure = error
       }
     }
+    if (failure)
+      throw new CapShareError(
+        'IMPORT_FAILED',
+        'Could not launch CapCut. Try opening it from its shortcut.'
+      )
     return false
   }
   return false
