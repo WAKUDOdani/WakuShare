@@ -134,6 +134,83 @@ async function exportCase(): Promise<string> {
 }
 
 describe('complete portable multi-timeline project', () => {
+  it('ignores detached UUID draft leftovers without dropping library-only compositions or their nested dependencies', async () => {
+    const detached = randomUUID().toUpperCase()
+    const library = randomUUID().toUpperCase()
+    const child = randomUUID().toUpperCase()
+    for (const id of [detached, library, child]) {
+      write(join(source, `subdraft/${id}/draft_content.json`), {
+        id,
+        materials: { audios: [{ id: 'old', path: 'X:/deleted-project/unused.wav' }] },
+        tracks: [],
+        ...(id === library ? { nested: JSON.stringify({ draft: child }) } : {})
+      })
+      write(join(source, `subdraft/${id}/sub_draft_config.json`), { id })
+    }
+    const metaPath = join(source, 'draft_meta_info.json')
+    const meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+    meta.draft_materials = [
+      {
+        type: 0,
+        value: [{ id: 'library-card', file_Path: `./subdraft/${library}/sub_draft_config.json` }]
+      }
+    ]
+    write(metaPath, meta)
+    const original = readFileSync(join(source, `subdraft/${detached}/draft_content.json`))
+    const archive = await exportCase()
+    const manifest = parseManifest(
+      (await readZipEntries(archive, ['manifest.json'])).get('manifest.json')!.toString()
+    )
+    expect(
+      Object.keys(manifest.integrity).some((name) => name.startsWith(`subdraft/${detached}/`))
+    ).toBe(false)
+    for (const id of [library, child])
+      expect(manifest.integrity[`subdraft/${id}/draft_content.json`]).toBeDefined()
+    expect(manifest.unavailableMedia!.every((ref) => !ref.document.includes(detached))).toBe(true)
+    expect(manifest.missingAtExport).toContain('X:/deleted-project/unused.wav')
+    const restored = await importCapshare({
+      filePath: archive,
+      env,
+      resolution: 'copy',
+      backupDir: join(root, 'backups')
+    })
+    const imported = await readProjectDocuments(restored.folderPath)
+    expect(
+      (imported.get('draft_meta_info.json')!.value as typeof meta).draft_materials[0].value[0].id
+    ).toBe('library-card')
+    expect(validateTimelineGraph(imported)!.timelines.map((t) => t.name)).toEqual([
+      '13',
+      '14',
+      '15',
+      '16'
+    ])
+    expect(readFileSync(join(source, `subdraft/${detached}/draft_content.json`))).toEqual(original)
+  })
+
+  it('does not report missing sources from a composition that has no library or timeline references', async () => {
+    const id = randomUUID().toUpperCase()
+    write(join(source, `subdraft/${id}/draft_content.json`), {
+      id,
+      tracks: [],
+      materials: { audios: [{ id: 'old', path: 'X:/old-copy/Typing.wav' }] }
+    })
+    const archive = await exportCase()
+    const manifest = parseManifest(
+      (await readZipEntries(archive, ['manifest.json'])).get('manifest.json')!.toString()
+    )
+    expect(manifest.missingAtExport).toEqual([])
+    expect(manifest.unavailableMedia).toBeUndefined()
+    const restored = await importCapshare({
+      filePath: archive,
+      env,
+      resolution: 'copy',
+      backupDir: join(root, 'backups')
+    })
+    expect(
+      validateTimelineGraph(await readProjectDocuments(restored.folderPath))!.timelines
+    ).toHaveLength(4)
+  })
+
   it('preserves the exact library hierarchy, root cards and unused media without a wrapper', async () => {
     const metaPath = join(source, 'draft_meta_info.json')
     const meta = JSON.parse(readFileSync(metaPath, 'utf8'))

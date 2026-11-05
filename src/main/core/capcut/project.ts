@@ -23,16 +23,63 @@ export interface TimelineGraph {
   timelines: { id: string; name: string; relativePath: string }[]
 }
 
-/** Preserve the complete library and every compound, including unused media.
- * Proxy provenance is machine-local and is not part of the media library. */
+/** Preserve every timeline and library entry, including unused compositions.
+ * Unreferenced UUID subdraft directories are detached editor leftovers, not
+ * library entries. Legacy/unknown directory shapes remain conservative. */
 export function portableProjectDocuments(all: Map<string, ProjectDocument>): {
   documents: Map<string, ProjectDocument>
   excludes: (relative: string) => boolean
 } {
   const proxy = new Set(['draft_agency_config.json', 'draft_agency_info.json'])
+  const subdraft = /^subdraft\/([a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})(?:\/|$)/i
+  const roots = new Set(
+    [...all.keys()].flatMap((name) => {
+      const match = subdraft.exec(name)
+      return match ? [match[1].toLowerCase()] : []
+    })
+  )
+  const reachable = new Set<string>()
+  const edges = new Map<string, Set<string>>()
+  // Only modern projects have a declared complete timeline index. Inspect all
+  // other documents too: metadata/library-only entries and opaque JSON fields
+  // can own a composition even when no timeline uses it.
+  if (all.has('Timelines/project.json')) {
+    for (const [name, doc] of all) {
+      if (proxy.has(name)) continue
+      const owner = subdraft.exec(name)?.[1].toLowerCase()
+      const refs = owner ? (edges.get(owner) ?? new Set<string>()) : reachable
+      const collect = (text: string): void => {
+        for (const match of text.matchAll(/[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}/gi)) {
+          const id = match[0].toLowerCase()
+          if (roots.has(id)) refs.add(id)
+        }
+      }
+      collect(JSON.stringify(doc.value)) // Includes UUID-valued object keys.
+      walkJsonStrings(doc.value, (value) => {
+        collect(value) // Also decodes embedded JSON strings without mutating them.
+        return undefined
+      })
+      if (owner) edges.set(owner, refs)
+    }
+    const queue = [...reachable]
+    for (let i = 0; i < queue.length; i++) {
+      for (const id of edges.get(queue[i]) ?? []) {
+        if (reachable.has(id)) continue
+        reachable.add(id)
+        queue.push(id)
+      }
+    }
+  } else {
+    for (const id of roots) reachable.add(id)
+  }
+  const excludes = (relative: string): boolean => {
+    if (proxy.has(relative)) return true
+    const id = subdraft.exec(relative)?.[1].toLowerCase()
+    return id !== undefined && roots.has(id) && !reachable.has(id)
+  }
   return {
-    documents: new Map([...all].filter(([name]) => !proxy.has(name))),
-    excludes: (relative) => proxy.has(relative)
+    documents: new Map([...all].filter(([name]) => !excludes(name))),
+    excludes
   }
 }
 
