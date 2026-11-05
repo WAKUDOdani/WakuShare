@@ -128,7 +128,7 @@ export function ProjectFolders({
       <aside className="glass-subtle explorer-projects__list" aria-label={t('Choose a project')}>
         <div className="explorer-projects__list-header">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold">{t('Projects')}</h3>
+            <h3 className="ui-type-section">{t('Projects')}</h3>
             <Button
               isIconOnly
               aria-label={t('Refresh projects')}
@@ -174,8 +174,8 @@ export function ProjectFolders({
                   )}
                 </span>
                 <span className="min-w-0 flex-1 text-left">
-                  <span className="block truncate text-[13px] font-semibold">{project.name}</span>
-                  <span className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span className="block truncate ui-type-item">{project.name}</span>
+                  <span className="mt-1 flex items-center gap-1.5 ui-type-caption text-muted-foreground">
                     {open && <span className="explorer-open-dot" />}
                     {open ? t('Open in CapCut') : t('Additional: {0}', [count])}
                   </span>
@@ -210,7 +210,7 @@ export function ProjectFolders({
           <>
             <div className="explorer-projects__heading">
               <div className="min-w-0">
-                <h3 className="truncate text-base font-semibold" title={selected.name}>
+                <h3 className="truncate ui-type-section" title={selected.name}>
                   {selected.name}
                 </h3>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -235,7 +235,7 @@ export function ProjectFolders({
                   <Globe2 size={18} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h4 className="text-[13px] font-semibold">{t('Connected to every project')}</h4>
+                  <h4 className="ui-type-item">{t('Connected to every project')}</h4>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                     {t('Common folders stay active independently of the selected tab or project.')}
                   </p>
@@ -256,7 +256,7 @@ export function ProjectFolders({
                     >
                       <FolderOpen size={14} className="shrink-0 text-muted-foreground" />
                       <span className="truncate">{source.label}</span>
-                      <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
+                      <span className="ml-auto shrink-0 ui-type-caption text-muted-foreground">
                         {source.enabled ? t('All projects') : t('Paused in Common folders')}
                       </span>
                     </div>
@@ -272,7 +272,7 @@ export function ProjectFolders({
               aria-label={t('Additional project folders')}
             >
               <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4">
-                <h4 className="text-[13px] font-semibold">
+                <h4 className="ui-type-item">
                   {t('Additional folders')}{' '}
                   <span className="ml-1 font-normal text-muted-foreground">{activeCount}</span>
                 </h4>
@@ -402,9 +402,9 @@ export function ProjectFolders({
                       <FolderOpen size={18} />
                     </span>
                     <div className="min-w-0 flex-1 basis-40">
-                      <p className="truncate text-[13px] font-medium">{source.label}</p>
+                      <p className="truncate ui-type-item">{source.label}</p>
                       <p
-                        className="mt-1 truncate text-[11px] text-muted-foreground"
+                        className="mt-1 truncate ui-type-caption text-muted-foreground"
                         title={source.rootPath}
                       >
                         {source.rootPath}
@@ -464,7 +464,7 @@ export function ProjectFolders({
         ) : (
           <div className="glass-subtle flex min-h-72 flex-col items-center justify-center rounded-2xl p-6 text-center">
             <Clapperboard size={28} className="mb-3 text-muted-foreground" />
-            <h3 className="text-sm font-semibold">{t('Choose a project')}</h3>
+            <h3 className="ui-type-state">{t('Choose a project')}</h3>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
               {t('Projects from your CapCut library will appear here.')}
             </p>

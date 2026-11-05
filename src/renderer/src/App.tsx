@@ -164,9 +164,9 @@ function App(): JSX.Element {
               className={`-left-56 right-0 z-10 ${view === 'settings' ? 'h-16' : 'h-24'}`}
             />
             <header className="app-drag absolute inset-x-0 top-0 z-20 px-4 pt-5 pb-3">
-              <h1 className="text-xl font-bold tracking-tight">{t(HEADERS[view].title)}</h1>
+              <h1 className="ui-type-page">{t(HEADERS[view].title)}</h1>
               {view !== 'settings' && (
-                <p className="text-[12px] font-medium text-foreground/75">
+                <p className="ui-type-body text-foreground/75">
                   {view === 'projects' && projects?.found
                     ? t('CapCut projects: {0}', [projects.drafts.length])
                     : t(HEADERS[view].subtitle)}

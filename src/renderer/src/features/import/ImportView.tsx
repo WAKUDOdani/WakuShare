@@ -215,10 +215,10 @@ export function ImportView({
                 </AnimatePresence>
               </motion.div>
               <div className="text-center">
-                <div className="text-[15px] font-semibold">
+                <div className="ui-type-state">
                   {dragging ? t('Drop to import') : t('Drop a .wakushare file here')}
                 </div>
-                <div className="mt-1 text-[12px] text-muted-foreground">
+                <div className="mt-1 ui-type-caption text-muted-foreground">
                   {t('or click to browse - legacy .capshare packages are supported too')}
                 </div>
               </div>
@@ -234,7 +234,7 @@ export function ImportView({
               className="flex flex-col items-center justify-center gap-3"
             >
               <Loader2 className="size-7 animate-spin text-primary" />
-              <div className="text-[13px] text-muted-foreground">{t('Reading project…')}</div>
+              <div className="ui-type-body text-muted-foreground">{t('Reading project…')}</div>
             </motion.div>
           )}
 
@@ -265,10 +265,8 @@ export function ImportView({
                 <CheckCircle2 className="size-9 text-emerald-500" strokeWidth={1.8} />
               </div>
               <div>
-                <div className="text-[16px] font-semibold">
-                  {t('“{0}” imported', [phase.result.draftName])}
-                </div>
-                <p className="mt-1 max-w-sm text-[12.5px] text-muted-foreground">
+                <div className="ui-type-state">{t('“{0}” imported', [phase.result.draftName])}</div>
+                <p className="mt-1 max-w-sm ui-type-body text-muted-foreground">
                   {t('Restart CapCut if it is open — the project will appear in your drafts list.')}
                 </p>
               </div>
@@ -408,7 +406,7 @@ function PreviewCard({
         {(preview.collision || preview.compat.warnings.length > 0) && (
           <div className="flex flex-col gap-2 rounded-2xl bg-amber-500/10 p-3.5">
             {preview.collision && (
-              <div className="flex gap-2 text-[11.5px] leading-snug text-amber-700 dark:text-amber-400">
+              <div className="flex gap-2 ui-type-body text-amber-700 dark:text-amber-400">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
                 <span>
                   <span className="font-semibold">{t('Already in your library.')}</span>{' '}
@@ -420,10 +418,7 @@ function PreviewCard({
               </div>
             )}
             {preview.compat.warnings.map((warning, i) => (
-              <div
-                key={i}
-                className="flex gap-2 text-[11.5px] leading-snug text-amber-700 dark:text-amber-400"
-              >
+              <div key={i} className="flex gap-2 ui-type-body text-amber-700 dark:text-amber-400">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
                 {t(warning)}
               </div>
@@ -446,8 +441,8 @@ function PreviewCard({
                   transition={spring}
                   className="glass-subtle flex flex-col gap-3 rounded-2xl p-4"
                 >
-                  <div className="flex items-center justify-between text-[12.5px]">
-                    <span className="flex items-center gap-2 font-medium">
+                  <div className="ui-type-status flex items-center justify-between">
+                    <span className="flex items-center gap-2">
                       <Sparkles className="size-3.5 text-primary" />
                       {t('Importing into CapCut…')}{' '}
                     </span>
@@ -474,19 +469,16 @@ function PreviewCard({
                   transition={{ duration: 0.14 }}
                   className="grid gap-2"
                 >
-                  <p className="text-[12px] text-muted-foreground">
+                  <p className="ui-type-caption text-muted-foreground">
                     {t('Replacing keeps a backup of the existing project.')}
                   </p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <Button
-                      className="min-h-10 w-full min-w-0 rounded-xl px-3 text-[12px] whitespace-normal"
-                      onPress={() => onResolve('copy')}
-                    >
+                    <Button className="ui-action w-full" onPress={() => onResolve('copy')}>
                       {t('Import as a copy')}
                     </Button>
                     <Button
                       variant="secondary"
-                      className="min-h-10 w-full min-w-0 rounded-xl px-3 text-[12px] whitespace-normal"
+                      className="ui-action w-full"
                       onPress={() => onResolve('replace')}
                     >
                       {t('Replace existing')}
@@ -495,7 +487,7 @@ function PreviewCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="justify-self-center rounded-xl"
+                    className="ui-action justify-self-center"
                     onPress={onBack}
                   >
                     {t('Back')}
@@ -509,7 +501,7 @@ function PreviewCard({
                   exit={{ opacity: 0, y: -6 }}
                   transition={spring}
                 >
-                  <Button className="w-full rounded-xl" onPress={onImport}>
+                  <Button className="ui-action w-full" onPress={onImport}>
                     <FileDown className="size-4" /> {t('Import project')}{' '}
                   </Button>
                 </motion.div>

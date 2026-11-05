@@ -381,11 +381,11 @@ export function PresetsView({
             <RefreshCw size={15} />
           </Button>
         </div>
-        <div className="glass-subtle space-y-2 rounded-2xl px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+        <div className="glass-subtle space-y-2 rounded-2xl px-4 py-3 ui-type-body text-muted-foreground">
           <p>
             {t('Composition presets, including their media, available fonts and effect resources.')}
           </p>
-          <p className="mt-1 break-all">
+          <p className="ui-type-caption mt-1 break-all">
             {archive
               ? t('Package: {0}', [archive])
               : t('Library: {0}', [library?.root ?? t('Detecting...')])}
@@ -459,7 +459,7 @@ export function PresetsView({
           </div>
         )}
         {library?.warnings.map((warning) => (
-          <p key={warning} className="rounded-xl bg-warning/10 p-3 text-xs">
+          <p key={warning} className="rounded-xl bg-warning/10 p-3 ui-type-body">
             {t(warning)}
           </p>
         ))}
@@ -469,7 +469,7 @@ export function PresetsView({
             className="flex min-h-14 flex-wrap items-center gap-1 border-b border-foreground/10 px-4 py-2 text-sm"
           >
             {parent === null ? (
-              <span aria-current="page" className="px-2 py-2 font-semibold">
+              <span aria-current="page" className="ui-type-item px-2 py-2">
                 {t('All presets')}
               </span>
             ) : (
@@ -478,7 +478,7 @@ export function PresetsView({
                 variant="ghost"
                 isDisabled={busy}
                 onPress={() => setParent(null)}
-                className="max-w-full rounded-lg px-2 font-semibold"
+                className="max-w-full ui-type-item rounded-lg px-2"
               >
                 {t('All presets')}
               </Button>
@@ -487,7 +487,7 @@ export function PresetsView({
               <span className="flex items-center gap-1" key={node.id}>
                 <ChevronRight size={13} />
                 {index === crumbs.length - 1 ? (
-                  <span aria-current="page" className="max-w-full truncate px-2 py-2 font-semibold">
+                  <span aria-current="page" className="max-w-full truncate ui-type-item px-2 py-2">
                     {node.name}
                   </span>
                 ) : (
@@ -566,7 +566,7 @@ export function PresetsView({
                         variant="ghost"
                         isDisabled={busy}
                         onPress={() => setParent(node.id)}
-                        className="preset-folder-link h-10 min-w-0 flex-1 justify-start gap-2.5 rounded-lg px-2 text-left text-sm"
+                        className="ui-type-item preset-folder-link h-10 min-w-0 flex-1 justify-start gap-2.5 rounded-lg px-2 text-left text-sm"
                       >
                         <Folder size={18} />
                         <span className="truncate">{node.name}</span>
@@ -574,7 +574,7 @@ export function PresetsView({
                       </Button>
                     ) : (
                       <span
-                        className="flex min-w-0 flex-1 items-center gap-2.5 px-2 text-sm"
+                        className="flex min-w-0 flex-1 items-center gap-2.5 px-2 ui-type-item"
                         title={node.name}
                       >
                         <Package size={18} className="shrink-0 text-muted-foreground" />
@@ -592,7 +592,7 @@ export function PresetsView({
           )}
         </div>
         {missing.length > 0 && (
-          <div className="rounded-xl bg-warning/10 p-3 text-xs">
+          <div className="rounded-xl bg-warning/10 p-3 ui-type-body">
             <p className="mb-2 font-semibold">
               {t(
                 'Some sources are already missing. Locate them, or deselect the affected presets.'

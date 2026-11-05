@@ -289,8 +289,8 @@ function EmptyState({
       <div className="glass-subtle flex size-16 items-center justify-center rounded-3xl">
         <FolderSearch className="size-7 text-muted-foreground" strokeWidth={1.6} />
       </div>
-      <div className="text-[15px] font-semibold">{title}</div>
-      <p className="max-w-sm text-[12.5px] leading-relaxed text-muted-foreground">{body}</p>
+      <div className="ui-type-state">{title}</div>
+      <p className="max-w-sm text-[13px] leading-relaxed text-muted-foreground">{body}</p>
       {action}
     </div>
   )

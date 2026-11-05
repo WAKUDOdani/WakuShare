@@ -31,7 +31,7 @@ export function ImportProgress({ snapshot }: { snapshot: ExplorerSnapshot }): JS
             {t('Project: {0}', [snapshot.currentProject?.name])}
           </p>
           <p
-            className={`mt-1 flex items-center gap-2 text-sm font-semibold ${warning ? 'text-warning' : ''}`}
+            className={`mt-1 flex items-center gap-2 ui-type-status ${warning ? 'text-warning' : ''}`}
             aria-live="polite"
           >
             {p.phase === 'ready' && <Check size={16} className="shrink-0 text-emerald-500" />}
@@ -40,7 +40,7 @@ export function ImportProgress({ snapshot }: { snapshot: ExplorerSnapshot }): JS
           </p>
         </div>
         {p.determinate && (
-          <span className="shrink-0 text-sm font-semibold tabular-nums">{p.percent}%</span>
+          <span className="shrink-0 ui-type-status tabular-nums">{p.percent}%</span>
         )}
       </div>
       <div

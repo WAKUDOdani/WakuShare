@@ -199,12 +199,12 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                             )}
                           </motion.span>
                           <div>
-                            <div className="text-[13px] font-semibold">
+                            <div className="ui-type-item">
                               {phase.result.warnings.length > 0
                                 ? t('Exported with warnings')
                                 : t('Export complete')}
                             </div>
-                            <div className="text-[11.5px] text-muted-foreground">
+                            <div className="ui-type-caption text-muted-foreground">
                               {t('{0} · {1} files', [
                                 formatBytes(phase.result.sizeBytes),
                                 phase.result.fileCount
@@ -243,8 +243,8 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                       transition={spring}
                       className="glass-subtle flex flex-col gap-3 rounded-2xl p-4"
                     >
-                      <div className="flex items-center justify-between text-[12.5px]">
-                        <span className="font-medium">{t('Exporting…')}</span>
+                      <div className="ui-type-status flex items-center justify-between">
+                        <span>{t('Exporting…')}</span>
                         <span className="text-muted-foreground tabular-nums">
                           {Math.round(phase.ratio * 100)}%
                         </span>
@@ -279,10 +279,8 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                       <div className="glass-subtle rounded-2xl px-4">
                         <div className="flex items-center justify-between gap-6 py-3.5">
                           <div className="min-w-0">
-                            <Label className="text-[13px] font-medium">
-                              {t('Include AI caches')}
-                            </Label>
-                            <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+                            <Label className="ui-type-label">{t('Include AI caches')}</Label>
+                            <p className="mt-0.5 ui-type-caption text-muted-foreground">
                               {includeCaches
                                 ? t('Includes saved AI analysis and project caches')
                                 : t('Smaller archive; AI analysis may need to run again')}
@@ -301,7 +299,7 @@ function DetailDialog({ project, open, onClose }: ProjectDetailProps): JSX.Eleme
                           </div>
                         </div>
                       </div>
-                      <Button onPress={() => void startExport()} className="mt-2 w-full rounded-xl">
+                      <Button onPress={() => void startExport()} className="ui-action mt-2 w-full">
                         <FileDown className="size-4" /> {t('Export .wakushare')}{' '}
                       </Button>
                     </motion.div>

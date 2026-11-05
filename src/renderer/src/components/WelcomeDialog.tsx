@@ -93,7 +93,7 @@ export function WelcomeDialog({ settings, version, onSaved }: WelcomeDialogProps
           </Modal.Header>
           <Modal.Body>
             <div className="glass-subtle welcome-community rounded-2xl p-4">
-              <Modal.Heading className="mb-2 flex items-center gap-2 text-[15px] font-semibold">
+              <Modal.Heading className="mb-2 flex items-center gap-2 ui-type-section">
                 <Send className="size-4 text-violet-600 dark:text-violet-300" strokeWidth={1.7} />
                 <span>{t("Let's stay in touch")}</span>
               </Modal.Heading>

@@ -256,7 +256,7 @@ function SettingsGroup({ title, children }: { title: string; children: ReactNode
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="px-1 text-[15px] font-semibold tracking-tight">{title}</h2>
+      <h2 className="px-1 ui-type-section">{title}</h2>
       <div className="glass-subtle divide-y divide-border/50 rounded-2xl px-4">{children}</div>
     </section>
   )
@@ -276,8 +276,8 @@ function SettingRow({
   return (
     <div className="flex items-center justify-between gap-6 py-3.5">
       <div className="min-w-0">
-        <Label className="text-[13px] font-medium">{label}</Label>
-        <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground" title={help}>
+        <Label className="ui-type-label">{label}</Label>
+        <p className="mt-0.5 truncate ui-type-caption text-muted-foreground" title={help}>
           {help}
         </p>
       </div>

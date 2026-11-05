@@ -29,7 +29,7 @@ export function FormSelect({
         if (key !== null) onChange(String(key))
       }}
     >
-      {showLabel && <Label>{label}</Label>}
+      {showLabel && <Label className="ui-type-label">{label}</Label>}
       <Select.Trigger className="rounded-full">
         <Select.Value className="truncate" />
         <Select.Indicator />

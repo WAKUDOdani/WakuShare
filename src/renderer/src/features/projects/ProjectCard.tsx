@@ -54,8 +54,8 @@ export function ProjectCard({
         </div>
       </div>
       <div className="flex flex-col gap-0.5 px-3.5 py-3">
-        <div className="truncate text-[13px] font-semibold">{project.name}</div>
-        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <div className="truncate ui-type-item">{project.name}</div>
+        <div className="flex items-center gap-1.5 ui-type-caption text-muted-foreground">
           <span>{formatDate(project.modifiedAt)}</span>
           <span aria-hidden>·</span>
           <span>{formatBytes(project.sizeBytes)}</span>

@@ -48,7 +48,7 @@ function SourceCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h3 className="truncate text-sm font-semibold" title={source.label}>
+            <h3 className="ui-type-item truncate" title={source.label}>
               {source.label}
             </h3>
             <span className="rounded-full bg-foreground/5 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
@@ -56,12 +56,12 @@ function SourceCard({
             </span>
           </div>
           <p
-            className="mt-1 truncate text-xs text-muted-foreground select-text"
+            className="mt-1 truncate ui-type-caption text-muted-foreground select-text"
             title={source.rootPath}
           >
             {source.rootPath}
           </p>
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 ui-type-caption text-muted-foreground">
             {paused
               ? t('Paused')
               : root
@@ -247,8 +247,8 @@ export function ExplorerView(): JSX.Element {
             <FolderSync size={24} />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold">{t('Automatic synchronization')}</h2>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            <h2 className="ui-type-section">{t('Automatic synchronization')}</h2>
+            <p className="mt-1 ui-type-body text-muted-foreground">
               {t(
                 enabled
                   ? ['Error', 'Conflict', 'WaitingForRuntime', 'SourceUnavailable'].includes(
@@ -263,7 +263,7 @@ export function ExplorerView(): JSX.Element {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <span className="text-xs text-muted-foreground">{t('Enable')}</span>
+            <span className="ui-type-caption text-muted-foreground">{t('Enable')}</span>
             <Switch
               className="explorer-switch"
               aria-label={t('Enable automatic synchronization')}
@@ -287,12 +287,12 @@ export function ExplorerView(): JSX.Element {
         )}
         <>
           {!enabled && (
-            <p className="glass-subtle rounded-2xl px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+            <p className="glass-subtle rounded-2xl px-4 py-3 ui-type-body text-muted-foreground">
               {t('Synchronization is off. You can still prepare folder settings for any project.')}
             </p>
           )}
           {enabled && tab === 'global' && snapshot.nativeMode !== 'product' && (
-            <div className="glass-subtle rounded-2xl px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+            <div className="glass-subtle rounded-2xl px-4 py-3 ui-type-body text-muted-foreground">
               <span className="mr-2 rounded-full bg-warning/10 px-2 py-0.5 font-medium text-warning">
                 {t(snapshot.nativeMode === 'laboratory' ? 'Laboratory mode' : 'In development')}
               </span>
@@ -389,7 +389,7 @@ export function ExplorerView(): JSX.Element {
               className={tab === 'global' ? 'flex min-w-0 flex-col gap-4' : 'hidden'}
             >
               {
-                <p className="px-1 text-xs leading-relaxed text-muted-foreground">
+                <p className="px-1 ui-type-body text-muted-foreground">
                   {t(
                     'Enabled common folders synchronize with every project. Add client-specific folders in By project.'
                   )}
@@ -411,8 +411,8 @@ export function ExplorerView(): JSX.Element {
               ) : (
                 <div className="glass-subtle flex flex-col items-center rounded-2xl px-6 py-10 text-center">
                   <FolderPlus size={30} className="mb-3 text-primary/70" />
-                  <h3 className="text-sm font-semibold">{t('Add your first folder')}</h3>
-                  <p className="mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
+                  <h3 className="ui-type-state">{t('Add your first folder')}</h3>
+                  <p className="mt-2 max-w-md ui-type-body text-muted-foreground">
                     {t(
                       'Your folder structure is kept. Files are added to the media library, never to the timeline.'
                     )}
@@ -450,9 +450,9 @@ export function ExplorerView(): JSX.Element {
               </div>
             )}
           </AnimatedHeight>
-          <footer className="flex flex-wrap justify-between gap-x-4 gap-y-2 px-1 text-xs leading-relaxed text-muted-foreground">
+          <footer className="flex flex-wrap justify-between gap-x-4 gap-y-2 px-1 ui-type-body text-muted-foreground">
             {snapshot.lastCheckedAt && (
-              <p className="px-1 text-xs text-muted-foreground">
+              <p className="px-1 ui-type-caption text-muted-foreground">
                 {t('Last folder check: {0}', [
                   new Date(snapshot.lastCheckedAt).toLocaleTimeString(
                     language === 'ru' ? 'ru-RU' : 'en-US',

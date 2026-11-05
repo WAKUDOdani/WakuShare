@@ -65,7 +65,7 @@ function NavItem({
       onFocus={(event) => setFocused(event.currentTarget.matches(':focus-visible'))}
       onBlur={() => setFocused(false)}
       className={cn(
-        'sidebar-nav-item relative flex items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-medium',
+        'sidebar-nav-item relative flex items-center gap-3 rounded-xl px-3 py-2 ui-type-label text-left',
         active ? 'text-foreground' : 'text-muted-foreground'
       )}
     >
