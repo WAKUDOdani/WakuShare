@@ -14,14 +14,12 @@ import {
   X
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { AlertDialog, Button, ProgressBar } from '@heroui/react'
+import { Button, ProgressBar } from '@heroui/react'
 import type { CollisionResolution, ImportPreview, ImportResult } from '@shared/types'
 import { isProjectPackage } from '@shared/project-package'
 import { FaApple, FaWindows } from 'react-icons/fa6'
-import { AnimatedHeight } from '@/components/AnimatedHeight'
 import { StatChip } from '@/components/StatChip'
 import { useTaskProgress } from '@/hooks/use-task-progress'
-import { kinematicScale } from '@/lib/dialog-anim'
 import { formatBytes, formatDate, formatDuration, newTaskId } from '@/lib/format'
 import { errorMessage, unwrap } from '@/lib/ipc'
 import { spring } from '@/lib/motion'
@@ -30,7 +28,7 @@ import { closeButtonClass, cn } from '@/lib/utils'
 type ImportPhase =
   | { state: 'idle' }
   | { state: 'inspecting' }
-  | { state: 'preview'; preview: ImportPreview }
+  | { state: 'preview'; preview: ImportPreview; choosing?: boolean }
   | { state: 'running'; taskId: string; ratio: number; preview: ImportPreview }
   | { state: 'done'; result: ImportResult }
 
@@ -50,9 +48,9 @@ export function ImportView({
 
   const [phase, setPhase] = useState<ImportPhase>({ state: 'idle' })
   const [dragging, setDragging] = useState(false)
-  const [collisionOpen, setCollisionOpen] = useState(false)
   const [launching, setLaunching] = useState(false)
   const launchRequested = useRef(false)
+  const importRequested = useRef(false)
 
   useTaskProgress(setPhase)
 
@@ -101,6 +99,8 @@ export function ImportView({
     preview: ImportPreview,
     resolution?: CollisionResolution
   ): Promise<void> => {
+    if (importRequested.current) return
+    importRequested.current = true
     const taskId = newTaskId()
     setPhase({ state: 'running', taskId, ratio: 0, preview })
     try {
@@ -111,15 +111,17 @@ export function ImportView({
       for (const warning of result.warnings) toast.warning(t(warning), { timeout: 8000 })
       onImported()
     } catch (error) {
-      setPhase({ state: 'preview', preview })
+      setPhase({ state: 'preview', preview, choosing: Boolean(resolution && preview.collision) })
       toast.danger(t(errorMessage(error)))
+    } finally {
+      importRequested.current = false
     }
   }
 
   const startImport = (): void => {
     if (phase.state !== 'preview') return
     if (phase.preview.collision) {
-      setCollisionOpen(true)
+      setPhase({ ...phase, choosing: true })
     } else {
       void runImport(phase.preview)
     }
@@ -241,6 +243,9 @@ export function ImportView({
               preview={phase.preview}
               running={phase.state === 'running'}
               ratio={phase.state === 'running' ? phase.ratio : 0}
+              choosing={phase.state === 'preview' && Boolean(phase.choosing)}
+              onResolve={(resolution) => void runImport(phase.preview, resolution)}
+              onBack={() => setPhase({ state: 'preview', preview: phase.preview })}
               onImport={startImport}
               onDiscard={() => setPhase({ state: 'idle' })}
             />
@@ -275,7 +280,8 @@ export function ImportView({
                   <FolderOpen className="size-4" /> {t('Reveal folder')}{' '}
                 </Button>
                 <Button
-                  className="min-w-41 rounded-full"
+                  className="import-launch-button rounded-full"
+                  aria-label={t(launching ? 'Launching CapCut…' : 'Open CapCut')}
                   isDisabled={launching}
                   isPending={launching}
                   onPress={() => void launchCapCut()}
@@ -285,13 +291,24 @@ export function ImportView({
                   ) : (
                     <Rocket className="size-4" />
                   )}
-                  {t(launching ? 'Launching CapCut…' : 'Open CapCut')}
+                  <span className="inline-grid text-center">
+                    <span className="invisible col-start-1 row-start-1" aria-hidden="true">
+                      {t('Launching CapCut…')}
+                    </span>
+                    <span className="invisible col-start-1 row-start-1" aria-hidden="true">
+                      {t('Open CapCut')}
+                    </span>
+                    <span className="col-start-1 row-start-1">
+                      {t(launching ? 'Launching CapCut…' : 'Open CapCut')}
+                    </span>
+                  </span>
                 </Button>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 className="rounded-full text-muted-foreground"
+                isDisabled={launching}
                 onPress={() => setPhase({ state: 'idle' })}
               >
                 {t('Import another')}
@@ -300,60 +317,6 @@ export function ImportView({
           )}
         </AnimatePresence>
       </div>
-
-      <AlertDialog.Backdrop
-        isOpen={collisionOpen}
-        onOpenChange={setCollisionOpen}
-        variant="blur"
-        className={kinematicScale.backdrop}
-        isDismissable
-        isKeyboardDismissDisabled={false}
-      >
-        <AlertDialog.Container placement="center" size="md" className={kinematicScale.container}>
-          <AlertDialog.Dialog className="app-no-drag glass-strong max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border-none">
-            {({ close }) => (
-              <>
-                <AlertDialog.CloseTrigger
-                  aria-label={t('Close')}
-                  className={cn('top-3 right-3', closeButtonClass)}
-                />
-                <AlertDialog.Header>
-                  <AlertDialog.Icon status="warning" />
-                  <AlertDialog.Heading>{t('This project already exists')}</AlertDialog.Heading>
-                </AlertDialog.Header>
-                <AlertDialog.Body className="break-words [overflow-wrap:anywhere]">
-                  {phase.state === 'preview' && phase.preview.collision
-                    ? t(
-                        `A project named “${phase.preview.collision.existingName}” is already in your CapCut library. Replacing it keeps a backup of the existing project.`
-                      )
-                    : ''}
-                </AlertDialog.Body>
-                <AlertDialog.Footer className="grid w-full grid-cols-1 gap-2">
-                  <Button
-                    className="h-auto min-h-10 w-full min-w-0 rounded-full px-4 py-3 whitespace-normal"
-                    onPress={() => {
-                      if (phase.state === 'preview') void runImport(phase.preview, 'copy')
-                      close()
-                    }}
-                  >
-                    {t('Import as a copy')}
-                  </Button>
-                  <Button
-                    variant="danger"
-                    className="h-auto min-h-10 w-full min-w-0 rounded-full px-4 py-3 whitespace-normal"
-                    onPress={() => {
-                      if (phase.state === 'preview') void runImport(phase.preview, 'replace')
-                      close()
-                    }}
-                  >
-                    {t('Replace existing')}
-                  </Button>
-                </AlertDialog.Footer>
-              </>
-            )}
-          </AlertDialog.Dialog>
-        </AlertDialog.Container>
-      </AlertDialog.Backdrop>
     </div>
   )
 }
@@ -363,13 +326,19 @@ function PreviewCard({
   running,
   ratio,
   onImport,
-  onDiscard
+  onDiscard,
+  choosing,
+  onResolve,
+  onBack
 }: {
   preview: ImportPreview
   running: boolean
   ratio: number
   onImport: () => void
   onDiscard: () => void
+  choosing: boolean
+  onResolve: (resolution: CollisionResolution) => void
+  onBack: () => void
 }): JSX.Element {
   useLanguage()
 
@@ -380,9 +349,10 @@ function PreviewCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8, scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 320, damping: 26 }}
-      className="glass-strong my-auto w-full max-w-lg overflow-hidden rounded-3xl"
+      data-import-card
+      className="glass-strong my-auto flex max-h-full w-full max-w-lg shrink-0 flex-col overflow-hidden rounded-3xl"
     >
-      <div className="relative h-52 w-full overflow-hidden bg-foreground/4">
+      <div className="relative h-52 min-h-28 w-full shrink-0 overflow-hidden bg-foreground/4">
         {preview.coverDataUrl ? (
           <img src={preview.coverDataUrl} alt="" className="size-full object-cover" />
         ) : (
@@ -415,7 +385,7 @@ function PreviewCard({
         </Button>
       </div>
 
-      <div className="flex flex-col gap-4 p-5">
+      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto p-5">
         <div className="flex flex-wrap gap-2">
           <StatChip label={t('Duration')} value={formatDuration(preview.durationUs)} />
           {preview.canvas && (
@@ -460,7 +430,10 @@ function PreviewCard({
           </div>
         )}
 
-        <AnimatedHeight>
+        <div
+          data-import-actions
+          className={cn('shrink-0', preview.collision && 'grid min-h-44 items-center')}
+        >
           <AnimatePresence mode="popLayout" initial={false}>
             {running ? (
               <motion.div
@@ -490,6 +463,42 @@ function PreviewCard({
                   </ProgressBar.Track>
                 </ProgressBar>
               </motion.div>
+            ) : choosing ? (
+              <motion.div
+                key="collision"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.14 }}
+                className="grid gap-2"
+              >
+                <p className="text-[12px] text-muted-foreground">
+                  {t('Replacing keeps a backup of the existing project.')}
+                </p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <Button
+                    className="min-h-10 w-full min-w-0 rounded-xl px-3 text-[12px] whitespace-normal"
+                    onPress={() => onResolve('copy')}
+                  >
+                    {t('Import as a copy')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="min-h-10 w-full min-w-0 rounded-xl px-3 text-[12px] whitespace-normal"
+                    onPress={() => onResolve('replace')}
+                  >
+                    {t('Replace existing')}
+                  </Button>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="justify-self-center rounded-xl"
+                  onPress={onBack}
+                >
+                  {t('Back')}
+                </Button>
+              </motion.div>
             ) : (
               <motion.div
                 key="idle"
@@ -504,7 +513,7 @@ function PreviewCard({
               </motion.div>
             )}
           </AnimatePresence>
-        </AnimatedHeight>
+        </div>
       </div>
     </motion.div>
   )

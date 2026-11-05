@@ -97,13 +97,14 @@ async function windowsCandidates(local: string): Promise<string[]> {
     }
   }
   return [
-    ...(version ? [join(apps, version, 'CapCut.exe')] : []),
     join(apps, 'CapCut.exe'),
+    ...(version ? [join(apps, version, 'CapCut.exe')] : []),
     join(local, 'CapCut', 'CapCut.exe')
   ].filter((path) => existsSync(path))
 }
 
-/** A successful OS spawn is an accepted launch request, not editor readiness. */
+/** Prefer the official bootstrapper. Observe early crashes instead of treating
+ * the OS spawn acknowledgement as a completed launch. This is not readiness. */
 async function launchInstalledCapCut(beforeSpawn: () => void): Promise<boolean> {
   if (process.platform === 'darwin') {
     const appPath = '/Applications/CapCut.app'
@@ -122,23 +123,25 @@ async function launchInstalledCapCut(beforeSpawn: () => void): Promise<boolean> 
     for (const candidate of candidates) {
       beforeSpawn() // Recheck after asynchronous installation discovery.
       try {
-        await new Promise<void>((resolve, reject) => {
-          const child = spawn(candidate, ['--src1'], {
-            cwd: dirname(candidate),
-            detached: true,
-            stdio: 'ignore',
-            windowsHide: false
-          })
-          child.once('error', reject)
-          child.once('spawn', () => {
-            child.unref()
-            resolve()
-          })
-        })
-        return true
+        await spawnWindowsCapCut(candidate)
       } catch (error) {
         failure = error
+        continue // Only explicit OS/early-exit failures permit a different candidate.
       }
+      const state = await windowsStartupState()
+      if (state === 'ready') return true
+      if (state === 'stopped') {
+        // CapCut can exit on a cold start after its bootstrapper returned 0.
+        // Retry exactly once, only after repeated absence checks (never while
+        // an editor, hidden process or delayed startup is still alive).
+        beforeSpawn()
+        await spawnWindowsCapCut(candidate)
+        if ((await windowsStartupState()) === 'ready') return true
+      }
+      throw new CapShareError(
+        'IMPORT_FAILED',
+        'CapCut did not open a window. Try opening it from its shortcut.'
+      )
     }
     if (failure)
       throw new CapShareError(
@@ -148,4 +151,67 @@ async function launchInstalledCapCut(beforeSpawn: () => void): Promise<boolean> 
     return false
   }
   return false
+}
+
+function spawnWindowsCapCut(candidate: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const child = spawn(candidate, ['--src1'], {
+      cwd: dirname(candidate),
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: false
+    })
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const finish = (error?: Error): void => {
+      clearTimeout(timer)
+      if (error) reject(error)
+      else resolve()
+    }
+    child.once('error', finish)
+    child.once('exit', (code, signal) => {
+      finish(code === 0 ? undefined : new Error(`CapCut exited during startup: ${code ?? signal}`))
+    })
+    child.once('spawn', () => {
+      child.unref()
+      // Bootstrapper exits cleanly after handing off to the editor. A
+      // persistent editor process need not exit; bound this observation.
+      timer = setTimeout(() => finish(), 8000)
+    })
+  })
+}
+
+/** Read-only process/window observation; never sends input or changes focus. */
+async function windowsStartupState(): Promise<'ready' | 'stopped' | 'running'> {
+  const script = `
+$timer = [Diagnostics.Stopwatch]::StartNew()
+$absent = 0
+while ($timer.ElapsedMilliseconds -lt 20000) {
+  $editors = @(Get-Process -Name CapCut -ErrorAction SilentlyContinue)
+  if (@($editors | Where-Object { $_.MainWindowHandle -ne 0 }).Count -gt 0) { 'ready'; exit 0 }
+  if ($editors.Count -eq 0) { $absent++ } else { $absent = 0 }
+  if ($timer.ElapsedMilliseconds -ge 3000 -and $absent -ge 3) { 'stopped'; exit 0 }
+  Start-Sleep -Milliseconds 250
+}
+'running'
+`
+  let output: string
+  try {
+    const { stdout } = await execAsync(
+      join(
+        process.env.SystemRoot ?? 'C:\\Windows',
+        'System32',
+        'WindowsPowerShell',
+        'v1.0',
+        'powershell.exe'
+      ),
+      ['-NoProfile', '-NonInteractive', '-Command', script],
+      { windowsHide: true, timeout: 25000, maxBuffer: 4096 }
+    )
+    output = stdout
+  } catch {
+    throw new CapShareError('IMPORT_FAILED', 'Could not verify whether the CapCut window opened.')
+  }
+  const state = output.trim()
+  if (state === 'ready' || state === 'stopped' || state === 'running') return state
+  throw new CapShareError('IMPORT_FAILED', 'Could not verify whether the CapCut window opened.')
 }

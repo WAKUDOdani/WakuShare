@@ -1355,3 +1355,13 @@
     flex-wrap: wrap;
   }
 }
+
+/* Keep the launch action anchored across press, pending text and completion. */
+.button.import-launch-button,
+.button.import-launch-button:is(:active, [data-pressed='true']) {
+  transform: none;
+  scale: 1;
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
