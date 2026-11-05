@@ -15,6 +15,15 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - name: Canonicalize Windows temporary directory
+        # Hosted Windows may expose TEMP as RUNNER~1 while fs.realpath returns
+        # runneradmin. Use one spelling for fixture paths and actual paths.
+        shell: pwsh
+        run: |
+          $canonicalTemp = node -p 'require("node:fs").realpathSync(require("node:os").tmpdir())'
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve Windows temp directory' }
+          "TEMP=$canonicalTemp" >> $env:GITHUB_ENV
+          "TMP=$canonicalTemp" >> $env:GITHUB_ENV
       - run: pnpm install --frozen-lockfile
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
