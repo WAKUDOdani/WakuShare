@@ -58,14 +58,16 @@ After the first import, new files and changes are handled through events. There 
 
 Under **By project**, select a project from the compact list and connect additional folders for that client. You can configure a project before opening it in CapCut; synchronization starts when you open it. Common folders are shown separately and cannot be disabled for individual projects. **Apply set** copies the selected additional folder set to multiple projects, replacing their previous additional selection while keeping imported media and timeline clips. Folder settings are also available with synchronization turned off. Switching tabs or selecting a project in this list does not start an import.
 
+Use the pencil to edit a connection. When changing its path, choose **Connect a different folder** for an independent media set, or **The same folder has moved** to repair existing clips. Relocation requires matching relative paths and file contents; the old folder may already be missing. This verification is separate from normal synchronization. Paths are repaired in the open project and in other connected projects when opened. Enable a paused connection first. Import history is retained, so previously imported materials do not need to be added again.
+
 ### Controls and status
 
 | Control                | Purpose                                                                                                 |
 | ---------------------- | ------------------------------------------------------------------------------------------------------- |
 | **Show folder**        | Open the source folder in Windows                                                                       |
 | **Check now**          | Reconcile the folder immediately and add missing media entries; does not reimport the entire collection |
-| **Pencil**             | Rename the connection in WakuShare                                                                      |
-| **Disconnect**         | Remove the sync connection from settings; does not delete source files                                  |
+| **Pencil**             | Change its label or path; connect a different folder or repair paths after relocating the same folder   |
+| **Trash**              | Remove the connection; source files, media-library folders, and timeline clips are kept                 |
 | **Folder toggle**      | Pause or resume syncing that folder                                                                     |
 | **Waiting for CapCut** | Open the desired project or restore access to source folders; confirmed progress is kept                |
 
