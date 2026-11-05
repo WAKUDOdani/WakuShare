@@ -123,3 +123,21 @@ it('keeps the macOS application route unchanged', async () => {
   expect(mocks.open).toHaveBeenCalledExactlyOnceWith('/Applications/CapCut.app')
   expect(mocks.spawn).not.toHaveBeenCalled()
 })
+
+it('rechecks file-task safety after asynchronous discovery, before spawning', async () => {
+  let finish!: (value: string) => void
+  mocks.read.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve
+      })
+  )
+  let blocked = false
+  const launched = launchCapCut(() => {
+    if (blocked) throw new Error('File task started')
+  })
+  blocked = true
+  finish('last_version=9.6.0.4097')
+  await expect(launched).rejects.toThrow('File task started')
+  expect(mocks.spawn).not.toHaveBeenCalled()
+})

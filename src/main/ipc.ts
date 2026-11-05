@@ -562,12 +562,15 @@ export function registerIpcHandlers(ctx: IpcContext): void {
 
   handle(IPC.launchCapCut, async (): Promise<IpcResult<boolean>> => {
     try {
-      if (hasActiveFileTasks())
-        throw new CapShareError(
-          'IMPORT_FAILED',
-          'Finish the file operation before launching CapCut.'
-        )
-      return ok(await launchCapCut())
+      const assertCanLaunch = (): void => {
+        if (hasActiveFileTasks())
+          throw new CapShareError(
+            'IMPORT_FAILED',
+            'Finish the file operation before launching CapCut.'
+          )
+      }
+      assertCanLaunch()
+      return ok(await launchCapCut(assertCanLaunch))
     } catch (error) {
       return fail(error)
     }

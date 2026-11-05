@@ -51,9 +51,9 @@ export async function requireClosedCapCut(): Promise<void> {
 let launchInFlight: Promise<boolean> | null = null
 
 /** Coalesce overlapping requests; never require a second click to finish one. */
-export function launchCapCut(): Promise<boolean> {
+export function launchCapCut(beforeSpawn: () => void = () => {}): Promise<boolean> {
   if (launchInFlight) return launchInFlight
-  const request = launchInstalledCapCut().finally(() => {
+  const request = launchInstalledCapCut(beforeSpawn).finally(() => {
     if (launchInFlight === request) launchInFlight = null
   })
   launchInFlight = request
@@ -104,10 +104,11 @@ async function windowsCandidates(local: string): Promise<string[]> {
 }
 
 /** A successful OS spawn is an accepted launch request, not editor readiness. */
-async function launchInstalledCapCut(): Promise<boolean> {
+async function launchInstalledCapCut(beforeSpawn: () => void): Promise<boolean> {
   if (process.platform === 'darwin') {
     const appPath = '/Applications/CapCut.app'
     if (existsSync(appPath)) {
+      beforeSpawn()
       const error = await shell.openPath(appPath)
       return error === ''
     }
@@ -119,6 +120,7 @@ async function launchInstalledCapCut(): Promise<boolean> {
     const candidates = await windowsCandidates(local)
     let failure: unknown
     for (const candidate of candidates) {
+      beforeSpawn() // Recheck after asynchronous installation discovery.
       try {
         await new Promise<void>((resolve, reject) => {
           const child = spawn(candidate, ['--src1'], {
