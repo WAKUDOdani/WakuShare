@@ -151,7 +151,7 @@ it('rechecks file-task safety after asynchronous discovery, before spawning', as
   expect(mocks.spawn).not.toHaveBeenCalled()
 })
 
-it('does not mistake an observed early crash for success', async () => {
+it('does not spawn a fallback after an early exit if a descendant window is ready', async () => {
   mocks.spawn.mockImplementationOnce(() => {
     const child = Object.assign(new EventEmitter(), { unref: vi.fn() })
     queueMicrotask(() => {
@@ -161,7 +161,7 @@ it('does not mistake an observed early crash for success', async () => {
     return child
   })
   await expect(launchCapCut()).resolves.toBe(true)
-  expect(mocks.spawn.mock.calls.map((call) => call[0])).toEqual([bootstrap, editor])
+  expect(mocks.spawn.mock.calls.map((call) => call[0])).toEqual([bootstrap])
 })
 
 it('bounds observation for a persistent editor and never relaunches it on a late crash', async () => {
@@ -228,4 +228,23 @@ it('does not replay when window observation fails or returns unknown output', as
   )
   await expect(launchCapCut()).rejects.toThrow('Could not verify whether the CapCut window opened')
   expect(mocks.spawn).toHaveBeenCalledTimes(2)
+})
+
+it('recovers from an early crash only after confirming all descendants are gone', async () => {
+  const states = ['stopped', 'ready']
+  mocks.run.mockImplementation((_exe, args) =>
+    Promise.resolve({
+      stdout: args.includes('-Command') ? states.shift() : 'DisplayVersion REG_SZ 9.6.0.4097'
+    })
+  )
+  mocks.spawn.mockImplementationOnce(() => {
+    const child = Object.assign(new EventEmitter(), { unref: vi.fn() })
+    queueMicrotask(() => {
+      child.emit('spawn')
+      child.emit('exit', 3221225477, null)
+    })
+    return child
+  })
+  await expect(launchCapCut()).resolves.toBe(true)
+  expect(mocks.spawn.mock.calls.map((call) => call[0])).toEqual([bootstrap, bootstrap])
 })

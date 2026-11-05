@@ -126,7 +126,7 @@ async function launchInstalledCapCut(beforeSpawn: () => void): Promise<boolean> 
         await spawnWindowsCapCut(candidate)
       } catch (error) {
         failure = error
-        continue // Only explicit OS/early-exit failures permit a different candidate.
+        continue // Only a failed OS spawn permits a different candidate.
       }
       const state = await windowsStartupState()
       if (state === 'ready') return true
@@ -168,9 +168,9 @@ function spawnWindowsCapCut(candidate: string): Promise<void> {
       else resolve()
     }
     child.once('error', finish)
-    child.once('exit', (code, signal) => {
-      finish(code === 0 ? undefined : new Error(`CapCut exited during startup: ${code ?? signal}`))
-    })
+    // Even a nonzero bootstrap exit can leave a live descendant. Let the
+    // window/process observer decide; never fall through to another EXE here.
+    child.once('exit', () => finish())
     child.once('spawn', () => {
       child.unref()
       // Bootstrapper exits cleanly after handing off to the editor. A
