@@ -18,6 +18,7 @@ import { Button, ProgressBar } from '@heroui/react'
 import type { CollisionResolution, ImportPreview, ImportResult } from '@shared/types'
 import { isProjectPackage } from '@shared/project-package'
 import { FaApple, FaWindows } from 'react-icons/fa6'
+import { AnimatedHeight } from '@/components/AnimatedHeight'
 import { StatChip } from '@/components/StatChip'
 import { useTaskProgress } from '@/hooks/use-task-progress'
 import { formatBytes, formatDate, formatDuration, newTaskId } from '@/lib/format'
@@ -430,90 +431,92 @@ function PreviewCard({
           </div>
         )}
 
-        <div
-          data-import-actions
-          className={cn('shrink-0', preview.collision && 'grid min-h-44 items-center')}
-        >
-          <AnimatePresence mode="popLayout" initial={false}>
-            {running ? (
-              <motion.div
-                key="running"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={spring}
-                className="glass-subtle flex flex-col gap-3 rounded-2xl p-4"
-              >
-                <div className="flex items-center justify-between text-[12.5px]">
-                  <span className="flex items-center gap-2 font-medium">
-                    <Sparkles className="size-3.5 text-primary" />
-                    {t('Importing into CapCut…')}{' '}
-                  </span>
-                  <span className="text-muted-foreground tabular-nums">
-                    {Math.round(ratio * 100)}%
-                  </span>
-                </div>
-                <ProgressBar
-                  value={ratio * 100}
-                  aria-label={t('Import progress')}
-                  className="w-full"
+        <AnimatedHeight>
+          <div
+            data-import-actions
+            className={cn('shrink-0', preview.collision && 'grid min-h-44 items-center')}
+          >
+            <AnimatePresence mode="popLayout" initial={false}>
+              {running ? (
+                <motion.div
+                  key="running"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={spring}
+                  className="glass-subtle flex flex-col gap-3 rounded-2xl p-4"
                 >
-                  <ProgressBar.Track className="h-1.5">
-                    <ProgressBar.Fill />
-                  </ProgressBar.Track>
-                </ProgressBar>
-              </motion.div>
-            ) : choosing ? (
-              <motion.div
-                key="collision"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.14 }}
-                className="grid gap-2"
-              >
-                <p className="text-[12px] text-muted-foreground">
-                  {t('Replacing keeps a backup of the existing project.')}
-                </p>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <Button
-                    className="min-h-10 w-full min-w-0 rounded-xl px-3 text-[12px] whitespace-normal"
-                    onPress={() => onResolve('copy')}
+                  <div className="flex items-center justify-between text-[12.5px]">
+                    <span className="flex items-center gap-2 font-medium">
+                      <Sparkles className="size-3.5 text-primary" />
+                      {t('Importing into CapCut…')}{' '}
+                    </span>
+                    <span className="text-muted-foreground tabular-nums">
+                      {Math.round(ratio * 100)}%
+                    </span>
+                  </div>
+                  <ProgressBar
+                    value={ratio * 100}
+                    aria-label={t('Import progress')}
+                    className="w-full"
                   >
-                    {t('Import as a copy')}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    className="min-h-10 w-full min-w-0 rounded-xl px-3 text-[12px] whitespace-normal"
-                    onPress={() => onResolve('replace')}
-                  >
-                    {t('Replace existing')}
-                  </Button>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="justify-self-center rounded-xl"
-                  onPress={onBack}
+                    <ProgressBar.Track className="h-1.5">
+                      <ProgressBar.Fill />
+                    </ProgressBar.Track>
+                  </ProgressBar>
+                </motion.div>
+              ) : choosing ? (
+                <motion.div
+                  key="collision"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.14 }}
+                  className="grid gap-2"
                 >
-                  {t('Back')}
-                </Button>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="idle"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={spring}
-              >
-                <Button className="w-full rounded-xl" onPress={onImport}>
-                  <FileDown className="size-4" /> {t('Import project')}{' '}
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                  <p className="text-[12px] text-muted-foreground">
+                    {t('Replacing keeps a backup of the existing project.')}
+                  </p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Button
+                      className="min-h-10 w-full min-w-0 rounded-xl px-3 text-[12px] whitespace-normal"
+                      onPress={() => onResolve('copy')}
+                    >
+                      {t('Import as a copy')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      className="min-h-10 w-full min-w-0 rounded-xl px-3 text-[12px] whitespace-normal"
+                      onPress={() => onResolve('replace')}
+                    >
+                      {t('Replace existing')}
+                    </Button>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="justify-self-center rounded-xl"
+                    onPress={onBack}
+                  >
+                    {t('Back')}
+                  </Button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="idle"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={spring}
+                >
+                  <Button className="w-full rounded-xl" onPress={onImport}>
+                    <FileDown className="size-4" /> {t('Import project')}{' '}
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </AnimatedHeight>
       </div>
     </motion.div>
   )
