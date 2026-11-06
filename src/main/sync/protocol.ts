@@ -33,6 +33,29 @@ export const workerStateSchema = z
       .nullable()
       .optional()
       .default(null),
+    nativeCapabilities: z
+      .array(
+        z
+          .object({
+            Operation: z.enum([
+              'connect',
+              'read',
+              'add',
+              'folders',
+              'rename',
+              'move',
+              'remove',
+              'restore'
+            ]),
+            Available: z.boolean(),
+            Missing: z.array(text).max(128)
+          })
+          .strict()
+      )
+      .max(8)
+      .nullable()
+      .optional(),
+    nativeWarnings: z.array(text).max(16).nullable().optional(),
     nativeReason: text.nullable().optional().default(null),
     nativeBusy: z.boolean().optional(),
     nativeMode: z.enum(['laboratory', 'product']).nullable().optional(),

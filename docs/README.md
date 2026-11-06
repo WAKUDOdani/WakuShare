@@ -12,7 +12,7 @@
 ## Разработчикам
 
 - [Перенос пресетов](PRESET_TRANSFER.md) - формат, ресурсы, дубликаты и проверки.
-- [Интеграция «Проводника»](EXPLORER_WORKER.md) и [исходники runtime](../runtime-src/README.md).
+- [Интеграция «Проводника»](EXPLORER_WORKER.md) и [исходники runtime](../runtime-adaptive/README.md).
 - [Порядок выпуска и оформление релизов](RELEASING.md).
 - [Языки интерфейса](LANGUAGES.md), [окно приветствия](WELCOME.md), [фирменные материалы](BRANDING.md).
 - [Происхождение проекта](../UPSTREAM.md), [MIT](../LICENSE), [сторонние компоненты](../THIRD_PARTY_NOTICES.md).

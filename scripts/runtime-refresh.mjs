@@ -1,5 +1,6 @@
 // Build-time interpreter refresh; accepted native binaries remain byte-for-byte identical.
 import { createHash, randomUUID } from 'node:crypto'
+import { verifyAdaptiveRuntime } from './native-runtime-integrity.mjs'
 import { createRequire } from 'node:module'
 import { copyFile, mkdir, readFile, writeFile, lstat, rename, readdir } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
@@ -118,6 +119,7 @@ export async function verifySecurityRuntime(root) {
   for (const [name, digest] of Object.entries(index.files))
     if (sha(await readFile(join(root, name))) !== digest)
       throw Error('Security runtime file differs: ' + name)
+  await verifyAdaptiveRuntime(root, index.files)
   return root
 }
 

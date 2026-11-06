@@ -1,0 +1,437 @@
+{
+  "schemaVersion": 1,
+  "referenceBuild": "9.6.0.4097",
+  "symbols": [
+    {
+      "key": "0xb74f10",
+      "name": "metadata.assignTitle",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "40534883ec20488bd9483bca741348837a18104c8b42107203488b12e86f14feff",
+          "mask": "ffffffffffffffffffffffffff00ffffffffffffffffffff00ffffffff00000000",
+          "oldOffset": 0
+        },
+        {
+          "bytes": "4c8b42107203488b12e86f14feff488bc34883c4205bc3cccccccccccc48895c2408",
+          "mask": "ffffffffff00ffffffff00000000ffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 19
+        },
+        {
+          "bytes": "e86f14feff488bc34883c4205bc3cccccccccccc48895c2408574883ec20488bfa",
+          "mask": "ff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 28
+        }
+      ]
+    },
+    {
+      "key": "0x1532680",
+      "name": "media.sourcePath",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "48c741180f000000408831488971204889713048c741380f0000004088712048897158",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 32
+        },
+        {
+          "bytes": "408831488971204889713048c741380f00000040887120488971584889716848c741700f000000",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 40
+        },
+        {
+          "bytes": "48c741380f00000040887120488971584889716848c741700f00000040887158",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 51
+        }
+      ]
+    },
+    {
+      "key": "0x1bf3d80",
+      "name": "resources.manager",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "5bc3488d0d7b31f10ce8b2131c05833d6f31f10cff75de488d1dfe30f10cba02010000",
+          "mask": "ffffffffff00000000ff00000000ffff00000000ffff00ffffff00000000ffffffffff",
+          "oldOffset": 52
+        },
+        {
+          "bytes": "e8b2131c05833d6f31f10cff75de488d1dfe30f10cba02010000488bcbe82a051c05",
+          "mask": "ff00000000ffff00000000ffff00ffffff00000000ffffffffffffffffff00000000",
+          "oldOffset": 61
+        },
+        {
+          "bytes": "75de488d1dfe30f10cba02010000488bcbe82a051c050f57c048c7054331f10c00000000",
+          "mask": "ff00ffffff00000000ffffffffffffffffff00000000ffffffffffff00000000ffffffff",
+          "oldOffset": 73
+        }
+      ]
+    },
+    {
+      "key": "0x1bf3e30",
+      "name": "resources.model",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "4881ec80010000488b05f559b60c4833c4488945704c8bf2488bf14885d27507",
+          "mask": "ffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffff00",
+          "oldOffset": 21
+        },
+        {
+          "bytes": "4833c4488945704c8bf2488bf14885d2750733c0e9f7060000488d542438498bce",
+          "mask": "ffffffffffffffffffffffffffffffffff00ffffff00000000ffffffffffffffff",
+          "oldOffset": 35
+        },
+        {
+          "bytes": "488bf14885d2750733c0e9f7060000488d542438498bcee8472c3aff90c644246000",
+          "mask": "ffffffffffffff00ffffff00000000ffffffffffffffffff00000000ffffffffffff",
+          "oldOffset": 45
+        }
+      ]
+    },
+    {
+      "key": "0x2730010",
+      "name": "project.store",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "4c8b413833c0488902488942084d85c07409f041ff40084c8b4138488b4130488902",
+          "mask": "ffffffffffffffffffffffffffffffffff00ffffffffffffffffffffffffffffffff",
+          "oldOffset": 0
+        },
+        {
+          "bytes": "488942084d85c07409f041ff40084c8b4138488b4130488902488bc24c894208",
+          "mask": "ffffffffffffffff00ffffffffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 9
+        },
+        {
+          "bytes": "f041ff40084c8b4138488b4130488902488bc24c894208c3cccccccccccc48895c2410",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 18
+        }
+      ]
+    },
+    {
+      "key": "0x29cce20",
+      "name": "media.rename",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "4881ec40010000488b0503cad80b4833c4488945304d8bf84c8bf2e869131f02",
+          "mask": "ffffffffffffffffffff00000000ffffffffffffffffffffffffffff00000000",
+          "oldOffset": 23
+        },
+        {
+          "bytes": "4833c4488945304d8bf84c8bf2e869131f02488d542458488bc8e8fce01e0290",
+          "mask": "ffffffffffffffffffffffffffff00000000ffffffffffffffffff00000000ff",
+          "oldOffset": 37
+        },
+        {
+          "bytes": "4c8bf2e869131f02488d542458488bc8e8fce01e0290bfffffffff488b4c2458",
+          "mask": "ffffffff00000000ffffffffffffffffff00000000ffffffffffffffffffffff",
+          "oldOffset": 47
+        }
+      ]
+    },
+    {
+      "key": "0x29d3980",
+      "name": "media.remove",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "48895c240848896c2418488974242057415641574883ec604d8bf0488bf2488bf9",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 0
+        },
+        {
+          "bytes": "488974242057415641574883ec604d8bf0488bf2488bf9488b0a488b4208482bc1",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 10
+        },
+        {
+          "bytes": "41574883ec604d8bf0488bf2488bf9488b0a488b4208482bc14883f8080f82f5000000",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000",
+          "oldOffset": 18
+        }
+      ]
+    },
+    {
+      "key": "0x29e1110",
+      "name": "media.save",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "48895c24185556574154415541564157488d6c24f04881ec10010000488bd983b9c803000000",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 0
+        },
+        {
+          "bytes": "4154415541564157488d6c24f04881ec10010000488bd983b9c8030000000f853d070000",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000",
+          "oldOffset": 8
+        },
+        {
+          "bytes": "488d6c24f04881ec10010000488bd983b9c8030000000f853d070000e87fd01d02",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffff00000000ff00000000",
+          "oldOffset": 16
+        }
+      ]
+    },
+    {
+      "key": "0x29e1e20",
+      "name": "media.refresh",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "40534883ec20488bd9e8a24120ff488bcbc7836402000000000000e870b0ffff",
+          "mask": "ffffffffffffffffffff00000000ffffffffffffffffffffffffffff00000000",
+          "oldOffset": 0
+        },
+        {
+          "bytes": "e870b0ffff488bcbc7836402000000000000e80e000000488bcb4883c4205be9f133ffff",
+          "mask": "ff00000000ffffffffffffffffffffffffffff00000000ffffffffffffffffff00000000",
+          "oldOffset": 27
+        },
+        {
+          "bytes": "c7836402000000000000e80e000000488bcb4883c4205be9f133ffffcc48895c2410",
+          "mask": "ffffffffffffffffffffff00000000ffffffffffffffffff00000000ffffffffffff",
+          "oldOffset": 35
+        }
+      ]
+    },
+    {
+      "key": "0x29f2490",
+      "name": "media.relink",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "4881ece0030000488b059273d60b4833c4488985d00200004d8bf04c89442460",
+          "mask": "ffffffffffffffffffff00000000ffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 24
+        },
+        {
+          "bytes": "4833c4488985d00200004d8bf04c89442460488bda48894dc8e89c1ba303498bd6",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffffff",
+          "oldOffset": 38
+        },
+        {
+          "bytes": "4d8bf04c89442460488bda48894dc8e89c1ba303498bd6488bc8e8d10da303440fb6e8",
+          "mask": "ffffffffffffffffffffffffffffffff00000000ffffffffffffff00000000ffffffff",
+          "oldOffset": 48
+        }
+      ]
+    },
+    {
+      "key": "0x4bbaf60",
+      "name": "project.current",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "48895c24084889742410574883ec20488bf1488bfa4883c178e8cd931f0285c0",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffff00000000ffff",
+          "oldOffset": 0
+        },
+        {
+          "bytes": "574883ec20488bf1488bfa4883c178e8cd931f0285c07541488b4e2033c0488907",
+          "mask": "ffffffffffffffffffffffffffffffff00000000ffffff00ffffffffffffffffff",
+          "oldOffset": 10
+        },
+        {
+          "bytes": "488bfa4883c178e8cd931f0285c07541488b4e2033c0488907488947084885c9",
+          "mask": "ffffffffffffffff00000000ffffff00ffffffffffffffffffffffffffffffff",
+          "oldOffset": 18
+        }
+      ]
+    },
+    {
+      "key": "0x4bbe1c0",
+      "name": "project.manager",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "e8e16e1f02488bc34883c4205bc3cccccccc48895c2408574883ec20488d5978",
+          "mask": "ff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 110
+        },
+        {
+          "bytes": "4883c4205bc3cccccccc48895c2408574883ec20488d5978488bf9488bcbe8f2601f02",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000",
+          "oldOffset": 118
+        }
+      ]
+    },
+    {
+      "key": "0x5e0ece0",
+      "name": "folders.move",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "48894c24085355565741544155415641574883ec48488bf1488b0248898424a0000000",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 0
+        },
+        {
+          "bytes": "5741544155415641574883ec48488bf1488b0248898424a0000000488b4a0848898c24a8000000",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 8
+        },
+        {
+          "bytes": "4883ec48488bf1488b0248898424a0000000488b4a0848898c24a8000000483bc1",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 17
+        }
+      ]
+    },
+    {
+      "key": "0x5e121e0",
+      "name": "folders.save",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "48895c24084889742418574883ec50b901000000e8d7095a0085c00f84cb000000",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffff00000000ffffffff00000000",
+          "oldOffset": 0
+        },
+        {
+          "bytes": "574883ec50b901000000e8d7095a0085c00f84cb000000488d4c2420e8f5ebffff",
+          "mask": "ffffffffffffffffffffff00000000ffffffff00000000ffffffffffff00000000",
+          "oldOffset": 10
+        },
+        {
+          "bytes": "e8d7095a0085c00f84cb000000488d4c2420e8f5ebffff90488b442420c7405800000000",
+          "mask": "ff00000000ffffffff00000000ffffffffffff00000000ffffffffffffffffffffffffff",
+          "oldOffset": 20
+        }
+      ]
+    },
+    {
+      "key": "0x5e124a0",
+      "name": "folders.notify",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "48895c24184889742420574883ec70488b05927394084833c44889442468488bc2",
+          "mask": "ffffffffffffffffffffffffffffffffffff00000000ffffffffffffffffffffff",
+          "oldOffset": 0
+        },
+        {
+          "bytes": "574883ec70488b05927394084833c44889442468488bc2488bf1488bd1488bc8",
+          "mask": "ffffffffffffffff00000000ffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 10
+        },
+        {
+          "bytes": "4833c44889442468488bc2488bf1488bd1488bc8e8c1afffff488bd8488d0d1746e008",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffff00000000ffffffffffff00000000",
+          "oldOffset": 22
+        }
+      ]
+    },
+    {
+      "key": "0x63d59b0",
+      "name": "timelines.manager",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "7509488b06488bceff5008488bc7488b5c2448488b7424504883c4305fc3cc4883ec28",
+          "mask": "ff00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "oldOffset": 129
+        },
+        {
+          "bytes": "ff5008488bc7488b5c2448488b7424504883c4305fc3cc4883ec288b0d6ef38608",
+          "mask": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000",
+          "oldOffset": 137
+        }
+      ]
+    },
+    {
+      "key": "0x6db4c20",
+      "name": "metadata.allocate",
+      "kind": "function",
+      "marks": [
+        {
+          "bytes": "40534883ec20488bd9eb0f488bcbe8771b000085c07413488bcbe8bd1a00004885c0",
+          "mask": "ffffffffffffffffffff00ffffffff00000000ffffff00ffffffff00000000ffffff",
+          "oldOffset": 0
+        },
+        {
+          "bytes": "eb0f488bcbe8771b000085c07413488bcbe8bd1a00004885c074e74883c4205b",
+          "mask": "ff00ffffffff00000000ffffff00ffffffff00000000ffffffff00ffffffffff",
+          "oldOffset": 9
+        },
+        {
+          "bytes": "85c07413488bcbe8bd1a00004885c074e74883c4205bc34883fbff7406e847120000",
+          "mask": "ffffff00ffffffff00000000ffffffff00ffffffffffffffffffffff00ff00000000",
+          "oldOffset": 19
+        }
+      ]
+    },
+    {
+      "key": "0xec16c18",
+      "name": "media.service",
+      "kind": "rip",
+      "marks": [
+        {
+          "bytes": "488b05a823e0084885c07553488d0d4423e008e8cafaf90085c0754848833d8b23e008007526b948010000e88703fa0048894424304885c0740b33d2488bc8e893ceffff",
+          "mask": "ffffff00000000ffffffff00ffffff00000000ff00000000ffffff00ffffff00000000ffff00ffffffffffff00000000ffffffffffffffffff00ffffffffffff00000000",
+          "referenceOffset": 0,
+          "displacementOffset": 3,
+          "instructionLength": 7
+        },
+        {
+          "bytes": "4889056323e008488d0d0423e008e890faf900488b055023e0084883c428c38bc8e8b3faf900cc488d0d3423e008e89308fa00833d2823e008ff0f857bffffff",
+          "mask": "ffffff00000000ffffff00000000ff00000000ffffff00000000ffffffffffffffff00000000ffffffff00000000ff00000000ffff00000000ffffff00000000",
+          "referenceOffset": 0,
+          "displacementOffset": 3,
+          "instructionLength": 7
+        },
+        {
+          "bytes": "488b055023e0084883c428c38bc8e8b3faf900cc488d0d3423e008e89308fa00833d2823e008ff0f857bffffffba02000000488d0dc622e008e80afaf900488d0dbac79f01",
+          "mask": "ffffff00000000ffffffffffffffff00000000ffffffff00000000ff00000000ffff00000000ffffff00000000ffffffffffffffff00000000ff00000000ffffff00000000",
+          "referenceOffset": 0,
+          "displacementOffset": 3,
+          "instructionLength": 7
+        }
+      ]
+    },
+    {
+      "key": "0xa1da828",
+      "name": "metadata.vtable",
+      "kind": "rip",
+      "marks": [
+        {
+          "bytes": "488d058f8bca0848890733d241b8b8020000488d4f10e8e3498805488d4f10e8ca090000eb0233ff488d471048890648897e08488bc6488b5c2438488b742440",
+          "mask": "ffffff00000000ffffffffffffffffffffffffffffffff00000000ffffffffff00000000ff00ffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "referenceOffset": 0,
+          "displacementOffset": 3,
+          "instructionLength": 7
+        },
+        {
+          "bytes": "488d350cc0c9080f57c0660f7f85000100004c89a5100100004c89a52001000048c785280100000f000000c68510010000004c89a5300100004c89a540010000",
+          "mask": "ffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "referenceOffset": 0,
+          "displacementOffset": 3,
+          "instructionLength": 7
+        },
+        {
+          "bytes": "488d0510278b074989042433d241b8b8020000498d4c2410e862e54804498d4c2410e848a5c0feeb074c8be748897d90498d5c241048895d404c896548488d8d20030000",
+          "mask": "ffffff00000000ffffffffffffffffffffffffffffffffffff00000000ffffffffffff00000000ff00ffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "referenceOffset": 0,
+          "displacementOffset": 3,
+          "instructionLength": 7
+        }
+      ]
+    },
+    {
+      "key": "0xebb65b0",
+      "name": "project.managerStorage",
+      "kind": "returnedGlobal",
+      "functionKey": "0x4bbe1c0"
+    }
+  ],
+  "checks": {
+    "referenceCreatorSha256": "5bac0b46e9e045de20d278e98e652a5a55637b3d903b416f18d9f5e0b25f38f9",
+    "comparisonBuild": "9.7.1.4203",
+    "comparisonCreatorSha256": "492f40554f2405dc91867953d7fe51bf546d8dfa4d1417aeb22d34e3166827d8"
+  }
+}

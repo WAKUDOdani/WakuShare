@@ -68,6 +68,7 @@ images.forEach((bytes, index) => {
   offset += bytes.length
 })
 writeFileSync('build/icon.ico', Buffer.concat([directory, ...images]))
+writeFileSync('resources/tray.ico', Buffer.concat([directory, ...images]))
 const header = Buffer.alloc(16)
 header.write('icns')
 header.writeUInt32BE(16 + large.length, 4)

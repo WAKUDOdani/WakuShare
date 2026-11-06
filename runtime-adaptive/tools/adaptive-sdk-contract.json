@@ -1,0 +1,21 @@
+{
+  "connect": {
+    "store.id": "?getDraftId@StoreWrapper@draft_store@@QEBA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ",
+    "store.location": "?getDraftFoldPath@StoreWrapper@draft_store@@QEBA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ"
+  },
+  "read": {
+    "materials.all": "?queryAllDraftMaterialList@StoreWrapper@draft_store@@QEAA?AV?$map@W4MaterialType@draft_store@@V?$vector@V?$shared_ptr@VDraftMaterial@draft_store@@@std@@V?$allocator@V?$shared_ptr@VDraftMaterial@draft_store@@@std@@@2@@std@@U?$less@W4MaterialType@draft_store@@@4@V?$allocator@U?$pair@$$CBW4MaterialType@draft_store@@V?$vector@V?$shared_ptr@VDraftMaterial@draft_store@@@std@@V?$allocator@V?$shared_ptr@VDraftMaterial@draft_store@@@std@@@2@@std@@@std@@@4@@std@@XZ",
+    "materials.query": "?queryDraftMaterialById@StoreWrapper@draft_store@@QEAA?AV?$shared_ptr@VDraftMaterial@draft_store@@@std@@AEBW4MaterialType@2@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@4@@Z",
+    "material.path": "?getFilePathForSave@DraftMaterial@draft_store@@QEBAAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ",
+    "material.title": "?getExtraInfo@DraftMaterial@draft_store@@QEBAAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ",
+    "material.id": "?id@DraftMaterial@draft_store@@QEBA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ",
+    "draft.serialize": "?GetJsonFromDraft@lvve@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBV?$shared_ptr@VDraft@lvve@@@3@@Z",
+    "draft.vtable": "??_7Draft@lvve@@6B@"
+  },
+  "write": {
+    "material.setPath": "?setFilePath@DraftMaterial@draft_store@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "material.setTitle": "?setExtraInfo@DraftMaterial@draft_store@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+    "material.commit": "?updateMaterialByID@StoreWrapper@draft_store@@QEAA_NAEBW4MaterialType@2@AEBV?$shared_ptr@VDraftMaterial@draft_store@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@5@@Z",
+    "materials.reset": "?resetDraftMaterialList@StoreWrapper@draft_store@@QEAA_NAEBV?$map@W4MaterialType@draft_store@@V?$vector@V?$shared_ptr@VDraftMaterial@draft_store@@@std@@V?$allocator@V?$shared_ptr@VDraftMaterial@draft_store@@@std@@@2@@std@@U?$less@W4MaterialType@draft_store@@@4@V?$allocator@U?$pair@$$CBW4MaterialType@draft_store@@V?$vector@V?$shared_ptr@VDraftMaterial@draft_store@@@std@@V?$allocator@V?$shared_ptr@VDraftMaterial@draft_store@@@std@@@2@@std@@@std@@@4@@std@@@Z"
+  }
+}

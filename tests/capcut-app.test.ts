@@ -34,6 +34,12 @@ describe('preset import process guard', () => {
     })
     await expect(requireClosedCapCut()).resolves.toBeUndefined()
   })
+  it('blocks project import with a project-specific message when CapCut is open', async () => {
+    mocks.run.mockResolvedValue({ stdout: '"CapCut.exe","1234","Console","1","10 000 K"' })
+    await expect(requireClosedCapCut('projects')).rejects.toThrow(
+      'Close CapCut before importing projects'
+    )
+  })
   it('blocks on detection failure rather than assuming the editor is closed', async () => {
     mocks.run.mockRejectedValue(new Error('process query unavailable'))
     await expect(requireClosedCapCut()).rejects.toThrow('Could not verify')

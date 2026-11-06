@@ -368,6 +368,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
       const request = importRequestSchema.parse(raw)
       taskId = request.taskId
       const env = requireEnv()
+      await requireClosedCapCut('projects')
       activeTasks.set(taskId, controller)
 
       const result = await importCapshare({
@@ -376,6 +377,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
         env,
         resolution: request.resolution,
         backupDir: join(app.getPath('userData'), 'draft-backups'),
+        assertCanCommit: () => requireClosedCapCut('projects'),
         onProgress: makeProgressForwarder(ctx, taskId),
         signal: controller.signal
       })

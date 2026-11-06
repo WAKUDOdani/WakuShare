@@ -91,6 +91,8 @@ export interface ExplorerSnapshot {
     | 'Conflict'
     | 'Error'
   nativeMode?: 'laboratory' | 'product'
+  nativeCapabilities?: { Operation: string; Available: boolean; Missing: string[] }[]
+  nativeWarnings?: string[]
   nativeReason?: string | null
   reason: string | null
   indexedFiles: number

@@ -1,6 +1,6 @@
 import { execFile, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { shell } from 'electron'
@@ -40,11 +40,13 @@ export async function isCapCutRunning(strict = false): Promise<boolean> {
 }
 
 /** Launches CapCut, returning false when no installation could be found. */
-export async function requireClosedCapCut(): Promise<void> {
+export async function requireClosedCapCut(kind: 'presets' | 'projects' = 'presets'): Promise<void> {
   if (await isCapCutRunning(true))
     throw new CapShareError(
       'IMPORT_FAILED',
-      'Close CapCut before importing presets. Its preset catalog must not be open while it is updated.'
+      kind === 'projects'
+        ? 'Close CapCut before importing projects. Its timeline index must not be open while it is updated.'
+        : 'Close CapCut before importing presets. Its preset catalog must not be open while it is updated.'
     )
 }
 
@@ -96,6 +98,25 @@ async function windowsCandidates(local: string): Promise<string[]> {
       }
     }
   }
+  if (!version) {
+    // A fresh install can leave last_version empty and have no uninstall entry.
+    // Compare numeric components: lexicographic order puts 9.9 after 9.10.
+    try {
+      const installed = (await readdir(apps))
+        .filter((name) => versionPattern.test(name))
+        .sort((a, b) => {
+          const left = a.split('.').map(Number),
+            right = b.split('.').map(Number)
+          for (let i = 0; i < left.length; i++) {
+            if (left[i] !== right[i]) return right[i] - left[i]
+          }
+          return 0
+        })
+      version = installed.find((name) => existsSync(join(apps, name, 'CapCut.exe'))) ?? ''
+    } catch {
+      /* Retain bootstrapper and legacy-layout discovery. */
+    }
+  }
   return [
     join(apps, 'CapCut.exe'),
     ...(version ? [join(apps, version, 'CapCut.exe')] : []),
@@ -120,7 +141,7 @@ async function launchInstalledCapCut(beforeSpawn: () => void): Promise<boolean> 
     if (!local) return false
     const candidates = await windowsCandidates(local)
     let failure: unknown
-    for (const candidate of candidates) {
+    for (const [index, candidate] of candidates.entries()) {
       beforeSpawn() // Recheck after asynchronous installation discovery.
       try {
         await spawnWindowsCapCut(candidate)
@@ -131,11 +152,11 @@ async function launchInstalledCapCut(beforeSpawn: () => void): Promise<boolean> 
       const state = await windowsStartupState()
       if (state === 'ready') return true
       if (state === 'stopped') {
-        // CapCut can exit on a cold start after its bootstrapper returned 0.
-        // Retry exactly once, only after repeated absence checks (never while
-        // an editor, hidden process or delayed startup is still alive).
+        // A bootstrapper can return 0 without starting its registered editor.
+        // Only confirmed process absence permits trying a different EXE.
+        // Bound recovery to one spawn, including legacy single-EXE installs.
         beforeSpawn()
-        await spawnWindowsCapCut(candidate)
+        await spawnWindowsCapCut(candidates[index + 1] ?? candidate)
         if ((await windowsStartupState()) === 'ready') return true
       }
       throw new CapShareError(

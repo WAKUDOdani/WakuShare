@@ -201,6 +201,8 @@ export interface ImportCapshareOptions {
   /** Directory OUTSIDE the draft root for replaced-draft backups. */
   approveActiveContent?: ApproveActiveContent
   backupDir: string
+  /** Recheck editor state after extraction and immediately before publication. */
+  assertCanCommit?: () => Promise<void>
   onProgress?: (processedBytes: number, totalBytes: number, phase: string) => void
   signal?: AbortSignal
   /** Injectable for deterministic tests. */
@@ -397,7 +399,7 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
       throw new CapShareError('ARCHIVE_INVALID', 'Archive contains no timeline file.')
     }
     const documents = await readProjectDocuments(stagingDir)
-    validateTimelineGraph(documents)
+    const expectedGraph = validateTimelineGraph(documents)
     const timeline = documents.get(stagedPaths.timelineFilename)!.value as Record<string, unknown>
     let meta: Record<string, unknown> | null = null
     if (existsSync(stagedPaths.metaPath)) {
@@ -558,6 +560,23 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
       await writeFile(join(stagingDir, DRAFT_META_FILENAME), JSON.stringify(meta))
     }
 
+    // Validate the bytes that CapCut will actually read, not only the in-memory
+    // graph. A project must never be published with a missing timeline index.
+    const writtenGraph = validateTimelineGraph(await readProjectDocuments(stagingDir))
+    const preparedGraph = validateTimelineGraph(documents)
+    if (
+      Boolean(expectedGraph) !== Boolean(writtenGraph) ||
+      JSON.stringify(expectedGraph?.timelines.map((timeline) => timeline.name)) !==
+        JSON.stringify(writtenGraph?.timelines.map((timeline) => timeline.name)) ||
+      JSON.stringify(writtenGraph) !== JSON.stringify(preparedGraph)
+    ) {
+      throw new CapShareError(
+        'IMPORT_FAILED',
+        'The imported timeline index changed before publication.'
+      )
+    }
+    await options.assertCanCommit?.()
+
     if (manifest.effectAssets.length > 0) {
       await extractZip(filePath, effectStage, {
         signal,
@@ -608,6 +627,8 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
     }
 
     await rm(effectStage, { recursive: true, force: true })
+
+    await options.assertCanCommit?.()
 
     if (preview.collision && options.resolution === 'replace') {
       await ensureDir(options.backupDir)

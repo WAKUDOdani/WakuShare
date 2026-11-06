@@ -9,8 +9,18 @@ const base = {
   appPath: join(process.cwd(), 'resources', 'app.asar'),
   resourcesPath: join(process.cwd(), 'resources'),
   localPreview: false,
-  exists: () => true
+  exists: (path: string) => !path.endsWith('adaptive-runtime.json')
 }
+it('selects the adaptive worker and requires its complete manifests', () => {
+  const root = join(base.resourcesPath, 'explorer')
+  const options = { ...base, productRuntime: true, exists: () => true }
+  expect(explorerRuntimeLocation(options)?.executable).toBe(
+    join(root, 'artifacts', 'AdaptiveWorkerV3', 'CapSync.Observer.exe')
+  )
+  expect(
+    explorerRuntimeLocation({ ...options, exists: (path) => !path.includes('AdaptiveObserveV10') })
+  ).toBeNull()
+})
 it('resolves a product installation containing exactly the files in the pinned runtime index', () => {
   const root = join(base.resourcesPath, 'explorer')
   const installed = new Set(Object.keys(runtimeIndex.files).map((name) => join(root, name)))

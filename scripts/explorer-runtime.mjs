@@ -1,4 +1,5 @@
 import { prepareSecurityRuntime } from './runtime-refresh.mjs'
+import { verifyAdaptiveRuntime } from './native-runtime-integrity.mjs'
 // Immutable build input. Never reads userData or loads a DLL into CapCut.
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
@@ -27,6 +28,7 @@ export async function verifyRuntime(root) {
       throw Error('Invalid runtime file location')
     if (hash(await readFile(file)) !== expected) throw Error(`Runtime file differs: ${relative}`)
   }
+  await verifyAdaptiveRuntime(root, index.files)
   return root
 }
 

@@ -1,0 +1,9 @@
+{
+  "build": "9.6.0.4097",
+  "productRuntime": true,
+  "binaries": {
+    "Events": "2e55de25d2fcb48d58f0fde31b3b2f796a4457de0d5086f9cd45506004ef3196",
+    "SessionRelay": "1aa07e173204d303347cf48342bffe6a74e980d3928d48ddfd7a40e862175ecc",
+    "Catalog": "d3ea60693f8e7db1e4ad4823ab5fbc91cfba2baa048d7c286a4361760c218e0c"
+  }
+}

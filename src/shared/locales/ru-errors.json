@@ -3,6 +3,8 @@
   "Could not verify whether CapCut is running. Import is blocked; check CapCut and try again.": "Не удалось проверить, запущен ли CapCut. Импорт недоступен. Проверь CapCut и повтори попытку.",
   "CapCut process detection is unavailable on this platform.": "На этой платформе недоступна проверка запуска CapCut.",
   "Close CapCut before importing presets. Its preset catalog must not be open while it is updated.": "Закрой CapCut перед импортом пресетов, чтобы программа не изменяла каталог во время переноса.",
+  "Close CapCut before importing projects. Its timeline index must not be open while it is updated.": "Закрой CapCut перед импортом проектов, чтобы программа не перезаписала список временных шкал во время переноса.",
+  "The imported timeline index changed before publication.": "Список временных шкал изменился во время импорта. Проект не добавлен в CapCut; повтори импорт с закрытым редактором.",
   "Refusing to delete: target is not a CapCut project folder inside the draft root.": "Удаление отменено: выбранная папка находится за пределами библиотеки проектов CapCut или не является проектом.",
   "Project folder no longer exists: {0}": "Папка проекта больше не существует: {0}",
   "Not a CapCut project (no timeline file): {0}": "Это не проект CapCut: отсутствует файл временной шкалы. Папка: {0}",

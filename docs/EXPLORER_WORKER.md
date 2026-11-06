@@ -3,13 +3,13 @@
 [Documentation](README.md) · [User guide](USAGE.md#настроить-автосинхронизацию)
 
 Explorer synchronizes Windows media folders with the currently open CapCut
-International 9.6.0.4097 project. Global sources apply to existing and new projects;
+International project. The 1.3.31 live acceptance target is 9.7.1.4203 on Windows 11. Global sources apply to existing and new projects;
 project sources remain scoped to a confirmed ProjectKey. Common sources cannot
 be excluded by a per-project override. Nested
 folders appear directly under the media-library root.
 
 Electron main owns one persistent worker and the system tray. Renderer navigation
-only removes subscribers. Closing an enabled app hides it in the tray; explicit
+only removes subscribers. Closing the app hides it only after the tray is ready; explicit
 Quit and update installation await shutdown. Disabling Explorer releases watches.
 Filesystem and editor events trigger reconciliation; idle polling is not used.
 
@@ -27,8 +27,8 @@ Lines, unique request IDs, strict schema/sequence validation and bounded message
 and deadlines. The renderer receives presentation snapshots, never bootstrap
 credentials or arbitrary execution capabilities.
 
-Ordinary Windows builds use resources/explorer, including frozen WorkerV10,
-ObserveV10/CommandsV14/SavedReadV5/RootRelinkV2, product DLLs and interpreters. Main sets
+Ordinary Windows builds use resources/explorer, including AdaptiveWorkerV3,
+AdaptiveObserveV10/AdaptiveCommandsV10 and adaptive saved-read/root-relink modules, product DLLs and interpreters. Main sets
 the private PATH and DOTNET_ROOT. Native staging uses userData/explorer/native-modules.
 A product DLL already loaded from an earlier app location is reused only when
 its unique name and loaded/staged file hashes agree with the sealed generation.
@@ -44,11 +44,11 @@ Base build inputs are pinned by runtime-lock.json and the complete runtime-file 
 scripts/build-windows.mjs retrieves and verifies them; runtime-security-lock.json
 and scripts/runtime-refresh.mjs then pin and verify the refreshed Python/.NET
 distributions and final file index. Refresh happens at build time and preserves
-accepted worker/helper/native bytes; it never rebuilds loaded modules. Source is in runtime-src/. The reduced SDK contract has no private data.
+accepted worker/helper/native bytes; it never rebuilds loaded modules. Current source is in runtime-adaptive/; runtime-src/ is a frozen reference. The reduced SDK contract has no private data.
 
 Configuration uses optimistic revisions and stable source IDs. Project identity
 combines draft UUID and canonical location. Native callbacks recheck process,
-session token, view epoch, exact CapCut build, complete SDK/bin/tree/Draft and
+session token, view epoch, same-installation CapCut process identity, discovered interfaces, complete SDK/bin/tree/Draft and
 source identity. Unknown completion is retained and never replayed. Only receipts
 proving zero dispatch allow bounded deferral. Updates precede additions, including
 moves between selected roots. Planned UUIDs are not proof of ownership.
@@ -88,3 +88,9 @@ uncertain mutations are never replayed. Completed add/update/folder receipts rem
 immutable, and only verified root history permits their old roots. State schema 10
 prevents older workers from interpreting this history. Ordinary sync/import does
 not take the root-relocation hashing or save-verification path.
+
+## Adaptive interfaces (1.3.31)
+
+Marketing version numbers are diagnostic, not an allowlist. Offline PE discovery uses independent landmarks and named exports; guarded loaded-image proofs are checked before calls. The current adapter requires Qt ABI 6.2.2. Capability groups independently gate connection, read, add, folders, rename, move, remove and restore. Structured helper errors retain operation, code and detail through the worker to the renderer. Missing interfaces stop dependent commands before dispatch; this is not a guarantee for arbitrary future private API changes.
+
+Unknown completion is never replayed. Delivered import recovery requires conclusive receipts, source identity/hash and full immediate/saved-state verification and issues no new data commands. Optional library refresh failure remains a separate persisted warning after data verification, without retrying an uncertain view command. Multi-timeline updates select the saved timeline UUID and verify preservation of other Drafts; shared sources are refused when independent ownership cannot be proved. See [adaptive source and build notes](../runtime-adaptive/README.md).

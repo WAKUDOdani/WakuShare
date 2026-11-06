@@ -12,8 +12,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.28/WakuShare-1.3.28-setup-x64.exe"><img src="docs/assets/download-windows-en.svg" width="232" height="44" alt="Download the WakuShare 1.3.28 installer for Windows x64"></a>
-  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.28/WakuShare-1.3.28-portable-x64.exe"><img src="docs/assets/download-portable.svg" width="190" height="44" alt="Download WakuShare 1.3.28 Portable, no installation needed"></a>
+  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.31/WakuShare-1.3.31-setup-x64.exe"><img src="docs/assets/download-windows-en.svg" width="232" height="44" alt="Download the WakuShare 1.3.31 installer for Windows x64"></a>
+  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.31/WakuShare-1.3.31-portable-x64.exe"><img src="docs/assets/download-portable.svg" width="190" height="44" alt="Download WakuShare 1.3.31 Portable, no installation needed"></a>
 </p>
 
 <p align="center">
@@ -31,8 +31,8 @@
 </p>
 
 <p align="center">
-  <a href="docs/assets/explorer-1.3.28-en.png"><img src="docs/assets/explorer-1.3.28-en.png" width="1080" alt="WakuShare Explorer: a connected folder, sync scope controls, and a completed import"></a>
-  <br><sub>The actual WakuShare 1.3.28 interface. Screenshots use demo data. Click an image to open it at full resolution.</sub>
+  <a href="docs/assets/explorer-1.3.31-en.png"><img src="docs/assets/explorer-1.3.31-en.png" width="1080" alt="WakuShare Explorer: a connected folder, sync scope controls, and a completed import"></a>
+  <br><sub>The actual WakuShare 1.3.31 interface. Screenshots use demo data. Click an image to open it at full resolution.</sub>
 </p>
 
 ## Features
@@ -45,10 +45,12 @@
 
 Bulk import sends new files as a single list, and the progress bar shows confirmed results. Processing speed depends on the number of files, your disk, and CapCut itself.
 
+Version 1.3.31 fixes auto-sync connection to CapCut 9.7, launching the editor after import, and restoring the window from the tray. Import verifies every timeline index entry before registering a project. [Release notes →](docs/RELEASE-1.3.31.md)
+
 <details>
 <summary><strong>Take a look at Presets</strong></summary>
 
-<a href="docs/assets/presets-1.3.28-en.png"><img src="docs/assets/presets-1.3.28-en.png" width="1080" alt="WakuShare Presets: folder selection and export controls"></a>
+<a href="docs/assets/presets-1.3.31-en.png"><img src="docs/assets/presets-1.3.31-en.png" width="1080" alt="WakuShare Presets: folder selection and export controls"></a>
 
 Open a shared package, choose what you need, and import it into your library. Source files and available font files travel with the presets.
 
@@ -57,7 +59,7 @@ Open a shared package, choose what you need, and import it into your library. So
 <details>
 <summary><strong>Folders for individual projects</strong></summary>
 
-<a href="docs/assets/explorer-projects-1.3.28-en.png"><img src="docs/assets/explorer-projects-1.3.28-en.png" width="1080" alt="WakuShare: common folders and additional assets for a selected project"></a>
+<a href="docs/assets/explorer-projects-1.3.31-en.png"><img src="docs/assets/explorer-projects-1.3.31-en.png" width="1080" alt="WakuShare: common folders and additional assets for a selected project"></a>
 
 Prepare client folders ahead of time and apply a set to several projects. Common folders remain enabled for everyone. Edit a connection to replace it or restore paths after moving the same folder; removing a connection keeps source files and clips.
 
@@ -65,12 +67,12 @@ Prepare client folders ahead of time and apply a set to several projects. Common
 
 ## Download
 
-**Windows x64.** Tested editor version: **CapCut International 9.6.0.4097**. WakuShare is available in English and Russian.
+**Windows x64.** Tested editor version: **CapCut International 9.7.1.4203**. WakuShare is available in English and Russian.
 
 | Edition                                                                                                                    | Best for                       | Updates                                                                       |
 | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------- |
-| [**Installer 1.3.28**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.28/WakuShare-1.3.28-setup-x64.exe)   | A regular Windows installation | The app checks for updates; you choose when to install the downloaded release |
-| [**Portable 1.3.28**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.28/WakuShare-1.3.28-portable-x64.exe) | Running without installation   | Download the new Portable release and replace the old EXE                     |
+| [**Installer 1.3.31**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.31/WakuShare-1.3.31-setup-x64.exe)   | A regular Windows installation | The app checks for updates; you choose when to install the downloaded release |
+| [**Portable 1.3.31**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.31/WakuShare-1.3.31-portable-x64.exe) | Running without installation   | Download the new Portable release and replace the old EXE                     |
 
 [All releases and checksums](https://github.com/WAKUDOdani/WakuShare/releases). You only need one EXE. There is no need to download `latest.yml`, `.blockmap`, or the runtime archive manually. `Source code` contains the source, not a ready-to-run app. Each release includes an expandable **English release notes** section at the top.
 
@@ -88,10 +90,10 @@ Prepare client folders ahead of time and apply a set to several projects. Common
 ## Before you start
 
 - Exporting a project leaves its original files in place. You can import the package as a separate copy.
-- Explorer works with an open CapCut project. When sync is enabled, closing the WakuShare window keeps the app running in the system tray.
+- Explorer works with an open CapCut project. Closing the WakuShare window keeps it in the system tray; use the icon menu near the clock to quit fully.
 - Windows may lock files used on the timeline. Leave the CapCut project before renaming or moving those files.
 - Close CapCut before importing presets. System fonts are not installed automatically; cloud effects may need to be downloaded again.
-- Other CapCut versions require separate testing. Encrypted JianYing projects are not supported.
+- Auto-sync checks the CapCut interfaces required for each operation rather than allowing only a version number. If an interface is unavailable, WakuShare shows the operation and reason. Compatibility with every future version is not guaranteed; encrypted JianYing projects are not supported.
 
 ## Package safety
 
@@ -120,7 +122,7 @@ pnpm run build:win
 The Windows build includes the pinned sync worker and runtimes. `runtime-lock.json` verifies the base archive; `runtime-security-lock.json` pins the refreshed Python/.NET runtimes. Downloads and verification happen during the build. Set `WAKUSHARE_RUNTIME_DIR` to use a local copy of the base runtime offline.
 
 - [Documentation index](docs/README.md) (Russian)
-- [Sync worker](docs/EXPLORER_WORKER.md) and its [source](runtime-src/README.md)
+- [Sync worker](docs/EXPLORER_WORKER.md) and its [source](runtime-adaptive/README.md)
 - [Preset transfer](docs/PRESET_TRANSFER.md)
 - [Changelog](CHANGELOG.md) and [release process](docs/RELEASING.md) (Russian)
 

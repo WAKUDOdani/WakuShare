@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   spawn: vi.fn(),
   exists: vi.fn(),
   read: vi.fn(),
+  list: vi.fn(),
   open: vi.fn()
 }))
 vi.mock('node:child_process', () => ({
@@ -14,7 +15,7 @@ vi.mock('node:child_process', () => ({
   spawn: mocks.spawn
 }))
 vi.mock('node:fs', () => ({ existsSync: mocks.exists }))
-vi.mock('node:fs/promises', () => ({ readFile: mocks.read }))
+vi.mock('node:fs/promises', () => ({ readFile: mocks.read, readdir: mocks.list }))
 vi.mock('electron', () => ({ shell: { openPath: mocks.open } }))
 import { launchCapCut } from '../src/main/capcut-app'
 
@@ -31,6 +32,7 @@ beforeEach(() => {
   vi.stubEnv('LOCALAPPDATA', local)
   for (const mock of Object.values(mocks)) mock.mockReset()
   mocks.read.mockResolvedValue('[capcut]\nlast_version=\n')
+  mocks.list.mockResolvedValue([])
   mocks.run.mockImplementation((_exe, args) =>
     Promise.resolve({
       stdout: args.includes('-Command') ? 'ready' : ' DisplayVersion    REG_SZ    9.6.0.4097\r\n'
@@ -230,7 +232,7 @@ it('does not replay when window observation fails or returns unknown output', as
   expect(mocks.spawn).toHaveBeenCalledTimes(2)
 })
 
-it('recovers from an early crash only after confirming all descendants are gone', async () => {
+it('uses the installed editor after confirming that the bootstrapper left no descendants', async () => {
   const states = ['stopped', 'ready']
   mocks.run.mockImplementation((_exe, args) =>
     Promise.resolve({
@@ -246,5 +248,43 @@ it('recovers from an early crash only after confirming all descendants are gone'
     return child
   })
   await expect(launchCapCut()).resolves.toBe(true)
-  expect(mocks.spawn.mock.calls.map((call) => call[0])).toEqual([bootstrap, bootstrap])
+  expect(mocks.spawn.mock.calls.map((call) => call[0])).toEqual([bootstrap, editor])
+})
+
+it('discovers a fresh 9.7 install when both configuration and registry are empty', async () => {
+  const current = join(apps, '9.7.1.4203', 'CapCut.exe')
+  mocks.run.mockImplementation((_exe, args) =>
+    args.includes('-Command')
+      ? Promise.resolve({ stdout: 'ready' })
+      : Promise.reject(Error('missing'))
+  )
+  mocks.list.mockResolvedValue(['9.6.0.4097', '9.7.1.4203', '..\\evil'])
+  mocks.exists.mockImplementation((path) => path === current)
+  await expect(launchCapCut()).resolves.toBe(true)
+  expect(mocks.spawn.mock.calls[0][0]).toBe(current)
+})
+
+it('compares version components numerically and ignores incomplete version directories', async () => {
+  const current = join(apps, '9.10.0.4300', 'CapCut.exe')
+  mocks.run.mockImplementation((_exe, args) =>
+    args.includes('-Command')
+      ? Promise.resolve({ stdout: 'ready' })
+      : Promise.reject(Error('missing'))
+  )
+  mocks.list.mockResolvedValue(['9.9.0.4200', '9.10.0.4300', '10.0.0.4400'])
+  mocks.exists.mockImplementation(
+    (path) => path === current || path === join(apps, '9.9.0.4200', 'CapCut.exe')
+  )
+  await expect(launchCapCut()).resolves.toBe(true)
+  expect(mocks.spawn.mock.calls[0][0]).toBe(current)
+})
+
+it('does not fall back while a 9.7 editor is still starting without a window', async () => {
+  mocks.run.mockImplementation((_exe, args) =>
+    Promise.resolve({
+      stdout: args.includes('-Command') ? 'running' : 'DisplayVersion REG_SZ 9.7.1.4203'
+    })
+  )
+  await expect(launchCapCut()).rejects.toThrow('did not open a window')
+  expect(mocks.spawn).toHaveBeenCalledOnce()
 })

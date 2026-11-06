@@ -22,4 +22,4 @@ The Windows afterPack hook embeds the ICO and product/version metadata in the ap
 
 The root README uses a centered transparent icon, short Russian product copy, two download links and three small status badges. `docs/assets/logo.png` is a byte-for-byte copy of the checked-in UI logo; the SVG download labels are static local artwork without scripts or external assets.
 
-The application screenshots in `docs/assets/` render the actual 1.3.4 renderer against synthetic demonstration data, without a preload bridge or access to CapCut, user projects or settings. They illustrate layout and supported UI states, not a benchmark or a new live native acceptance. Keep captions and alternative text, and refresh the images when the depicted UI materially changes.
+The application screenshots in `docs/assets/` render the actual 1.3.31 renderer against synthetic demonstration data, without a preload bridge or access to CapCut, user projects or settings. They illustrate layout and supported UI states, not a benchmark or a new live native acceptance. Keep captions and alternative text, and refresh the images when the depicted UI materially changes.

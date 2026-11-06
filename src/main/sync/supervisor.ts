@@ -81,6 +81,8 @@ export class ExplorerSupervisor {
         this.workerState?.planningOnly === false
           ? (this.workerState.nativeMode ?? 'laboratory')
           : this.options.nativeMode,
+      nativeWarnings: this.workerState?.nativeWarnings ?? [],
+      nativeCapabilities: this.workerState?.nativeCapabilities ?? [],
       nativeReason: this.workerState?.nativeReason ?? null
     }
   }
@@ -366,7 +368,10 @@ export class ExplorerSupervisor {
       const editor = this.workerState.editor
       if (editor && ['Disconnected', 'Faulted'].includes(editor.Status)) {
         this.status = 'Error'
-        this.reason = 'CapCut connection failed. Folder synchronization is paused.'
+        this.reason = editor.Reason?.startsWith('AUTOSYNC|')
+          ? editor.Reason
+          : this.workerState.nativeReason ||
+            'CapCut connection failed. Folder synchronization is paused.'
         return
       }
       this.reason = this.workerState.nativeReason

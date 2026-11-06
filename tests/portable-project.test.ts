@@ -1,5 +1,13 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -134,6 +142,75 @@ async function exportCase(): Promise<string> {
 }
 
 describe('complete portable multi-timeline project', () => {
+  it.each(['copy', 'replace'] as const)(
+    'keeps all 13 timelines on a 9.7 target during %s import',
+    async (resolution) => {
+      while (ids.length < 13) {
+        const id = randomUUID().toUpperCase()
+        ids.push(id)
+        const doc = timeline(id, external[0].replaceAll('\\', '/'), ids.length)
+        write(join(source, 'Timelines', id, 'draft_content.json'), doc)
+        write(join(source, 'Timelines', id, 'template-2.tmp'), doc)
+      }
+      const names = ids.map((_, i) => (i === 0 ? '1' : `Портнягин ${String(i).padStart(2, '0')}`))
+      write(join(source, 'Timelines/project.json'), {
+        id: randomUUID().toUpperCase(),
+        main_timeline_id: ids[0],
+        timelines: ids.map((id, i) => ({ id, name: names[i], is_marked_delete: false }))
+      })
+      write(join(source, 'timeline_layout.json'), {
+        dockItems: [{ ratio: 1, timelineIds: ids, timelineNames: names }]
+      })
+      const archive = await exportCase()
+      const donor = JSON.parse(readFileSync(join(source, 'draft_content.json'), 'utf8'))
+      donor.platform = { app_version: '9.7.1', os: 'windows' }
+      donor.new_version = '191.0.0'
+      write(join(source, 'draft_content.json'), donor)
+      const originalTracks = ids.map(
+        (id) => json(join(source, 'Timelines', id, 'draft_content.json')).tracks
+      )
+      const result = await importCapshare({
+        filePath: archive,
+        env,
+        resolution,
+        backupDir: join(root, 'backups')
+      })
+      const graph = validateTimelineGraph(await readProjectDocuments(result.folderPath))!
+      expect(graph.timelines.map((entry) => entry.name)).toEqual(names)
+      expect(
+        graph.timelines.map((entry) => json(join(result.folderPath, entry.relativePath)).tracks)
+      ).toEqual(originalTracks)
+      const layout = JSON.parse(
+        readFileSync(join(result.folderPath, 'timeline_layout.json'), 'utf8')
+      )
+      expect(layout.dockItems[0].timelineIds).toEqual(graph.timelines.map((entry) => entry.id))
+    }
+  )
+
+  it.each([1, 2])(
+    'preserves the existing project if CapCut reopens before commit check %s',
+    async (rejectAt) => {
+      const archive = await exportCase()
+      const before = readFileSync(join(source, 'Timelines/project.json'))
+      const folders = readdirSync(env.draftRoot).sort()
+      let checks = 0
+      await expect(
+        importCapshare({
+          filePath: archive,
+          env,
+          resolution: 'replace',
+          backupDir: join(root, 'backups'),
+          assertCanCommit: async () => {
+            if (++checks === rejectAt) throw Error('CapCut reopened')
+          }
+        })
+      ).rejects.toThrow('CapCut reopened')
+      expect(readFileSync(join(source, 'Timelines/project.json'))).toEqual(before)
+      expect(readdirSync(env.draftRoot).sort()).toEqual(folders)
+      expect(existsSync(join(root, 'backups'))).toBe(false)
+    }
+  )
+
   it.each(
     [false, true].flatMap((present) =>
       ['placeholder', 'relative', 'absolute'].map((style) => ({ present, style }))

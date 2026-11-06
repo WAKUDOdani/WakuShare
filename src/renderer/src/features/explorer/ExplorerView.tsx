@@ -9,6 +9,7 @@ import { unwrap, errorMessage } from '@/lib/ipc'
 import type { ExplorerEdit, ExplorerSnapshot, ExplorerSource } from '@shared/explorer'
 import { ImportProgress } from './ImportProgress'
 import { ProjectFolders } from './ProjectFolders'
+import { syncDiagnostic } from './diagnostics'
 import { ConnectionActions } from './ConnectionActions'
 
 const samePath = (a: string, b: string): boolean =>
@@ -251,9 +252,13 @@ export function ExplorerView(): JSX.Element {
             <p className="mt-1 ui-type-body text-muted-foreground">
               {t(
                 enabled
-                  ? ['Error', 'Conflict', 'WaitingForRuntime', 'SourceUnavailable'].includes(
-                      snapshot.status
-                    )
+                  ? [
+                      'Error',
+                      'Conflict',
+                      'WaitingForRuntime',
+                      'SourceUnavailable',
+                      ...(snapshot.reason ? ['WaitingForAdapter'] : [])
+                    ].includes(snapshot.status)
                     ? 'Synchronization needs attention'
                     : snapshot.status === 'WaitingForProject'
                       ? 'Waiting for CapCut project'
@@ -307,24 +312,54 @@ export function ExplorerView(): JSX.Element {
                     )}
             </div>
           )}
-          {['Error', 'Conflict', 'WaitingForRuntime', 'SourceUnavailable'].includes(
-            snapshot.status
-          ) && (
+          {[
+            'Error',
+            'Conflict',
+            'WaitingForRuntime',
+            'SourceUnavailable',
+            ...(snapshot.reason ? ['WaitingForAdapter'] : [])
+          ].includes(snapshot.status) && (
             <div
               role="status"
               className="glass-subtle flex items-start gap-2 rounded-2xl p-4 text-xs text-warning"
             >
               <AlertCircle size={16} className="shrink-0" />
-              {t(
+              {syncDiagnostic(
                 snapshot.reason ||
                   (snapshot.status === 'WaitingForRuntime'
                     ? 'Runtime not available'
                     : snapshot.status === 'SourceUnavailable'
                       ? 'Check source folders'
-                      : 'Synchronization needs attention')
+                      : 'Synchronization needs attention'),
+                t
               )}
             </div>
           )}
+          {enabled &&
+            snapshot.nativeCapabilities
+              ?.filter((item) => !item.Available)
+              .map((item) => (
+                <div
+                  key={item.Operation}
+                  role="status"
+                  className="glass-subtle rounded-2xl p-4 text-xs text-warning"
+                >
+                  {syncDiagnostic(
+                    `AUTOSYNC|${item.Operation}|interface_unavailable|${item.Missing.join(', ')}`,
+                    t
+                  )}
+                </div>
+              ))}
+          {enabled &&
+            snapshot.nativeWarnings?.map((warning) => (
+              <div
+                key={warning}
+                role="status"
+                className="glass-subtle rounded-2xl p-4 text-xs text-warning"
+              >
+                {syncDiagnostic(warning, t)}
+              </div>
+            ))}
           {enabled && <ImportProgress snapshot={snapshot} />}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div

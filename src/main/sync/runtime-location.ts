@@ -27,18 +27,44 @@ export function explorerRuntimeLocation(options: {
         ? join(options.resourcesPath, 'explorer')
         : workspace
     if (!root) return null
-    const executable = join(root, 'artifacts', 'ExplorerProductWorkerV10', 'CapSync.Observer.exe')
+    const adaptive = options.exists(join(root, 'adaptive-runtime.json'))
+    const executable = join(
+      root,
+      'artifacts',
+      adaptive ? 'AdaptiveWorkerV3' : 'ExplorerProductWorkerV10',
+      'CapSync.Observer.exe'
+    )
     const required = [
       executable,
-      join(root, 'artifacts', 'ExplorerProductCommandsV14', 'manifest.json'),
-      join(root, 'artifacts', 'ExplorerProductObserveV10', 'manifest.json'),
-      join(root, 'artifacts', 'ExplorerSavedReadV5', 'manifest.json'),
-      join(root, 'artifacts', 'ExplorerRootRelinkV2', 'manifest.json'),
+      join(
+        root,
+        'artifacts',
+        adaptive ? 'AdaptiveCommandsV10' : 'ExplorerProductCommandsV14',
+        'manifest.json'
+      ),
+      join(
+        root,
+        'artifacts',
+        adaptive ? 'AdaptiveObserveV10' : 'ExplorerProductObserveV10',
+        'manifest.json'
+      ),
+      join(
+        root,
+        'artifacts',
+        adaptive ? 'AdaptiveSavedReadV2' : 'ExplorerSavedReadV5',
+        'manifest.json'
+      ),
+      join(
+        root,
+        'artifacts',
+        adaptive ? 'AdaptiveRootRelinkV2' : 'ExplorerRootRelinkV2',
+        'manifest.json'
+      ),
       join(
         root,
         'artifacts',
         'NativeExplorerObserveBuild',
-        'CapSync.ExplorerProductRootRelinkV2.dll'
+        adaptive ? 'CapSync.AdaptiveRootRelinkV2.dll' : 'CapSync.ExplorerProductRootRelinkV2.dll'
       ),
       join(root, 'tools', 'explorer_root_relocation_v1.py'),
       join(root, 'tools', 'explorer_product_runtime_v6.py'),

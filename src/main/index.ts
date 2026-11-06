@@ -14,6 +14,7 @@ import { join } from 'node:path'
 import { explorerPreviewWorkspace } from './sync/runtime'
 import { extractPackageArg, packageView } from '../shared/package-open'
 import { PackageOpenRequests } from './package-open'
+import { showMainWindow } from './show-window'
 
 const previewWorkspace = explorerPreviewWorkspace()
 const profile = prepareAppProfile(
@@ -37,8 +38,7 @@ function handleOpenFile(filePath: string): void {
   if (!mainWindow || mainWindow.isDestroyed()) openRequests.loading()
   const readyFile = openRequests.receive(filePath)
   if (mainWindow && !mainWindow.isDestroyed()) {
-    if (mainWindow.isMinimized()) mainWindow.restore()
-    mainWindow.focus()
+    showMainWindow(mainWindow)
     if (readyFile) notifyOpenFile(mainWindow, readyFile)
   }
 }
@@ -51,8 +51,7 @@ if (!gotTheLock) {
     const file = extractPackageArg(argv)
     if (file) handleOpenFile(file)
     if (mainWindow && !mainWindow.isDestroyed()) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.focus()
+      showMainWindow(mainWindow)
     }
   })
 
@@ -146,6 +145,8 @@ if (!gotTheLock) {
       if (BrowserWindow.getAllWindows().length === 0) {
         mainWindow = createMainWindow()
         bindClose(mainWindow)
+      } else {
+        showMainWindow(mainWindow)
       }
     })
   })

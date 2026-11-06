@@ -4,14 +4,14 @@
 
 [← Home](../README.en.md) · [Download](https://github.com/WAKUDOdani/WakuShare/releases/latest)
 
-WakuShare runs on Windows x64. The tested editor version is CapCut International 9.6.0.4097. Both the installed and Portable editions start in Russian on first launch. Change the app language in **Settings → Appearance → Interface language**; your saved choice is preserved across launches and updates.
+WakuShare runs on Windows x64. The tested editor version is CapCut International 9.7.1.4203. Both the installed and Portable editions start in Russian on first launch. Change the app language in **Settings → Appearance → Interface language**; your saved choice is preserved across launches and updates.
 
 ## Move a project
 
 1. On the source computer, open **Projects** and select a CapCut project.
 2. Export it. Keep cache transfer enabled for the most complete package. If the app reports missing resources, review the warnings first.
 3. Send the resulting `.wakushare` file to the other computer. Older `.capshare` packages are also supported.
-4. In WakuShare, select **Import**, then drag in the package or choose it through the file dialog. If a project with that name already exists, use a separate copy for your first check.
+4. Close CapCut. In WakuShare, select **Import**, then drag in the package or choose it through the file dialog. If a project with that name already exists, use a separate copy for your first check.
 5. Wait for completion and open the project in CapCut. If it is missing from CapCut's project list, restart the editor.
 
 Multiple timelines and nested compositions are preserved. Original source files stay in place: the imported copy stores them under `Resources/local/Исходники` and updates references to the new files. Independent sources with identical filenames are not merged.
@@ -105,7 +105,7 @@ The prompt applies to new or changed effect resources that may contain Lua/JS, s
 
 ### Will another CapCut version work?
 
-The tested target is CapCut International Windows 9.6.0.4097, x64. Other versions need separate testing. Encrypted JianYing projects are not supported.
+The tested target is CapCut International Windows 9.7.1.4203, x64. Other versions need separate testing. Encrypted JianYing projects are not supported.
 
 ### How do I report a problem?
 
@@ -118,3 +118,11 @@ If a project already exists, Replace or Import as copy choices appear in the sam
 Missing generated covers do not require source-media repair. Warnings about unavailable video, audio, images, or fonts remain significant: check the listed paths before transferring to another computer. Export an older project again to use the corrected handling; an existing package is not changed automatically.
 
 Preset export carries native configs, templates and sidecar files within the library together with their dependencies. If an unsupported external-file error appears, check its reported path: arbitrary external JSON/TXT and executable files are not permitted. Existing packages can still be opened; create a new export to use the corrected re-export handling.
+
+## If auto-sync is paused
+
+WakuShare shows the operation and specific reason, such as an unavailable CapCut interface, modules from different installations, or a source shared across timelines. The editor version number alone no longer blocks operation. Compatibility with every future CapCut change is not guaranteed; the current adapter requires Qt ABI 6.2.2. This adapter was live-tested on Windows 11 with CapCut 9.7.1.4203; it did not receive a separate live Windows 10 or CapCut 9.6 test.
+
+Wait for the project to finish opening if the editor is still preparing it. If the error persists, report both app versions, the operation and the error text in an Issue. Commands whose completion is unknown are not automatically replayed. A warning limited to the library-list refresh means data verification passed; reopen the project to refresh the display.
+
+Closing the window retains WakuShare in the system tray even when sync is paused or disconnected. The icon may be under the Windows hidden-icons arrow. One click or launching the shortcut again opens the window; use the tray menu to quit fully.

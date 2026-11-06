@@ -1,0 +1,288 @@
+using System.Diagnostics;
+using System.Text.Json;
+using CapSync.Core;
+
+// Development-only bridge to the accepted lab primitives. No old polling runner.
+internal sealed class ExplorerNativeAdapter(string root, string statePath, EditorEventChannel editor, bool productRuntime = false, Action<string,long,string>? progress = null, Func<object,Task<JsonElement>>? invokeOverride = null) : IAddBatchAdapter, IUpdateAdapter, IPresenceAdapter, IRestoreAdapter, IDeleteAdapter, ITransferAdapter
+{
+    public string Mode => productRuntime ? "product" : "laboratory";
+    public bool BatchEnabled => productRuntime;
+    private EditorLease? _destinationLease;
+    public bool CanDispatch => editor.Lease() is {} lease && (!productRuntime || (_destinationLease == lease && Destinations.Length > 0));
+    public void InvalidateSession() { Destinations=[]; _destinationLease=null; Status="Waiting"; Reason=null; }
+    public void ConfigureProject(string projectKey, Destination[] destinations) {
+        var lease=editor.Lease();
+        if(lease == null || lease.ProjectKey != projectKey)throw new InvalidDataException("Project changed before destination acknowledgement.");
+        Destinations=destinations.ToArray();_destinationLease=lease;Status="Waiting";Reason=null;
+    }
+    public async Task<IReadOnlyList<AddReply>> ExecuteBatchAsync(Guid batchId,IReadOnlyList<AddJob> jobs)
+    {
+        var lease=editor.Lease();
+        if(!CanDispatch || !productRuntime || jobs.Count is <1 or >16384 || jobs.Any(j=>j.ProjectId!=editor.Lease()?.ProjectKey))
+            return jobs.Select(j=>new AddReply(j.Id,"Waiting",Reason:"Wait for the batch's project to be open.")).ToArray();
+        Status="Applying";
+        try {
+            var value=await Invoke(new {action="batch",batchId,jobs,statePath,editor=editor.State,token=editor.Token});
+            var replies=value.GetProperty("Replies").Deserialize<AddReply[]>(StateStore.JsonOptions) ?? throw new InvalidDataException("Missing batch replies");
+            var commands=value.GetProperty("NativeCommands").GetInt32();if(commands is <0 or >2)throw new InvalidDataException("Invalid batch command count");Commands+=commands;
+            var failed=replies.FirstOrDefault(r=>r.Status is not ("Verified" or "RejectedFormat"));if(lease != null && editor.Matches(lease)){Status=failed?.Status ?? "Verified";Reason=failed?.Reason;}
+            return replies;
+        }catch(PreflightException error){if(lease != null && editor.Matches(lease)){Status="Waiting";Reason=error.Message;}return jobs.Select(j=>new AddReply(j.Id,"Waiting",Reason:error.Message)).ToArray();
+        }catch(Exception error) when(error is IOException or JsonException or InvalidDataException) {
+            var reason=error.Message.StartsWith("AUTOSYNC|") ? error.Message : "Batch completion is unknown; no automatic replay.";if(lease != null && editor.Matches(lease)){Status="Unknown";Reason=reason;}return jobs.Select(j=>new AddReply(j.Id,"Unknown",Reason:reason)).ToArray();
+        }
+    }
+    public async Task<IReadOnlyList<AddReply>> EnsureFoldersBatchAsync(Guid batchId,IReadOnlyList<FolderJob> folders)
+    {
+        var lease=editor.Lease();
+        if(!CanDispatch || !productRuntime || folders.Count is <1 or >4096 || folders.Any(j=>j.ProjectId!=editor.Lease()?.ProjectKey))
+            return folders.Select(j=>new AddReply(j.Id,"Waiting",Reason:"Wait for the directory forest's project.")).ToArray();
+        var jobs=folders.Select(j=>new {j.Id,j.ProjectId,j.RootPath,j.FolderId,j.ParentFolderId,Name=Path.GetFileName(j.RelativePath),SourceDirectory=Path.Combine(j.RootPath,j.RelativePath)}).ToArray();
+        Status="Applying";
+        try{
+            var value=await Invoke(new{action="folders",batchId,jobs,statePath,editor=editor.State,token=editor.Token,destinations=Destinations});
+            var replies=value.GetProperty("Replies").Deserialize<AddReply[]>(StateStore.JsonOptions) ?? throw new InvalidDataException("Missing directory forest replies");
+            var count=value.GetProperty("NativeCommands").GetInt32();if(count is <0 or >1)throw new InvalidDataException("Invalid forest command count");Commands+=count;
+            var failed=replies.FirstOrDefault(r=>r.Status!="Verified");if(lease != null && editor.Matches(lease)){Status=failed?.Status ?? "Verified";Reason=failed?.Reason;}return replies;
+        }catch(PreflightException error){if(lease != null && editor.Matches(lease)){Status="Waiting";Reason=error.Message;}return folders.Select(j=>new AddReply(j.Id,"Waiting",Reason:error.Message)).ToArray();
+        }catch(Exception error) when(error is IOException or JsonException or InvalidDataException){var reason="Directory forest completion is unknown; no replay.";if(lease != null && editor.Matches(lease)){Status="Unknown";Reason=reason;}return folders.Select(j=>new AddReply(j.Id,"Unknown",Reason:reason)).ToArray();}
+    }
+    public bool RemainderEnabled => productRuntime || Environment.GetEnvironmentVariable("WAKUSHARE_LAB_REMAINDER") == "1";
+    public sealed record Destination(Guid Id, string RootPath, string MediaFolderId, string ContainerFolderId, string Name, string[]? PreviousRoots = null);
+    public bool HasRootMoves(SyncState state) => Destinations.Any(d=>state.Bindings.Any(b=>b.Id==d.Id && !SourcePaths.Comparer.Equals(b.RootPath,d.RootPath)));
+    private sealed record RelocatedSource(Guid Id,string Identity,long LastWriteTicks);
+    private sealed record RelocationReply(string Status,Guid ReceiptId,RelocatedSource[] Sources,string? Reason=null,int NativeCommands=0);
+    private async Task<bool> RelocateRoot(SyncState state,Binding binding,Destination destination,Action persist)
+    {
+        var lease=editor.Lease();if(lease==null || !CanDispatch)return false;
+        Status="Applying";Reason=null;progress?.Invoke(binding.ProjectId,editor.State.Generation,"preparing");
+        try {
+            var value=await Invoke(new {action="relocateRoot",bindingId=binding.Id,newRoot=destination.RootPath,
+                previousRoots=destination.PreviousRoots ?? [],statePath,editor=editor.State,token=editor.Token});
+            var reply=value.Deserialize<RelocationReply>(StateStore.JsonOptions) ?? throw new InvalidDataException("Missing root relocation proof");
+            if(reply.NativeCommands is <0 or >1)throw new InvalidDataException("Invalid relocation command count");Commands+=reply.NativeCommands;
+            if(reply.Status!="Verified") {if(editor.Matches(lease)){Status=reply.Status;Reason=reply.Reason;}return false;}
+            var sources=state.Sources.Where(s=>s.BindingId==binding.Id).ToArray();
+            if(reply.ReceiptId==Guid.Empty || reply.Sources==null || reply.Sources.Length!=sources.Length ||
+                reply.Sources.Select(s=>s.Id).Distinct().Count()!=sources.Length || reply.Sources.Any(p=>!sources.Any(s=>s.Id==p.Id) || string.IsNullOrWhiteSpace(p.Identity) || p.LastWriteTicks<0))
+                throw new InvalidDataException("Relocation source membership differs");
+            binding.RootMoves.Add(new(binding.RootPath,destination.RootPath,reply.ReceiptId));binding.RootPath=destination.RootPath;
+            binding.Status="WaitingForRootFolder";
+            foreach(var proof in reply.Sources){var source=sources.Single(s=>s.Id==proof.Id);source.FileIdentity=proof.Identity;source.LastWriteTicks=proof.LastWriteTicks;}
+            // Desired events are recomputed from the now verified physical sources.
+            state.Pending.RemoveAll(p=>p.BindingId==binding.Id);persist();
+            if(editor.Matches(lease)){Status="Verified";Reason=null;}return true;
+        }catch(PreflightException error){if(editor.Matches(lease)){Status="Waiting";Reason=error.Message;}return false;
+        }catch(Exception error) when(error is IOException or JsonException or InvalidDataException){if(editor.Matches(lease)){Status="Unknown";Reason="Root relocation completion is unknown; automatic replay is disabled.";}return false;}
+    }
+    public Destination[] Destinations { get; private set; } = [];
+    public long Commands { get; private set; }
+    public string[] Warnings { get; private set; } = [];
+    public string? Reason { get; private set; }
+    public string Status { get; private set; } = "Waiting";
+    public static int? FindEditor()
+    {
+        var found = new List<int>();
+        foreach (var process in Process.GetProcessesByName("CapCut"))
+        {
+            using (process) try {
+                if (process.Modules.Cast<ProcessModule>().Any(module => module.ModuleName.Equals("VECreator.dll", StringComparison.OrdinalIgnoreCase))) found.Add(process.Id);
+            } catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException) { }
+        }
+        return found.Count == 1 ? found[0] : null;
+    }
+    public sealed record NativeCapability(string Operation,bool Available,string[] Missing);
+    public NativeCapability[] Capabilities { get; private set; } = [];
+    private sealed class PreflightException(string reason) : IOException(reason);
+    public string DisconnectReason(string fallback) {
+        var receipt=Path.Combine(Path.GetDirectoryName(statePath)!,"native-session-"+editor.ConnectionId.ToString("N"),"evidence","bridge-status.json");
+        try {
+            if(new FileInfo(receipt).Length<=16384) {
+                using var value=JsonDocument.Parse(File.ReadAllBytes(receipt));
+                if(value.RootElement.TryGetProperty("reason",out var reason) && reason.GetString() is {} text && text.StartsWith("AUTOSYNC|") && text.Length<=8192)return text;
+            }
+        }catch(Exception error) when(error is IOException or JsonException or UnauthorizedAccessException) { }
+        return fallback;
+    }
+    public async Task Bootstrap()
+    {
+        var result=await Invoke(new { action = "bootstrap", bridge = new { editor.ProcessId, editor.PipeName, editor.Token },
+            evidence = Path.Combine(Path.GetDirectoryName(statePath)!, "native-session-" + editor.ConnectionId.ToString("N")) });
+        if(result.TryGetProperty("capabilities",out var capabilities))Capabilities=capabilities.Deserialize<NativeCapability[]>(new JsonSerializerOptions { PropertyNameCaseInsensitive=true }) ?? [];
+    }
+    private async Task<JsonElement> Invoke(object request, string helper = "explorer_native_runtime.py")
+    {
+        // Internal dependency injection for deterministic transition tests. No IPC or CLI route sets it.
+        if(invokeOverride != null)return await invokeOverride(request);
+        if (productRuntime) helper = "explorer_product_runtime_v6.py";
+        var start = new ProcessStartInfo("python") { UseShellExecute = false, CreateNoWindow = true,
+            RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
+            StandardInputEncoding = new System.Text.UTF8Encoding(false), StandardOutputEncoding = new System.Text.UTF8Encoding(false) };
+        start.Environment["PYTHONIOENCODING"] = "utf-8";
+        start.ArgumentList.Add(Path.Combine(root, "tools", helper));
+        using var process = Process.Start(start) ?? throw new IOException("Cannot start native development adapter.");
+        var progressProject = editor.State.Project?.Value;var progressGeneration=editor.State.Generation;
+        var stdout = process.StandardOutput.ReadToEndAsync();
+        var stderr = ReadDiagnostics(process.StandardError, progressProject,progressGeneration);
+        await process.StandardInput.WriteAsync(JsonSerializer.Serialize(request, StateStore.JsonOptions)); process.StandardInput.Close();
+        await process.WaitForExitAsync();
+        var output = await stdout; var diagnostic = await stderr;
+        if (output.Length > (productRuntime ? 8 * 1024 * 1024 : 65536) || process.ExitCode != 0) {
+            var directory = Path.Combine(Path.GetDirectoryName(statePath)!, "adapter-errors"); Directory.CreateDirectory(directory);
+            await File.WriteAllTextAsync(Path.Combine(directory, Guid.NewGuid().ToString("N") + ".json"),
+                JsonSerializer.Serialize(new { helper, exitCode = process.ExitCode, stderr = diagnostic[..Math.Min(diagnostic.Length, 65536)], stdout = output[..Math.Min(output.Length, 65536)] }, StateStore.JsonOptions));
+            if(output.Length<=65536) {
+                try {
+                    using var failure=JsonDocument.Parse(output);
+                    if(failure.RootElement.TryGetProperty("error",out var error) && error.GetString() is {} reason && reason.StartsWith("AUTOSYNC|",StringComparison.Ordinal) && reason.Length<=8192) {
+                        Reason=reason;
+                        if(failure.RootElement.TryGetProperty("completionUnknown",out var unknown) && unknown.ValueKind==JsonValueKind.False)throw new PreflightException(reason);
+                        throw new IOException(reason);
+                    }
+                }catch(JsonException) { }
+            }
+            throw new IOException("AUTOSYNC|native|adapter_failed|private_journal");
+        }
+        var result=JsonDocument.Parse(output).RootElement.Clone();
+        if(result.TryGetProperty("Warnings",out var warnings)) {
+            var list=warnings.Deserialize<string[]>() ?? [];
+            if(list.Length>16 || list.Any(item=>item.Length>8192 || !item.StartsWith("AUTOSYNC|")))throw new InvalidDataException("Invalid native warning");
+            Warnings=list;
+        }else Warnings=[];
+        return result;
+    }
+    private async Task<string> ReadDiagnostics(StreamReader reader,string? project,long generation)
+    {
+        var diagnostic = new System.Text.StringBuilder();
+        while(await reader.ReadLineAsync() is {} line)
+        {
+            if(line.StartsWith("WAKUSHARE_STAGE ",StringComparison.Ordinal) && project != null &&
+                line[16..] is "preparing" or "importing" or "placing" or "checking")
+                progress?.Invoke(project,generation,line[16..]);
+            else if(diagnostic.Length<65536)diagnostic.AppendLine(line[..Math.Min(line.Length,65536-diagnostic.Length)]);
+        }
+        return diagnostic.ToString();
+    }
+    public async Task<AddReply> Run(string kind, object job, Guid id, string projectKey, string? identity = null, string? retiredMaterialId = null)
+    {
+        var lease = editor.Lease();
+        if (!CanDispatch || lease == null || lease.ProjectKey != projectKey || (!productRuntime && editor.State.Project?.DraftId != "582F1BF9-2B25-4CF2-B83F-3528F1B868B2"))
+            return new(id, "Waiting", Reason: productRuntime ? "Wait for this job's project to be open; another project's queue is retained." : "Open the authorized laboratory project; native dispatch is laboratory-only.");
+        try {
+            Status = "Applying";
+            var value = await Invoke(new { action = "execute", kind, job, statePath, editor = editor.State, token = editor.Token, fileIdentity = identity, retiredMaterialId, mediaAdapters = RemainderEnabled, destinations = Destinations });
+            var reply = value.Deserialize<AddReply>(StateStore.JsonOptions) ?? throw new InvalidDataException("Empty native reply.");
+            if (value.TryGetProperty("NativeCommands", out var commands)) {
+                if (!commands.TryGetInt32(out var count) || count < 0 || count > (RemainderEnabled ? 24 : 8)) throw new InvalidDataException("Invalid native command count.");
+                Commands += count;
+            }
+            // A late durable result remains owned by the old job, never the new project.
+            if(editor.Matches(lease)){Reason = reply.Reason; Status = reply.Status == "RejectedFormat" ? "Waiting" : reply.Status;}
+            return reply;
+        } catch (PreflightException error) {
+            if(editor.Matches(lease)){Reason=error.Message;Status="Waiting";}
+            return new(id,"Waiting",Reason:error.Message);
+        } catch (Exception error) when (error is IOException or JsonException or InvalidDataException) {
+            var reason = error.Message.StartsWith("AUTOSYNC|") ? error.Message : "Native completion is unknown; automatic replay is disabled.";
+            if(editor.Matches(lease)){Reason=reason;Status="Unknown";}
+            return new(id, "Unknown", Reason: reason);
+        }
+    }
+    public async Task<bool> EnsureRoots(SyncState state, Action persist, CancellationToken cancellation)
+    {
+        var current = editor.State.Project;var lease=editor.Lease();
+        if (!CanDispatch || current == null || lease == null) return false;
+        var destinations=Destinations.ToArray();
+        foreach (var destination in destinations)
+        {
+            var owned=state.Bindings.Single(b=>b.Id==destination.Id && b.ProjectId==current.Value);
+            if(!SourcePaths.Comparer.Equals(owned.RootPath,destination.RootPath)) {
+                if(cancellation.IsCancellationRequested || !await RelocateRoot(state,owned,destination,persist))return false;
+                if(!editor.Matches(lease) || cancellation.IsCancellationRequested)return false;
+            }
+            foreach (var folder in new[] {
+                (Id: destination.ContainerFolderId, Parent: "", Name: "WakuShare"),
+                (Id: destination.MediaFolderId, Parent: destination.ContainerFolderId, Name: destination.Name) }.Where(folder => folder.Id.Length > 0))
+            {
+                if (cancellation.IsCancellationRequested || !editor.Matches(lease) || !CanDispatch) return false;
+                // The adapter's durable marker owns creation; an existing UUID is
+                // accepted only with its matching verified receipt.
+                var id = Guid.Parse(folder.Id);
+                var directory = productRuntime || folder.Parent != "" ? destination.RootPath : Path.Combine(root, "research", "fixtures", "AutoAddLab", "ExplorerRuntime");
+                if (!productRuntime) Directory.CreateDirectory(Path.Combine(root, "research", "fixtures", "AutoAddLab", "ExplorerRuntime"));
+                if (!Directory.Exists(directory)) { Status = "Waiting"; Reason = "Selected source root is unavailable."; return false; }
+                var reply = await Run("folder", new { Id = id, ProjectId = current.Value, RootPath = directory,
+                    FolderId = folder.Id, ParentFolderId = folder.Parent, Name = folder.Name, SourceDirectory = directory }, id, current.Value);
+                if (reply.Status != "Verified") return false;
+            }
+            if(!editor.Matches(lease) || !CanDispatch)return false;
+            var binding = state.Bindings.Single(b => b.Id == destination.Id && b.ProjectId == current.Value);
+            binding.Status = "Ready"; persist();
+        }
+        return true;
+    }
+    public Task<AddReply> ExecuteAsync(AddJob job) => Run("add", job, job.Id, job.ProjectId, job.FileIdentity);
+    public Task<AddReply> TransferAsync(TransferJob job) => RemainderEnabled
+        ? Run("transfer", job, job.Id, job.ProjectId, job.FileIdentity)
+        : Task.FromResult(new AddReply(job.Id, "Waiting", Reason: "Cross-root laboratory acceptance is not enabled."));
+    public Task<AddReply> RestoreRemovedAsync(RestoreJob job) => Run("restore", job.Import, job.Import.Id, job.Import.ProjectId, job.Import.FileIdentity, job.PreviousMaterialId);
+    public async Task<string[]?> ReadCatalog()
+    {
+        var lease=editor.Lease();
+        if (!RemainderEnabled || !CanDispatch || lease == null) return null;
+        var project = editor.State.Project!;
+        try {
+            var result = await Invoke(new { action = "catalog", statePath, editor = editor.State, token = editor.Token }, "explorer_catalog_runtime.py");
+            if (!result.GetProperty("Verified").GetBoolean() || editor.State.Project != project ||
+                !result.TryGetProperty("ProjectKey",out var projectKey) || projectKey.GetString() != project.Value || result.GetProperty("DraftId").GetString() != project.DraftId) {
+                if(editor.Matches(lease)){Status="Waiting";Reason=result.TryGetProperty("Reason",out var reason) ? reason.GetString() : "AUTOSYNC|read|catalog_unavailable|session changed";}
+                return null;
+            }
+            var ids = result.GetProperty("MaterialIds").Deserialize<string[]>() ?? [];
+            if (ids.Length > (productRuntime ? 16384 : 512) || ids.Any(string.IsNullOrWhiteSpace) || ids.Distinct(StringComparer.Ordinal).Count() != ids.Length)
+                throw new InvalidDataException("Invalid complete catalog identities.");
+            return ids;
+        } catch (Exception error) when (error is IOException or JsonException or InvalidDataException) {
+            if(editor.Matches(lease)){Reason = error.Message.StartsWith("AUTOSYNC|") ? error.Message : "A complete SDK/catalog read is unavailable; no restoration was dispatched."; Status = "Waiting";} return null;
+        }
+    }
+    public async Task<AddReply> TrackPresenceAsync(UpdateJob job)
+    {
+        if (!RemainderEnabled || editor.Lease()?.ProjectKey != job.ProjectId) return new(job.Id, "Waiting", Reason: "Wait for the owned laboratory session.");
+        try {
+            var source = new StateStore(statePath).Load().Sources.Single(s => s.Id == job.SourceId);
+            var result = await Invoke(new { action = "presence", job, statePath, editor = editor.State, token = editor.Token, fileIdentity = source.FileIdentity }, "explorer_catalog_runtime.py");
+            return result.Deserialize<AddReply>(StateStore.JsonOptions) ?? new(job.Id, "Waiting", Reason: "Empty presence observation.");
+        } catch (Exception error) when (error is IOException or JsonException or InvalidDataException) {
+            return new(job.Id, "Waiting", Reason: error.Message.StartsWith("AUTOSYNC|") ? error.Message : "Source presence is changing; wait for the next event.");
+        }
+    }
+    public async Task<AddReply> DeleteUnusedAsync(UpdateJob job)
+    {
+        if (!RemainderEnabled || editor.Lease()?.ProjectKey != job.ProjectId) return new(job.Id, "Waiting", Reason: "Wait for the owned laboratory session.");
+        try {
+            var result = await Invoke(new { action = "delete", job, statePath, editor = editor.State, token = editor.Token }, "explorer_catalog_runtime.py");
+            if (result.TryGetProperty("NativeCommands", out var commands) && commands.TryGetInt32(out var count) && count is >= 0 and <= 1) Commands += count;
+            return result.Deserialize<AddReply>(StateStore.JsonOptions) ?? new(job.Id, "Unknown", Reason: "Empty stock removal receipt; no replay.");
+        } catch (PreflightException error) { return new(job.Id,"Waiting",Reason:error.Message);
+        } catch (Exception error) when (error is IOException or JsonException or InvalidDataException) {
+            return new(job.Id, "Unknown", Reason: error.Message.StartsWith("AUTOSYNC|") ? error.Message : "Stock removal completion is unknown; no automatic replay.");
+        }
+    }
+    public Task<AddReply> UpdateAsync(UpdateJob job)
+    {
+        if(!CanDispatch || editor.Lease()?.ProjectKey != job.ProjectId)return Task.FromResult(new AddReply(job.Id,"Waiting",Reason:"Wait for the owned project."));
+        if (job.Flags != ChangeFlags.Path || !(RemainderEnabled ? MediaFormats.IsCandidate(job.RelativePath) :
+            new[] { ".png", ".jpg", ".jpeg" }.Contains(Path.GetExtension(job.RelativePath), StringComparer.OrdinalIgnoreCase)))
+        {
+            Status = "Waiting"; Reason = "Wait for an accepted media path adapter.";
+            return Task.FromResult(new AddReply(job.Id, "Waiting", Reason: Reason));
+        }
+        var state = new StateStore(statePath).Load();
+        return Run("update", job, job.Id, job.ProjectId, state.Sources.Single(source => source.Id == job.SourceId).FileIdentity);
+    }
+    public Task<AddReply> EnsureFolderAsync(FolderJob job) => Run("folder", new {
+        job.Id, job.ProjectId, job.RootPath, job.FolderId, job.ParentFolderId,
+        Name = Path.GetFileName(job.RelativePath), SourceDirectory = Path.Combine(job.RootPath, job.RelativePath)
+    }, job.Id, job.ProjectId);
+}
