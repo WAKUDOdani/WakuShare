@@ -239,6 +239,36 @@ it('allows ordinary media in the extended local drive syntax only', () => {
   expect(() => assertRelativeResource('//?/C:/media/photo.png')).toThrow()
 })
 
+it('permits external native compound configs only in their declared semantic field', () => {
+  for (const path of [
+    'S:/CapCut/subdraft/id/sub_draft_config.json',
+    String.raw`D:\CapCut\subdraft\id\SUB_DRAFT_CONFIG.JSON`,
+    '//?/E:/CapCut/subdraft/id/sub_draft_config.json'
+  ]) {
+    for (const pointer of [
+      '/materials/drafts/0/draft_config_path',
+      '/composition~json/materials/drafts/12/draft_config_path'
+    ])
+      expect(() => assertExportResource(path, true, pointer)).not.toThrow()
+    for (const pointer of ['', '/custom_path', '/materials/videos/0/path'])
+      expect(() => assertExportResource(path, true, pointer)).toThrow()
+    expect(() =>
+      assertExportResource(path, false, '/materials/drafts/0/draft_config_path')
+    ).toThrow()
+  }
+  for (const file of ['private.json', 'token.txt', 'key.pem', 'effect.js', 'code.exe'])
+    expect(() =>
+      assertExportResource('S:/private/' + file, true, '/materials/drafts/0/draft_config_path')
+    ).toThrow()
+  expect(() =>
+    assertExportResource(
+      '//server/share/sub_draft_config.json',
+      true,
+      '/materials/drafts/0/draft_config_path'
+    )
+  ).toThrow()
+})
+
 it('turns a failing progress subscriber into a rejected operation', async () => {
   const file = await archive([{ name: 'photo.png' }])
   await expect(

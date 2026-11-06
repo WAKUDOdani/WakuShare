@@ -3,7 +3,8 @@ import {
   assertRelativeResource,
   assertResourceScheme,
   isResourceField,
-  isExternalResource
+  isExternalResource,
+  isProvenanceField
 } from '../reference-policy'
 import { effectResourceRequiresTrust, type ApproveActiveContent } from '../payload-policy'
 import { approveNewResources, type ExistingResource } from '../resource-trust'
@@ -16,6 +17,7 @@ import {
   mkdir,
   readFile,
   readdir,
+  realpath,
   rename,
   rm,
   stat,
@@ -319,6 +321,37 @@ async function buildPresetPlan(
   const missing = new Set<string>()
   const mediaArchiveNames = new Set<string>()
   const missingReferences: { owner: string; path: string }[] = []
+  const resolvedPaths = new Map<string, Promise<string>>()
+  const resolveOnce = (path: string): Promise<string> => {
+    const id = key(path)
+    let resolved = resolvedPaths.get(id)
+    if (!resolved) {
+      resolved = realpath(path)
+      resolvedPaths.set(id, resolved)
+    }
+    return resolved
+  }
+  const within = (path: string, root: string): boolean =>
+    key(path) === key(root) || key(path).startsWith(key(root) + '/')
+  const validateOwnedResource = async (disk: string, ownerFolder: string): Promise<boolean> => {
+    // Native preset documents can reference opaque configs, template files and
+    // resource directories. They are already part of the preset-owned data,
+    // unlike an arbitrary external path. Keep this exception root-bounded.
+    const ownedRoot = [ownerFolder, join(root, 'Combination/Resources')].find((candidate) =>
+      within(disk, candidate)
+    )
+    if (!ownedRoot) return false
+    const rel = jsonPath(relative(ownedRoot, resolve(disk)))
+    if (rel) assertRelativeResource(rel)
+    if (existsSync(disk)) {
+      if (!within(await resolveOnce(disk), await resolveOnce(ownedRoot)))
+        throw new CapShareError(
+          'EXPORT_FAILED',
+          `Linked preset resources are not supported: ${disk}`
+        )
+    }
+    return true
+  }
   for (const node of nodes.filter((node) => node.kind === 'preset')) {
     const storage = library.storage.get(node.id)!
     if (existsSync(join(storage.directory, 'preset_draft/Timelines/project.json')))
@@ -357,7 +390,7 @@ async function buildPresetPlan(
     const ownerFolder = library.storage.get(document.owner)?.directory ?? root
     for (const ref of found) {
       checkCancel(options.signal)
-      if (!ref.value || ref.pointer.includes('draft_materials_copied_info')) continue
+      if (!ref.value || isProvenanceField(ref.pointer)) continue
       const cls = classifyString(ref.value)
       const presetPlaceholder = /^##_presetpath_placeholder_[0-9a-f-]+_##[/\\]/i.exec(ref.value)
       if (
@@ -370,7 +403,6 @@ async function buildPresetPlan(
         continue
       if (cls.cls === 'unc') assertExportResource(ref.value)
       if (cls.cls === 'absolute' && !isExternalResource(ref.value, ref.pointer, true)) continue
-      if (cls.cls === 'absolute') assertExportResource(ref.value, true)
       if (cls.cls === 'effect-cache' && cls.cacheSuffix) assertRelativeResource(cls.cacheSuffix)
       let disk = cls.normalized
       if (presetPlaceholder) assertRelativeResource(ref.value.slice(presetPlaceholder[0].length))
@@ -396,6 +428,8 @@ async function buildPresetPlan(
         if (logical && existsSync(join(root, logical[1]))) disk = join(root, logical[1])
       }
       if (!existsSync(disk)) disk = overrides.get(jsonPath(ref.value).toLowerCase()) ?? disk
+      if (cls.cls === 'absolute' && !(await validateOwnedResource(disk, ownerFolder)))
+        assertExportResource(disk, true, ref.pointer)
       if (!existsSync(disk)) {
         missing.add(ref.value)
         if (
@@ -936,7 +970,7 @@ export async function importPresets(
         manifest.references.filter((ref) => ref.owner === owner).map((ref) => [ref.from, ref])
       )
       return (current, pointer) => {
-        if (pointer.includes('draft_materials_copied_info')) return undefined
+        if (isProvenanceField(pointer)) return undefined
         assertResourceScheme(current, pointer)
         if (
           classifyString(current).cls === 'relative' &&

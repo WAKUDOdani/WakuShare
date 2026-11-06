@@ -115,6 +115,7 @@
   "Network resource references are not supported in transferable packages": "Сетевые пути не поддерживаются в пакетах переноса. Скопируй исходники на локальный диск.",
   "Unsupported resource URI scheme": "Этот тип ссылки на ресурс не поддерживается.",
   "An external reference is not a supported media, font or preset document": "Внешняя ссылка ведёт на неподдерживаемый тип файла.",
+  "An external reference is not a supported media, font or preset document: {0}": "Внешняя ссылка ведёт на неподдерживаемый тип файла: {0}",
   "Native completion is unknown; automatic replay is disabled.": "Не удалось подтвердить результат операции в CapCut. Повторный запуск заблокирован, чтобы избежать дублей.",
   "Directory forest completion is unknown; no replay.": "Не удалось подтвердить создание папок в CapCut. Повторная операция заблокирована."
 }

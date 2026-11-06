@@ -1,5 +1,6 @@
 import {
   assertExportResource,
+  isProvenanceField,
   assertRelativeResource,
   isExternalResource
 } from '../reference-policy'
@@ -179,11 +180,7 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
     // Provenance-only fields: where media was imported FROM originally. The
     // copies already live in Resources/local — bundling these would duplicate
     // gigabytes and rewrite fields CapCut treats as informational.
-    if (
-      item.pointer.includes('draft_materials_copied_info') ||
-      /\/(?:draft_fold_path|draft_root_path)$/.test(item.pointer)
-    )
-      continue
+    if (isProvenanceField(item.pointer)) continue
 
     const packaged = internalReference(item.value, item.pointer, item.document)
     if (packaged !== undefined) {

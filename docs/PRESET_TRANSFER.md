@@ -24,6 +24,10 @@ Other preset formats, including Text_V2 and Adjust, are not supported yet. The p
 
 ## Source files and import
 
+Native documents, template mirrors and opaque sidecars inside the selected preset directory or the library's `Combination/Resources` tree keep their original formats. These resources are checked against their real filesystem location; a symlink or junction cannot use this rule to read outside that tree. Repeated references share filesystem-resolution results within the operation. Outside those roots, arbitrary JSON/text files remain blocked. A compound's `materials/drafts/<index>/draft_config_path` can reference the native `sub_draft_config.json` document; it is inspected recursively for further dependencies. Original storage-location metadata is preserved as provenance rather than collected as a dependency. Unsupported external-file errors identify the offending path.
+
+Regression coverage includes three successive export/import cycles of native documents and template resources, standard media/font/subtitle formats, nested private-file rejection, and escaping junctions. Project transfer retains its existing coverage of internal compound configs, smart-crop caches and generated covers.
+
 Missing dependencies stop export before an archive is published. The page lists the missing paths and affected presets. A user can locate a replacement file or resource folder and retry, or deselect the affected presets. Files are never matched by name alone. The source preset library is not rewritten.
 
 Close CapCut before importing presets. The page displays its running state, and the main process checks again at the start and before committing changes. An unsuccessful process query blocks import. The Launch CapCut button is available after the operation. CapCut is not launched automatically.

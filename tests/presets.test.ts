@@ -114,6 +114,120 @@ afterEach(() => {
 })
 
 describe('composition preset transfer', () => {
+  it('roundtrips standard media, fonts, subtitles and native sidecar formats', async () => {
+    const formats = ['ts', 'mts', 'm2ts', 'wmv', 'flv', '3gp', 'heif', 'ico', 'srt', 'woff2']
+    const native = [
+      'draft_biz_config.json',
+      'draft_meta_info.json',
+      'sub_draft_config.json',
+      'template.tmp',
+      'native-layout.dat',
+      'settings.txt'
+    ]
+    const draftPath = join(root, 'Combination/Presets/One/preset_draft/draft_content.json')
+    const references: { path: string }[] = []
+    for (const name of [...formats.map((extension) => 'resource.' + extension), ...native]) {
+      const file = join(root, 'Combination/Resources/native', name)
+      write(file, /\.json$|\.tmp$/.test(name) ? { native: name } : 'inert bytes')
+      references.push({ path: slash(file) })
+    }
+    write(draftPath, { ...json(draftPath), sidecars: references })
+    const archive = join(tmp, 'formats.wakupresets'),
+      target = join(tmp, 'formats/Presets')
+    await exportPresets(root, ['p1'], archive, env)
+    await importPresets(archive, ['p1'], target, env, join(tmp, 'backup'))
+    const storage = [...(await readLibrary(target)).storage.values()][0]
+    const restored = json(join(storage.directory, 'preset_draft/draft_content.json'))
+    const files = restored['sidecars'] as { path: string }[]
+    expect(files).toHaveLength(references.length)
+    files.forEach((file, index) =>
+      expect(readFileSync(file.path)).toEqual(readFileSync(references[index].path))
+    )
+  })
+
+  it('preserves native preset documents and opaque owned resources through repeated transfers', async () => {
+    const folder = join(root, 'Combination/Presets/One')
+    const config = join(root, 'Combination/Resources/compound/sub_draft_config.json')
+    const outsideConfig = join(tmp, 'original-project/subdraft/id/sub_draft_config.json')
+    const opaque = join(root, 'Combination/Resources/compound/layout.dat')
+    const ownDocument = join(folder, 'preset_draft/draft_settings.json')
+    const template = join(folder, 'preset_draft/template-2.tmp')
+    write(config, { font_file: slash(join(tmp, 'source/font.ttf')), layout_path: slash(opaque) })
+    write(outsideConfig, { canvas: { width: 1080, height: 1920 } })
+    write(opaque, 'native layout bytes')
+    write(ownDocument, { enabled: true })
+    const draft = json(join(folder, 'preset_draft/draft_content.json'))
+    draft['materials'] = {
+      drafts: [{ draft_config_path: slash(config) }, { draft_config_path: slash(outsideConfig) }]
+    }
+    draft['settings_path'] = slash(ownDocument)
+    draft['template_path'] = slash(template)
+    draft['draft_root_path'] = 'C:/original/CapCut/projects'
+    write(join(folder, 'preset_draft/draft_content.json'), draft)
+    const original = readFileSync(join(folder, 'preset_draft/draft_content.json'))
+    let currentRoot = root,
+      selection = ['p1']
+    for (let pass = 0; pass < 3; pass++) {
+      const archive = join(tmp, `native-${pass}.wakupresets`)
+      const target = join(tmp, `restored-${pass}/Presets`)
+      await exportPresets(currentRoot, selection, archive, env)
+      await importPresets(archive, selection, target, env, join(tmp, `backups-${pass}`))
+      const library = await readLibrary(target)
+      const storage = [...library.storage.values()][0]
+      const restored = json(join(storage.directory, 'preset_draft/draft_content.json'))
+      const drafts = (restored['materials'] as { drafts: { draft_config_path: string }[] }).drafts
+      const saved = json(drafts[0].draft_config_path)
+      expect(readFileSync(String(saved['font_file']), 'utf8')).toBe('font bytes')
+      expect(readFileSync(String(saved['layout_path']), 'utf8')).toBe('native layout bytes')
+      expect(json(drafts[1].draft_config_path)).toEqual({ canvas: { width: 1080, height: 1920 } })
+      expect(json(String(restored['settings_path']))).toEqual({ enabled: true })
+      expect(json(String(restored['template_path']))['untouched']).toEqual(draft['untouched'])
+      expect(restored['draft_root_path']).toBe('C:/original/CapCut/projects')
+      currentRoot = target
+      selection = library.view.nodes.filter((node) => node.kind === 'preset').map((node) => node.id)
+    }
+    expect(readFileSync(join(folder, 'preset_draft/draft_content.json'))).toEqual(original)
+  })
+
+  it.each(['private.json', 'token.txt', 'key.pem', 'sub_draft_config.json'])(
+    'does not treat arbitrary external %s as an owned preset resource',
+    async (name) => {
+      const file = join(tmp, 'private', name)
+      write(file, '{}')
+      const draftPath = join(root, 'Combination/Presets/One/preset_draft/draft_content.json')
+      write(draftPath, { ...json(draftPath), custom_path: slash(file) })
+      await expect(
+        exportPresets(root, ['p1'], join(tmp, 'blocked.wakupresets'), env)
+      ).rejects.toThrow(slash(file))
+      expect(existsSync(join(tmp, 'blocked.wakupresets'))).toBe(false)
+    }
+  )
+
+  it('rejects private references nested in a native owned config', async () => {
+    const config = join(root, 'Combination/Resources/compound/sub_draft_config.json')
+    write(config, { token_path: slash(join(tmp, 'private/token.txt')) })
+    const draftPath = join(root, 'Combination/Presets/One/preset_draft/draft_content.json')
+    write(draftPath, { materials: { drafts: [{ draft_config_path: slash(config) }] } })
+    await expect(
+      exportPresets(root, ['p1'], join(tmp, 'blocked.wakupresets'), env)
+    ).rejects.toThrow('token.txt')
+  })
+
+  it('rejects a junction escaping the owned preset resource root', async () => {
+    const privateRoot = join(tmp, 'private')
+    write(join(privateRoot, 'sub_draft_config.json'), {})
+    const link = join(root, 'Combination/Resources/linked')
+    const { symlinkSync } = await import('node:fs')
+    symlinkSync(privateRoot, link, process.platform === 'win32' ? 'junction' : 'dir')
+    const draftPath = join(root, 'Combination/Presets/One/preset_draft/draft_content.json')
+    write(draftPath, {
+      materials: { drafts: [{ draft_config_path: slash(join(link, 'sub_draft_config.json')) }] }
+    })
+    await expect(
+      exportPresets(root, ['p1'], join(tmp, 'blocked.wakupresets'), env)
+    ).rejects.toThrow('Linked preset resources')
+  })
+
   it.skipIf(process.platform !== 'win32')(
     'roundtrips local extended paths in preset media, fonts and effect caches',
     async () => {
