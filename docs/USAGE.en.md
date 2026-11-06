@@ -116,3 +116,5 @@ Create an [Issue](https://github.com/WAKUDOdani/WakuShare/issues) with your Waku
 If a project already exists, Replace or Import as copy choices appear in the same project card. Replacing keeps a backup of the previous project. When opening CapCut, wait for the button to report the result; repeated clicks are unnecessary. If the editor does not appear, the app reports it; a hidden running process is not terminated automatically.
 
 Missing generated covers do not require source-media repair. Warnings about unavailable video, audio, images, or fonts remain significant: check the listed paths before transferring to another computer. Export an older project again to use the corrected handling; an existing package is not changed automatically.
+
+Preset export carries native configs, templates and sidecar files within the library together with their dependencies. If an unsupported external-file error appears, check its reported path: arbitrary external JSON/TXT and executable files are not permitted. Existing packages can still be opened; create a new export to use the corrected re-export handling.
