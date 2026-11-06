@@ -639,7 +639,7 @@ export function PresetsView({
           </div>
         )}
         {error && (
-          <p role="alert" className="rounded-xl bg-danger/10 p-3 text-sm">
+          <p role="alert" className="break-words rounded-xl bg-danger/10 p-3 text-sm">
             {t(error)}
           </p>
         )}
