@@ -142,6 +142,40 @@ async function exportCase(): Promise<string> {
 }
 
 describe('complete portable multi-timeline project', () => {
+  it('omits detached CapCut timeline folders from export and preserves the indexed timelines', async () => {
+    const detachedId = randomUUID().toUpperCase()
+    const prefix = `Timelines/${detachedId}/`
+    const detached = timeline(detachedId, 'C:/missing/detached.png', 10)
+    write(join(source, prefix, 'draft_content.json'), detached)
+    write(join(source, prefix, 'template-2.tmp'), detached)
+
+    const archive = await exportCase()
+    const entries = await readZipEntries(archive, ['manifest.json'])
+    const manifest = parseManifest(entries.get('manifest.json')!.toString())
+    expect(Object.keys(manifest.integrity).some((entry) => entry.startsWith(prefix))).toBe(false)
+    const restored = await importCapshare({
+      filePath: archive,
+      env,
+      resolution: 'copy',
+      backupDir: join(root, 'backups')
+    })
+    const graph = validateTimelineGraph(await readProjectDocuments(restored.folderPath))!
+    expect(graph.timelines.map((entry) => entry.name)).toEqual(['13', '14', '15', '16'])
+    expect(json(join(source, prefix, 'draft_content.json'))).toEqual(detached)
+  })
+
+  it('rejects an undeclared timeline when a working document references it', async () => {
+    const detachedId = randomUUID().toUpperCase()
+    write(
+      join(source, 'Timelines', detachedId, 'draft_content.json'),
+      timeline(detachedId, external[0], 10)
+    )
+    write(join(source, 'attachment_pc_common.json'), {
+      embedded: JSON.stringify({ timelineId: detachedId })
+    })
+    await expect(exportCase()).rejects.toThrow(`undeclared timeline directory ${detachedId}`)
+  })
+
   it.each(['copy', 'replace'] as const)(
     'keeps all 13 timelines on a 9.7 target during %s import',
     async (resolution) => {

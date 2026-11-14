@@ -12,8 +12,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.31/WakuShare-1.3.31-setup-x64.exe"><img src="docs/assets/download-windows.svg" width="232" height="44" alt="Скачать установщик WakuShare 1.3.31 для Windows x64"></a>
-  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.31/WakuShare-1.3.31-portable-x64.exe"><img src="docs/assets/download-portable.svg" width="190" height="44" alt="Скачать WakuShare 1.3.31 Portable без установки"></a>
+  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.32/WakuShare-1.3.32-setup-x64.exe"><img src="docs/assets/download-windows.svg" width="232" height="44" alt="Скачать установщик WakuShare 1.3.32 для Windows x64"></a>
+  <a href="https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.32/WakuShare-1.3.32-portable-x64.exe"><img src="docs/assets/download-portable.svg" width="190" height="44" alt="Скачать WakuShare 1.3.32 Portable без установки"></a>
 </p>
 
 <p align="center">
@@ -31,8 +31,8 @@
 </p>
 
 <p align="center">
-  <a href="docs/assets/explorer-1.3.31.png"><img src="docs/assets/explorer-1.3.31.png" width="1080" alt="Проводник WakuShare: подключённая папка, выбор области синхронизации и завершённый импорт"></a>
-  <br><sub>Настоящий интерфейс WakuShare 1.3.31. Демонстрационные данные. Нажми на изображение, чтобы открыть полный размер.</sub>
+  <a href="docs/assets/explorer-1.3.32.png"><img src="docs/assets/explorer-1.3.32.png" width="1080" alt="Проводник WakuShare: подключённая папка, выбор области синхронизации и завершённый импорт"></a>
+  <br><sub>Настоящий интерфейс WakuShare 1.3.32. Демонстрационные данные. Нажми на изображение, чтобы открыть полный размер.</sub>
 </p>
 
 ## Возможности
@@ -43,14 +43,14 @@
 | **Поделиться пресетами**    | Экспортирует и импортирует композиционные пресеты в `.wakupresets`: по отдельности или вместе с папками. Позволяет проверить дубликаты и выбрать копирование, пропуск или замену с резервной копией.                    |
 | **Держать медиа под рукой** | Раздел «Проводник» добавляет папки Windows в медиатеку CapCut с сохранением вложенности. Общие папки доступны всем проектам, дополнительные настраиваются по клиентам и проектам; изменения обрабатываются по событиям. |
 
-В 1.3.31 исправлены подключение автосинхронизации к CapCut 9.7, запуск редактора после импорта и восстановление окна через трей. Импорт проверяет индекс всех временных шкал перед добавлением проекта. [Что изменилось →](docs/RELEASE-1.3.31.md)
+В 1.3.32 исправлен экспорт проектов CapCut, в которых остались папки отсоединённых шкал. Все шкалы из индекса проекта сохраняются. [Что изменилось →](docs/RELEASE-1.3.32.md)
 
 Пакетный импорт передаёт новые файлы одним списком, а шкала показывает подтверждённый прогресс. Скорость обработки зависит от количества файлов, диска и самого CapCut.
 
 <details>
 <summary><strong>Посмотреть раздел «Пресеты»</strong></summary>
 
-<a href="docs/assets/presets-1.3.31.png"><img src="docs/assets/presets-1.3.31.png" width="1080" alt="Пресеты WakuShare: выбор папок и экспорт выбранного"></a>
+<a href="docs/assets/presets-1.3.32.png"><img src="docs/assets/presets-1.3.32.png" width="1080" alt="Пресеты WakuShare: выбор папок и экспорт выбранного"></a>
 
 Можно открыть чужой пакет, выбрать нужное и импортировать в свою библиотеку. Исходники и доступные файлы шрифтов переносятся вместе с пресетами.
 
@@ -59,7 +59,7 @@
 <details>
 <summary><strong>Папки для отдельных проектов</strong></summary>
 
-<a href="docs/assets/explorer-projects-1.3.31.png"><img src="docs/assets/explorer-projects-1.3.31.png" width="1080" alt="WakuShare: общие папки и дополнительные материалы для выбранного проекта"></a>
+<a href="docs/assets/explorer-projects-1.3.32.png"><img src="docs/assets/explorer-projects-1.3.32.png" width="1080" alt="WakuShare: общие папки и дополнительные материалы для выбранного проекта"></a>
 
 Подготовь папки клиента заранее и примени набор к нескольким проектам. Общая медиатека остаётся включённой для всех. Карандаш позволяет заменить подключение или восстановить пути после переезда прежней папки; удаление подключения сохраняет исходники и клипы.
 
@@ -71,8 +71,8 @@
 
 | Вариант                                                                                                                    | Для кого                               | Обновления                                                                   |
 | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------- |
-| [**Установщик 1.3.31**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.31/WakuShare-1.3.31-setup-x64.exe)  | Обычная установка приложения в Windows | Приложение проверяет обновления; установку скачанного выпуска запускаешь сам |
-| [**Portable 1.3.31**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.31/WakuShare-1.3.31-portable-x64.exe) | Запуск без установки                   | Скачать новую Portable-версию и заменить старый EXE                          |
+| [**Установщик 1.3.32**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.32/WakuShare-1.3.32-setup-x64.exe)  | Обычная установка приложения в Windows | Приложение проверяет обновления; установку скачанного выпуска запускаешь сам |
+| [**Portable 1.3.32**](https://github.com/WAKUDOdani/WakuShare/releases/download/v1.3.32/WakuShare-1.3.32-portable-x64.exe) | Запуск без установки                   | Скачать новую Portable-версию и заменить старый EXE                          |
 
 [Все выпуски и контрольные суммы](https://github.com/WAKUDOdani/WakuShare/releases). Для работы нужен один EXE. `latest.yml`, `.blockmap` и runtime-архив скачивать вручную не требуется. `Source code` содержит исходники, а не готовое приложение.
 

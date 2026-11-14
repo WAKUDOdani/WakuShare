@@ -24,14 +24,79 @@ export interface TimelineGraph {
   timelines: { id: string; name: string; relativePath: string }[]
 }
 
-/** Preserve every timeline and library entry, including unused compositions.
- * Unreferenced UUID subdraft directories are detached editor leftovers, not
- * library entries. Legacy/unknown directory shapes remain conservative. */
+function collectDocumentIds(doc: ProjectDocument, collect: (id: string) => void): void {
+  const scan = (text: string): void => {
+    for (const match of text.matchAll(/[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}/gi))
+      collect(match[0].toLowerCase())
+  }
+  scan(JSON.stringify(doc.value)) // Includes UUID-valued object keys.
+  walkJsonStrings(doc.value, (value) => {
+    scan(value) // Also decodes embedded JSON strings.
+    return undefined
+  })
+}
+
+/** Keep indexed timelines and library entries. Omit detached directories from
+ * the portable snapshot when the live project does not reference them. */
 export function portableProjectDocuments(all: Map<string, ProjectDocument>): {
   documents: Map<string, ProjectDocument>
   excludes: (relative: string) => boolean
 } {
   const proxy = new Set(['draft_agency_config.json', 'draft_agency_info.json'])
+  const project = object(all.get('Timelines/project.json')?.value)
+  const timelineDirectory = /^Timelines\/([a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})(?:\/|$)/i
+  const detachedTimelines = new Set<string>()
+  if (Array.isArray(project['timelines'])) {
+    const indexed = new Set(
+      project['timelines'].map((item) => String(object(item)['id']).toLowerCase())
+    )
+    const matchingDocuments = new Map<string, boolean>()
+    for (const [name, doc] of all) {
+      const match = timelineDirectory.exec(name)
+      if (!match) continue
+      const id = match[1].toLowerCase()
+      if (
+        indexed.has(id) ||
+        !TIMELINE_FILENAMES.some((filename) => name === `Timelines/${match[1]}/${filename}`)
+      ) {
+        continue
+      }
+      matchingDocuments.set(
+        id,
+        matchingDocuments.get(id) !== false && object(doc.value)['id'] === match[1]
+      )
+    }
+    for (const [id, matches] of matchingDocuments) {
+      if (matches) detachedTimelines.add(id)
+    }
+    // An external reference can still own a timeline absent from the index.
+    // Follow references transitively so the graph validator can report it.
+    if (detachedTimelines.size) {
+      const references = new Set<string>()
+      const candidates = new Map<string, ProjectDocument[]>()
+      const collect = (id: string): void => {
+        if (detachedTimelines.has(id)) references.add(id)
+      }
+      for (const [name, doc] of all) {
+        const id = timelineDirectory.exec(name)?.[1].toLowerCase()
+        if (!id || !detachedTimelines.has(id)) {
+          collectDocumentIds(doc, collect)
+          continue
+        }
+        const owned = candidates.get(id) ?? []
+        owned.push(doc)
+        candidates.set(id, owned)
+      }
+      for (const id of references) {
+        for (const doc of candidates.get(id) ?? []) collectDocumentIds(doc, collect)
+      }
+      for (const id of references) detachedTimelines.delete(id)
+    }
+  }
+  const excludesTimeline = (relative: string): boolean => {
+    const id = timelineDirectory.exec(relative)?.[1].toLowerCase()
+    return id !== undefined && detachedTimelines.has(id)
+  }
   const subdraft = /^subdraft\/([a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})(?:\/|$)/i
   const roots = new Set(
     [...all.keys()].flatMap((name) => {
@@ -46,19 +111,11 @@ export function portableProjectDocuments(all: Map<string, ProjectDocument>): {
   // can own a composition even when no timeline uses it.
   if (all.has('Timelines/project.json')) {
     for (const [name, doc] of all) {
-      if (proxy.has(name)) continue
+      if (proxy.has(name) || excludesTimeline(name)) continue
       const owner = subdraft.exec(name)?.[1].toLowerCase()
       const refs = owner ? (edges.get(owner) ?? new Set<string>()) : reachable
-      const collect = (text: string): void => {
-        for (const match of text.matchAll(/[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}/gi)) {
-          const id = match[0].toLowerCase()
-          if (roots.has(id)) refs.add(id)
-        }
-      }
-      collect(JSON.stringify(doc.value)) // Includes UUID-valued object keys.
-      walkJsonStrings(doc.value, (value) => {
-        collect(value) // Also decodes embedded JSON strings without mutating them.
-        return undefined
+      collectDocumentIds(doc, (id) => {
+        if (roots.has(id)) refs.add(id)
       })
       if (owner) edges.set(owner, refs)
     }
@@ -74,7 +131,7 @@ export function portableProjectDocuments(all: Map<string, ProjectDocument>): {
     for (const id of roots) reachable.add(id)
   }
   const excludes = (relative: string): boolean => {
-    if (proxy.has(relative)) return true
+    if (proxy.has(relative) || excludesTimeline(relative)) return true
     const id = subdraft.exec(relative)?.[1].toLowerCase()
     return id !== undefined && roots.has(id) && !reachable.has(id)
   }
