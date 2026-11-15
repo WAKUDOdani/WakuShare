@@ -35,7 +35,12 @@ import {
 import { CapShareError } from '../errors'
 import { portableFileName, walkFiles } from '../fsx'
 import { ZipWriter } from '../zip'
-import { isLibraryResource, projectResourcePath } from './unavailable-media'
+import {
+  disabledVocalCache,
+  displayMediaPath,
+  isLibraryResource,
+  projectResourcePath
+} from './unavailable-media'
 import { classifyString } from '../capcut/scanner'
 import { MEDIA_RESOURCE } from '../reference-policy'
 import {
@@ -159,20 +164,40 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
     draftFolderJson
   )
   const snapshots = new Map<string, Buffer>()
+  const omittedCacheRefs = new Map<string, Set<string>>()
   for (const doc of documents.values()) {
     const value = structuredClone(doc.value)
-    const changed = walkJsonStrings(value, (value, pointer) => {
-      const relative = internalReference(value, pointer, doc.relativePath)
+    const omitted = new Set<string>()
+    const changed = walkJsonStrings(value, (current, pointer) => {
+      const cache = disabledVocalCache(
+        doc.value,
+        current,
+        pointer,
+        doc.relativePath,
+        draftFolderJson
+      )
+      if (cache && (!includeCaches || !resourceNames.has(cache))) {
+        omitted.add(pointer)
+        return ''
+      }
+      const relative = internalReference(current, pointer, doc.relativePath)
       if (relative === undefined) return undefined
       if (!relative) return '' // A missing generated compound cover is optional.
       assertRelativeResource(relative)
       return `${DRAFT_PATH_PLACEHOLDER}/${relative}`
     })
     if (changed) snapshots.set(doc.relativePath, Buffer.from(JSON.stringify(value)))
+    if (omitted.size) omittedCacheRefs.set(doc.relativePath, omitted)
   }
   const effectRootsSeen = new Set<string>()
   const loosePlans = new Map<string, LoosePlan>()
   const missingSeen = new Set<string>()
+  const leanSkips = new Set<string>(REGENERABLE_DIRS.map((dir) => dir.toLowerCase()))
+  const requiredCachePaths = new Set<string>()
+  const optionalCachePath = (path: string): boolean => {
+    const parts = path.toLowerCase().split('/')
+    return leanSkips.has(parts[0]) || leanSkips.has(parts.slice(0, 2).join('/'))
+  }
   const unavailableMedia: NonNullable<CapShareManifest['unavailableMedia']> = []
   let looseIndex = 0
 
@@ -180,7 +205,8 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
     // Provenance-only fields: where media was imported FROM originally. The
     // copies already live in Resources/local — bundling these would duplicate
     // gigabytes and rewrite fields CapCut treats as informational.
-    if (isProvenanceField(item.pointer)) continue
+    if (isProvenanceField(item.pointer) || omittedCacheRefs.get(item.document)?.has(item.pointer))
+      continue
 
     const packaged = internalReference(item.value, item.pointer, item.document)
     if (packaged !== undefined) {
@@ -198,6 +224,8 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
       if (relative === null && MEDIA_RESOURCE.test(item.normalized))
         assertExportResource(item.normalized)
       const sourcePath = relative === null ? item.normalized : join(draftFolder, relative)
+      if (relative && !includeCaches && optionalCachePath(relative))
+        requiredCachePaths.add(relative.toLowerCase())
       if (!existsSync(sourcePath) && !overrides.has(item.normalized.toLowerCase())) {
         unavailableMedia.push({
           document: item.document,
@@ -284,12 +312,20 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
   }
 
   const timelineNames = new Set<string>(TIMELINE_FILENAMES)
-  const leanSkips = new Set<string>(REGENERABLE_DIRS)
+  const requiredCacheParents = new Set<string>()
+  for (const path of requiredCachePaths) {
+    const parts = path.split('/')
+    for (let i = 1; i < parts.length; i++) requiredCacheParents.add(parts.slice(0, i).join('/'))
+  }
   const skip = (relPath: string, isDir: boolean): boolean => {
     if (portable.excludes(relPath)) return true
-    if (isDir) {
-      return !includeCaches && leanSkips.has(relPath)
-    }
+    if (
+      !includeCaches &&
+      optionalCachePath(relPath) &&
+      !(isDir ? requiredCacheParents : requiredCachePaths).has(relPath.toLowerCase())
+    )
+      return true
+    if (isDir) return false
     const base = relPath.split('/').pop() ?? relPath
     if (JUNK_FILE_NAMES.has(base)) return true
     const modernTemplate = graph && /^template(-\d+)?\.tmp$/i.test(base)
@@ -513,7 +549,9 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
 
   const outStat = await stat(destinationPath)
   for (const missing of missingAtExport) {
-    warnings.push(`Media file referenced by the project was missing at export: ${missing}`)
+    warnings.push(
+      `Media file referenced by the project was missing at export: ${displayMediaPath(missing)}`
+    )
   }
 
   return {

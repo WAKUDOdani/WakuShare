@@ -420,7 +420,7 @@ function PreviewCard({
             {preview.compat.warnings.map((warning, i) => (
               <div key={i} className="flex gap-2 ui-type-body text-amber-700 dark:text-amber-400">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                {t(warning)}
+                <span className="min-w-0 break-words">{t(warning)}</span>
               </div>
             ))}
           </div>

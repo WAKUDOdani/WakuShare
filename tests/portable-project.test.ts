@@ -12,7 +12,10 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { exportDraft } from '../src/main/core/capshare/export'
-import { importCapshare as importCapshareCore } from '../src/main/core/capshare/import'
+import {
+  importCapshare as importCapshareCore,
+  inspectCapshare
+} from '../src/main/core/capshare/import'
 import { parseManifest } from '../src/main/core/capshare/manifest'
 import { readProjectDocuments, validateTimelineGraph } from '../src/main/core/capcut/project'
 import { DRAFT_PATH_PLACEHOLDER } from '../src/main/core/capcut/constants'
@@ -142,6 +145,130 @@ async function exportCase(): Promise<string> {
 }
 
 describe('complete portable multi-timeline project', () => {
+  const vocalPath = 'Resources/audioAlg/daa72e0a2efa3ff5436951bd0f9ab4f4_0_66520000.wav'
+  const alternateVocalPath = 'Resources/audioAlg/another.wav'
+  const vocalPointer = '/materials/vocal_beautifys/0/production_path'
+
+  function writeVocalEffect(enable: boolean): void {
+    for (const name of [
+      'draft_content.json',
+      'template-2.tmp',
+      `Timelines/${ids[0]}/draft_content.json`,
+      `Timelines/${ids[0]}/template-2.tmp`
+    ]) {
+      const path = join(source, name)
+      const value = json(existsSync(path) ? path : join(source, 'draft_content.json'))
+      write(path, {
+        ...value,
+        materials: {
+          ...value.materials,
+          vocal_beautifys: [
+            {
+              type: 'vocal_beautify',
+              enable,
+              production_path: `${DRAFT_PATH_PLACEHOLDER}/${vocalPath}`
+            }
+          ]
+        }
+      })
+    }
+  }
+
+  it.each([true, false])(
+    'keeps only referenced audio resources in a lean export (effect enabled: %s)',
+    async (enable) => {
+      writeVocalEffect(enable)
+      write(join(source, vocalPath), 'voice analysis output')
+      write(join(source, alternateVocalPath), 'other analysis output')
+      const archive = join(root, 'lean.wakushare')
+      const result = await exportDraft({
+        draftFolder: source,
+        env,
+        destinationPath: archive,
+        includeCaches: false,
+        capshareVersion: 'test'
+      })
+      expect(result.warnings).toEqual([])
+      const entries = await readZipEntries(archive, ['manifest.json', 'draft/draft_content.json'])
+      const manifest = parseManifest(entries.get('manifest.json')!.toString())
+      expect(Boolean(manifest.integrity[vocalPath])).toBe(enable)
+      expect(manifest.integrity[alternateVocalPath]).toBeUndefined()
+      const voice = JSON.parse(entries.get('draft/draft_content.json')!.toString()).materials
+        .vocal_beautifys[0]
+      expect(voice.production_path).toBe(enable ? `${DRAFT_PATH_PLACEHOLDER}/${vocalPath}` : '')
+    }
+  )
+
+  it('keeps a real missing source visible and ignores the missing output of a disabled effect', async () => {
+    writeVocalEffect(false)
+    rmSync(external[0])
+    const archive = await exportCase()
+    const preview = await inspectCapshare(archive, env)
+    expect(preview.compat.warnings).toHaveLength(1)
+    expect(preview.compat.warnings[0]).toContain('same.png')
+    expect(preview.compat.warnings[0]).not.toContain(vocalPath)
+  })
+
+  it('reclassifies a legacy missing cache from verified effect settings during preview and import', async () => {
+    // Generate the legacy declaration with the pre-fix behavior for an enabled
+    // effect, then change the archived documents to the disabled state.
+    writeVocalEffect(true)
+    const original = await exportCase()
+    const manifest = parseManifest(
+      (await readZipEntries(original, ['manifest.json'])).get('manifest.json')!.toString()
+    )
+    const refs = manifest.unavailableMedia!.filter((ref) => ref.pointer === vocalPointer)
+    expect(refs).toHaveLength(4)
+    const active = await inspectCapshare(original, env)
+    expect(active.compat.warnings.some((warning) => warning.includes(vocalPath))).toBe(true)
+    const names = [
+      ...Object.keys(manifest.integrity).map((name) => 'draft/' + name),
+      ...manifest.looseMedia.map((item) => item.archivePath)
+    ]
+    const bytes = await readZipEntries(original, names)
+    const archive = join(root, 'legacy.wakushare')
+    const writer = new ZipWriter(archive)
+    for (const [name, data] of bytes) {
+      const ref = refs.find((item) => 'draft/' + item.document === name)
+      let snapshot = data
+      if (ref) {
+        const value = JSON.parse(data.toString())
+        value.materials.vocal_beautifys[0].enable = false
+        snapshot = Buffer.from(JSON.stringify(value))
+      }
+      const entry = await writer.add({ kind: 'buffer', zipPath: name, data: snapshot })
+      if (ref) manifest.integrity[ref.document] = { size: entry.size, sha256: entry.sha256 }
+    }
+    await writer.add({
+      kind: 'buffer',
+      zipPath: 'manifest.json',
+      data: Buffer.from(JSON.stringify(manifest))
+    })
+    await writer.finish()
+    expect((await inspectCapshare(archive, env)).compat.warnings).toEqual([])
+    const result = await importCapshare({
+      filePath: archive,
+      env,
+      resolution: 'copy',
+      backupDir: join(root, 'backups')
+    })
+    expect(result.warnings.every((warning) => !warning.includes('already unavailable'))).toBe(true)
+    const restored = JSON.parse(readFileSync(join(result.folderPath, 'draft_content.json'), 'utf8'))
+    expect(restored.materials.vocal_beautifys[0]).toMatchObject({
+      enable: false,
+      production_path: ''
+    })
+    expect(restored.tracks).toEqual(json(join(source, 'draft_content.json')).tracks)
+    const secondExport = await exportDraft({
+      draftFolder: result.folderPath,
+      env,
+      destinationPath: join(root, 'reexport.wakushare'),
+      includeCaches: false,
+      capshareVersion: 'test'
+    })
+    expect(secondExport.warnings).toEqual([])
+  })
+
   it('keeps the media extension when a long name is cut at a dot', async () => {
     const fileName = `${'Д'.repeat(79)}.long title.mp4`
     const filePath = join(root, 'external', fileName)

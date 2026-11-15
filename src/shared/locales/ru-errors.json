@@ -26,6 +26,7 @@
   "Project resources changed during export; the incomplete package was discarded.": "Ресурсы проекта изменились во время экспорта. Неполный пакет удалён.",
   "External resource changed during export: {0}": "Внешний ресурс изменился во время экспорта: {0}",
   "Media file referenced by the project was missing at export: {0}": "Во время экспорта отсутствовал исходник, на который ссылается проект: {0}",
+  "{0} more source file(s) were missing at export.": "Других исходников, отсутствовавших при экспорте: {0}.",
   "This file is not a readable .capshare archive.": "Не удалось прочитать этот файл как архив .capshare.",
   "The archive has no manifest — not a .capshare file.": "В архиве отсутствует описание пакета. Это не файл .capshare.",
   "This project was exported on {0}. Fonts not installed on this machine will fall back, and online effects may need to re-download.": "Проект экспортирован в системе {0}. Отсутствующие на этом компьютере шрифты будут заменены, а онлайн-эффекты могут потребовать повторной загрузки.",

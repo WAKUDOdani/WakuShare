@@ -7,7 +7,7 @@ import {
 } from '../reference-policy'
 import { effectResourceRequiresTrust, type ApproveActiveContent } from '../payload-policy'
 import { approveNewResources } from '../resource-trust'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { constants, existsSync } from 'node:fs'
 import { copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -45,7 +45,13 @@ import {
 import { CapShareError } from '../errors'
 import { dirSize, ensureDir, hashFile, sanitizeFolderName, uniqueName } from '../fsx'
 import { extractZip, readZipEntries } from '../zip'
-import { assertUnavailableReference, unavailableTarget } from './unavailable-media'
+import {
+  assertUnavailableReference,
+  disabledVocalCache,
+  displayMediaPath,
+  isVocalCacheField,
+  unavailableTarget
+} from './unavailable-media'
 import {
   COVER_ENTRY_NAME,
   DRAFT_ENTRY_PREFIX,
@@ -116,6 +122,69 @@ export async function inspectCapshare(
   return (await inspectCapshareWithManifest(filePath, env)).preview
 }
 
+/** Earlier exporters recorded missing disabled voice caches as missing source files. */
+async function previewMissingSources(
+  filePath: string,
+  manifest: CapShareManifest
+): Promise<string[]> {
+  const missing = new Map(
+    manifest.missingAtExport.map((path) => [normalizeResourcePath(path), path])
+  )
+  const candidates = new Map<string, NonNullable<CapShareManifest['unavailableMedia']>>()
+  for (const reference of manifest.unavailableMedia ?? []) {
+    const key = normalizeResourcePath(reference.originalPath)
+    if (!missing.has(key)) continue
+    const references = candidates.get(key) ?? []
+    references.push(reference)
+    candidates.set(key, references)
+  }
+  const groups = [...candidates].filter(([, refs]) =>
+    refs.every((ref) => isVocalCacheField(ref.pointer))
+  )
+  if (!groups.length) return [...missing.values()]
+  const names = new Set(groups.flatMap(([, refs]) => refs.map((ref) => ref.document)))
+  if (manifest.integrity[DRAFT_META_FILENAME]) names.add(DRAFT_META_FILENAME)
+  const verified = new Map<string, unknown>()
+  try {
+    const entries = await readZipEntries(
+      filePath,
+      [...names].map((name) => DRAFT_ENTRY_PREFIX + name)
+    )
+    for (const name of names) {
+      const bytes = entries.get(DRAFT_ENTRY_PREFIX + name)
+      const expected = manifest.integrity[name]
+      if (
+        bytes &&
+        expected &&
+        bytes.length === expected.size &&
+        createHash('sha256').update(bytes).digest('hex') === expected.sha256
+      ) {
+        verified.set(name, JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/, '')))
+      }
+    }
+    const metadata = verified.get(DRAFT_META_FILENAME) as { draft_fold_path?: unknown } | undefined
+    const folder =
+      typeof metadata?.draft_fold_path === 'string' ? metadata.draft_fold_path : undefined
+    for (const [key, refs] of groups) {
+      if (
+        refs.every((ref) =>
+          disabledVocalCache(
+            verified.get(ref.document),
+            ref.originalPath,
+            ref.pointer,
+            ref.document,
+            folder
+          )
+        )
+      )
+        missing.delete(key)
+    }
+  } catch {
+    // Leave uncertain entries visible. Full import still validates archive integrity.
+  }
+  return [...missing.values()]
+}
+
 /** inspectCapshare plus the parsed manifest, so importers avoid a second zip read. */
 async function inspectCapshareWithManifest(
   filePath: string,
@@ -159,10 +228,14 @@ async function inspectCapshareWithManifest(
       `This project was exported on ${manifest.source.os === 'mac' ? 'macOS' : 'Windows'}. Fonts not installed on this machine will fall back, and online effects may need to re-download.`
     )
   }
-  if (manifest.missingAtExport.length > 0) {
+  const missing = await previewMissingSources(filePath, manifest)
+  for (const path of missing.slice(0, 5)) {
     warnings.push(
-      `${manifest.missingAtExport.length} media file(s) were already missing when this project was exported.`
+      `Media file referenced by the project was missing at export: ${displayMediaPath(path)}`
     )
+  }
+  if (missing.length > 5) {
+    warnings.push(`${missing.length - 5} more source file(s) were missing at export.`)
   }
 
   const collision = env
@@ -429,11 +502,19 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
     }
 
     const rewriteValue =
-      (style: 'placeholder' | 'relative', document: string) =>
+      (style: 'placeholder' | 'relative', document: string, root: unknown) =>
       (value: string, pointer: string): string | undefined => {
         if (pointer.includes('draft_materials_copied_info')) return undefined
         assertResourceScheme(value, pointer)
         const absent = unavailable.get(document + '\0' + pointer)
+        const cache = disabledVocalCache(
+          root,
+          value,
+          pointer,
+          document,
+          sourceFolderJson ?? undefined
+        )
+        if (cache && !existsSync(join(stagingDir, cache))) return ''
         if (absent && normalizeResourcePath(absent.originalPath) === normalizeResourcePath(value)) {
           assertUnavailableReference(value, pointer, document, sourceFolderJson ?? undefined)
           const relative = unavailableTarget(value)
@@ -495,7 +576,8 @@ export async function importCapshare(options: ImportCapshareOptions): Promise<Im
         doc.value,
         rewriteValue(
           doc.relativePath === DRAFT_META_FILENAME ? 'relative' : 'placeholder',
-          doc.relativePath
+          doc.relativePath,
+          doc.value
         )
       )
     }

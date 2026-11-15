@@ -11,6 +11,47 @@ import {
 import { archiveError } from '../archive-safety'
 import { portableFileName } from '../fsx'
 
+const vocalCacheField = /^\/materials\/vocal_beautifys\/(\d+)\/production_path$/
+
+export function isVocalCacheField(pointer: string): boolean {
+  return vocalCacheField.test(pointer)
+}
+
+/** A disabled native voice effect can keep a path to output that CapCut no longer uses. */
+export function disabledVocalCache(
+  root: unknown,
+  value: string,
+  pointer: string,
+  document: string,
+  folder?: string
+): string | undefined {
+  const match = vocalCacheField.exec(pointer)
+  if (!match || !/\.wav$/i.test(value) || typeof root !== 'object' || !root) return undefined
+  const materials = (root as { materials?: { vocal_beautifys?: unknown } }).materials
+  if (!Array.isArray(materials?.vocal_beautifys)) return undefined
+  const material = materials.vocal_beautifys[Number(match[1])]
+  if (
+    material?.type !== 'vocal_beautify' ||
+    material.enable !== false ||
+    material.production_path !== value
+  )
+    return undefined
+  const relative = projectResourcePath(value, document, folder)
+  if (!relative) return undefined
+  if (/^Resources\/audioAlg\/[^/]+\.wav$/i.test(relative)) return relative
+  // Older WakuShare imports moved this missing cache reference into unavailable/.
+  if (/^Resources\/unavailable\/[a-f\d]{64}\/[a-f\d]{32}_\d+_\d+\.wav$/i.test(relative))
+    return relative
+  return undefined
+}
+
+export function displayMediaPath(value: string): string {
+  const normalized = normalizeResourcePath(value)
+  return normalized.startsWith(DRAFT_PATH_PLACEHOLDER + '/')
+    ? normalized.slice(DRAFT_PATH_PLACEHOLDER.length + 1)
+    : normalized
+}
+
 export function isLibraryResource(value: string, pointer: string): boolean {
   if (pointer.includes('draft_materials_copied_info')) return false
   if (MEDIA_RESOURCE.test(value) && isResourceField(pointer)) return true
