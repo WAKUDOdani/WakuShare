@@ -9,6 +9,7 @@ import { extractZip, readZipEntries, ZipWriter } from '../src/main/core/zip'
 import { validateArchivePath } from '../src/main/core/archive-safety'
 import { walkJsonStrings } from '../src/main/core/capcut/scanner'
 import { documentResourcePath } from '../src/main/core/capshare/media-plan'
+import { portableFileName, sanitizeFolderName } from '../src/main/core/fsx'
 import {
   assertExportResource,
   assertRelativeResource,
@@ -16,6 +17,18 @@ import {
 } from '../src/main/core/reference-policy'
 
 let root: string
+
+it('makes generated Windows names portable without changing the archive validator', () => {
+  const name = portableFileName('界'.repeat(100) + '.mp4', 220, ' (2)')
+  expect(Buffer.byteLength(name)).toBeLessThanOrEqual(255)
+  expect(validateArchivePath(name)).toMatch(/ \(2\)\.mp4$/)
+  expect(portableFileName('x'.repeat(75) + '🎞.mp4')).toBe('x'.repeat(75) + '.mp4')
+  expect(portableFileName('COM¹ .mp4')).toBe('_COM¹ .mp4')
+  expect(portableFileName('bad:/name.wakushare')).toBe('bad__name.wakushare')
+  expect(sanitizeFolderName('x'.repeat(79) + '.tail', 'windows')).toBe('x'.repeat(79))
+  expect(sanitizeFolderName('..', 'mac')).toBe('Imported Project')
+  expect(() => validateArchivePath('media/COM¹.mp4')).toThrow()
+})
 
 it('resolves document-relative resources only inside declared package files', () => {
   const declared = new Set(['Resources/combination/audio.aac'])

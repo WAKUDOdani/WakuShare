@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { posix, resolve, sep } from 'node:path'
+import { archivePathKey } from '../archive-safety'
 import { DRAFT_PATH_PLACEHOLDER } from '../capcut/constants'
 import { walkJsonStrings, normalizeSlashes, normalizeResourcePath } from '../capcut/scanner'
 import type { ProjectDocument } from '../capcut/project'
 import { CapShareError } from '../errors'
+import { portableFileName } from '../fsx'
 import type { CapShareManifest } from './manifest'
 
 export const SOURCES_FOLDER = 'Resources/local/Исходники'
@@ -24,19 +26,6 @@ export function documentResourcePath(
   return declared.has(relative) ? relative : undefined
 }
 
-function mediaName(name: string): string {
-  // Preserve extensions and Unicode. Hash folders, not content, disambiguate names.
-  // eslint-disable-next-line no-control-regex -- Windows file names forbid these control characters.
-  let result = name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/[. ]+$/g, '')
-  if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(result)) result = '_' + result
-  if (result.length > 220) {
-    const dot = result.lastIndexOf('.')
-    const extension = dot > 0 ? result.slice(dot, dot + 20) : ''
-    result = result.slice(0, 200) + extension
-  }
-  return result || 'source'
-}
-
 export function createMediaPlan(manifest: CapShareManifest): {
   looseTargets: Map<string, { newRel: string; originalPath: string }>
   internalTargets: Map<string, string>
@@ -47,15 +36,15 @@ export function createMediaPlan(manifest: CapShareManifest): {
   const archiveTargets = new Map<string, string>()
   const used = new Set<string>()
   const allocate = (fileName: string, identity: string): string => {
-    const name = mediaName(fileName)
+    const name = portableFileName(fileName, 220)
     let candidate = `${SOURCES_FOLDER}/${name}`
-    if (used.has(candidate.toLowerCase())) {
+    if (used.has(archivePathKey(candidate))) {
       const token = createHash('sha256').update(identity).digest('hex').slice(0, 20)
       candidate = `${SOURCES_FOLDER}/${token}/${name}`
     }
-    if (used.has(candidate.toLowerCase()))
+    if (used.has(archivePathKey(candidate)))
       throw new CapShareError('ARCHIVE_INVALID', `Duplicate media identity: ${identity}`)
-    used.add(candidate.toLowerCase())
+    used.add(archivePathKey(candidate))
     return candidate
   }
   const internals = Object.keys(manifest.integrity)
@@ -63,9 +52,9 @@ export function createMediaPlan(manifest: CapShareManifest): {
     .sort()
   // Re-exporting an organized project must not add another nested Sources folder.
   for (const relative of internals.filter((p) => p.startsWith(SOURCES_FOLDER + '/'))) {
-    if (used.has(relative.toLowerCase()))
+    if (used.has(archivePathKey(relative)))
       throw new CapShareError('ARCHIVE_INVALID', 'Conflicting internal media names')
-    used.add(relative.toLowerCase())
+    used.add(archivePathKey(relative))
     internalTargets.set(relative, relative)
     archiveTargets.set('draft/' + relative, relative)
   }

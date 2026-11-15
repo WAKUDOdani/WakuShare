@@ -1,8 +1,38 @@
 import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { lstat, mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
-import { dirname, join, relative } from 'node:path'
+import { dirname, extname, join, relative } from 'node:path'
 import { pipeline } from 'node:stream/promises'
+
+const windowsDeviceName = /^(?:con|prn|aux|nul|conin\$|conout\$|com[1-9¹²³]|lpt[1-9¹²³]) *(?:\.|$)/i
+
+function truncateName(name: string, maxUnits: number, maxBytes: number): string {
+  let end = 0
+  let bytes = 0
+  for (const character of name) {
+    bytes += Buffer.byteLength(character)
+    if (end + character.length > maxUnits || bytes > maxBytes) break
+    end += character.length
+  }
+  return name.slice(0, end)
+}
+
+/** Shorten a generated media filename while reserving room for its extension and suffix. */
+export function portableFileName(name: string, maxUnits = 80, suffix = ''): string {
+  // eslint-disable-next-line no-control-regex -- Windows forbids control characters.
+  const clean = name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/[. ]+$/g, '')
+  const lastExtension = extname(clean)
+  const extension = lastExtension.length <= 20 ? lastExtension : ''
+  const base = clean.slice(0, clean.length - extension.length)
+  const tail = suffix + extension
+  const stem = (prefix: string): string => {
+    const original = prefix + base
+    const shortened = truncateName(original, maxUnits - tail.length, 255 - Buffer.byteLength(tail))
+    return (shortened === original ? shortened : shortened.replace(/[. ]+$/g, '')) || 'source'
+  }
+  const result = stem('') + tail
+  return windowsDeviceName.test(result) ? stem('_') + tail : result
+}
 
 export interface WalkedFile {
   /** Absolute path. */
@@ -106,13 +136,13 @@ export function sanitizeFolderName(name: string, os: 'mac' | 'windows'): string 
     .replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-  if (os === 'windows') {
-    safe = safe.replace(/[. ]+$/g, '')
-    if (/^(CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|COM[1-9¹²³]|LPT[1-9¹²³])(?:\.|$)/i.test(safe))
-      safe = `_${safe}`
+  const shorten = (value: string): string => {
+    const trimmed = truncateName(value, 80, 255).trimEnd()
+    return os === 'windows' ? trimmed.replace(/[. ]+$/g, '') : trimmed
   }
-  safe = safe.slice(0, 80).trim()
-  return safe.length > 0 ? safe : 'Imported Project'
+  safe = shorten(safe)
+  if (os === 'windows' && windowsDeviceName.test(safe)) safe = shorten(`_${safe}`)
+  return safe && safe !== '.' && safe !== '..' ? safe : 'Imported Project'
 }
 
 /** Returns `base`, or `base 2`, `base 3`, … — the first name not in `taken`. */

@@ -33,7 +33,7 @@ import {
   walkJsonStrings
 } from '../capcut/scanner'
 import { CapShareError } from '../errors'
-import { sanitizeFolderName, walkFiles } from '../fsx'
+import { portableFileName, walkFiles } from '../fsx'
 import { ZipWriter } from '../zip'
 import { isLibraryResource, projectResourcePath } from './unavailable-media'
 import { classifyString } from '../capcut/scanner'
@@ -269,7 +269,7 @@ export async function exportDraft(options: ExportDraftOptions): Promise<ExportRe
           const fileName = basename(item.normalized)
           looseIndex++
           loosePlans.set(key, {
-            archivePath: `${LOOSE_MEDIA_PREFIX}${looseIndex}-${sanitizeFolderName(fileName, 'windows')}`,
+            archivePath: `${LOOSE_MEDIA_PREFIX}${looseIndex}-${portableFileName(fileName)}`,
             originalPath: normalizeSlashes(item.value),
             fileName,
             diskPath: sourcePath,

@@ -114,6 +114,28 @@ afterEach(() => {
 })
 
 describe('composition preset transfer', () => {
+  it('roundtrips distinct media whose long names shorten to the same stem', async () => {
+    const draftPath = join(root, 'Combination/Presets/One/preset_draft/draft_content.json')
+    const prefix = 'Д'.repeat(75) + '. 🎞 '
+    const paths = ['one', 'two'].map((name) => {
+      const file = join(tmp, 'source', prefix + name + '.mov')
+      write(file, name)
+      return { path: slash(file) }
+    })
+    write(draftPath, { ...json(draftPath), longMedia: paths })
+
+    const archive = join(tmp, 'long-names.wakupresets')
+    const target = join(tmp, 'long-names/Presets')
+    await exportPresets(root, ['p1'], archive, env)
+    await importPresets(archive, ['p1'], target, env, join(tmp, 'backup'))
+    const storage = [...(await readLibrary(target)).storage.values()][0]
+    const restored = json(join(storage.directory, 'preset_draft/draft_content.json'))
+    const files = restored['longMedia'] as { path: string }[]
+    expect(files.map(({ path }) => readFileSync(path, 'utf8'))).toEqual(['one', 'two'])
+    expect(files.every(({ path }) => path.endsWith('.mov'))).toBe(true)
+    expect(files[0].path).not.toBe(files[1].path)
+  })
+
   it('roundtrips standard media, fonts, subtitles and native sidecar formats', async () => {
     const formats = ['ts', 'mts', 'm2ts', 'wmv', 'flv', '3gp', 'heif', 'ico', 'srt', 'woff2']
     const native = [

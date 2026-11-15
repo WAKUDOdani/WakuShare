@@ -142,6 +142,39 @@ async function exportCase(): Promise<string> {
 }
 
 describe('complete portable multi-timeline project', () => {
+  it('keeps the media extension when a long name is cut at a dot', async () => {
+    const fileName = `${'Д'.repeat(79)}.long title.mp4`
+    const filePath = join(root, 'external', fileName)
+    writeFileSync(filePath, 'video bytes')
+    const sourcePath = filePath.replaceAll('\\', '/')
+    const document = timeline(ids[0], sourcePath, 0) as FixtureDocument
+    document.materials.audios = [{ path: `X:/unavailable/${'Д'.repeat(79)}.long title.wav` }]
+    write(join(source, 'draft_content.json'), document)
+    write(join(source, 'Timelines', ids[0], 'draft_content.json'), document)
+    write(join(source, 'Timelines', ids[0], 'template-2.tmp'), document)
+
+    const archive = await exportCase()
+    const entries = await readZipEntries(archive, ['manifest.json'])
+    const manifest = parseManifest(entries.get('manifest.json')!.toString())
+    const media = manifest.looseMedia.find((entry) => entry.originalPath === sourcePath)!
+    expect(media.archivePath).toMatch(/\.mp4$/)
+    expect(media.fileName).toBe(fileName)
+
+    const restored = await importCapshare({
+      filePath: archive,
+      env,
+      resolution: 'copy',
+      backupDir: join(root, 'backups')
+    })
+    expect(
+      readFileSync(join(restored.folderPath, 'Resources/local/Исходники', fileName), 'utf8')
+    ).toBe('video bytes')
+    const missingPath = json(join(restored.folderPath, 'draft_content.json')).materials.audios[0]
+      .path
+    expect(missingPath).toMatch(/Resources\/unavailable\/.*\.wav$/)
+    expect(existsSync(missingPath)).toBe(false)
+  })
+
   it('omits detached CapCut timeline folders from export and preserves the indexed timelines', async () => {
     const detachedId = randomUUID().toUpperCase()
     const prefix = `Timelines/${detachedId}/`

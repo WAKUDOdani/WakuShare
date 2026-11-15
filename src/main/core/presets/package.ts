@@ -37,7 +37,7 @@ import { DRAFT_PATH_PLACEHOLDER } from '../capcut/constants'
 import type { CapCutEnv } from '../capcut/model'
 import { classifyString, normalizeResourcePath, walkJsonStrings } from '../capcut/scanner'
 import { CapShareError } from '../errors'
-import { atomicWriteFile, hashFile, sanitizeFolderName, uniqueName } from '../fsx'
+import { atomicWriteFile, hashFile, portableFileName, sanitizeFolderName, uniqueName } from '../fsx'
 import type { WalkedFile } from '../fsx'
 import { extractZip, readZipEntries, ZipWriter } from '../zip'
 import {
@@ -105,13 +105,11 @@ const jsonPath = normalizeResourcePath
 const MEDIA_EXTENSION =
   /\.(?:mp4|mov|mkv|avi|webm|m4v|mpg|mpeg|wav|mp3|m4a|aac|flac|ogg|aif|aiff|wma|opus|png|jpe?g|webp|gif|bmp|tiff?|heic|avif|svg|ttf|otf|ttc|woff2?)$/i
 function mediaName(original: string, names: Set<string>): string {
-  original = sanitizeFolderName(original, 'windows')
-  const extension = extname(original),
-    stem = original.slice(0, original.length - extension.length)
-  let name = original,
-    number = 2
-  while (names.has(name.toLowerCase())) name = `${stem} (${number++})${extension}`
-  names.add(name.toLowerCase())
+  let name = portableFileName(original)
+  for (let number = 2; names.has(archivePathKey(name)); number++) {
+    name = portableFileName(original, 80, ` (${number})`)
+  }
+  names.add(archivePathKey(name))
   return name
 }
 const key = (path: string): string => jsonPath(resolve(path)).toLowerCase()

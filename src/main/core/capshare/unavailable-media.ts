@@ -9,7 +9,7 @@ import {
   isResourceField
 } from '../reference-policy'
 import { archiveError } from '../archive-safety'
-import { sanitizeFolderName } from '../fsx'
+import { portableFileName } from '../fsx'
 
 export function isLibraryResource(value: string, pointer: string): boolean {
   if (pointer.includes('draft_materials_copied_info')) return false
@@ -66,6 +66,6 @@ export function unavailableTarget(value: string): string {
   const original = normalizeResourcePath(value)
   const identity = createHash('sha256').update(original).digest('hex')
   return assertRelativeResource(
-    `Resources/unavailable/${identity}/${sanitizeFolderName(original.split('/').pop() || 'source', 'windows')}`
+    `Resources/unavailable/${identity}/${portableFileName(original.split('/').pop() || 'source')}`
   )
 }

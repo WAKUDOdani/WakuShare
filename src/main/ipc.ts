@@ -2,6 +2,7 @@ import { trustedHandle } from './ipc-security'
 import { translateText } from '../shared/i18n'
 import { app, BrowserWindow, dialog, nativeImage, shell } from 'electron'
 import { join } from 'node:path'
+import { portableFileName } from './core/fsx'
 import log from 'electron-log/main'
 import { z } from 'zod'
 import { IPC } from '../shared/channels'
@@ -296,7 +297,7 @@ export function registerIpcHandlers(ctx: IpcContext): void {
           title: mainT('Export .wakushare'),
           defaultPath: join(
             settings.defaultExportDir ?? app.getPath('downloads'),
-            `${name}.${PROJECT_EXTENSION}`
+            portableFileName(`${name}.${PROJECT_EXTENSION}`)
           ),
           filters: [{ name: mainT('WakuShare Project'), extensions: [PROJECT_EXTENSION] }]
         })
